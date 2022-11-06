@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+    <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script>
+    <script src="main.js"></script>
+    <title>Interactive 3D Map via OSM</title>
+</head>
+<body>
+    <div id = "WelcomeScreen">
+        <h2>Welcome to my Third Year Project for Lancaster University.</h2>
+        <br>
+        This website automatically generates a 3D map of the specified place using OSM's large database.
+        <br>
+        <button id="loadMapBtn" onclick="loadMap()">Load Map</button>
+    </div>
+    <div id = "MapScreen" style="display: none">
+        <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
+        <a-scene>
+            <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
+            <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
+            <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
+            <a-plane position="0 0 -4" rotation="-90 0 0" width="100" height="100" color="#24A009"></a-plane>
+            <a-sky color="#B8F6FF"></a-sky>
+        </a-scene>
+    </div>
+</body>
+
+</html>
