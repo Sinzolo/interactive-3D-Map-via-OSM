@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<head>
+<link>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script>
+    <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>
     <script src="main.js"></script>
+    <script src="conversions.js"></script>
     <title>Interactive 3D Map via OSM</title>
 </head>
 <body>
@@ -21,10 +24,13 @@
     <div id = "MapScreen" style="display: none">
         <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
         <a-scene>
-            <a-box position="-1 0.5 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
-            <a-sphere position="0 1.25 -5" radius="1.25" color="#EF2D5E"></a-sphere>
-            <a-cylinder position="1 0.75 -3" radius="0.5" height="1.5" color="#FFC65D"></a-cylinder>
-            <a-plane position="0 0 -4" rotation="-90 0 0" width="100" height="100" color="#24A009"></a-plane>
+            <!-- <a-entity id="cameraRig" camera="head" wasd-controls="acceleration:100"  position="0 0 0" fly="true" position-limit="ymin: 0; ymax: 100;" movement-controls="true"> -->
+                <!-- camera -->
+            <!-- <a-entity id="head" camera="active: true" look-controls position="0 1.6 0"><a-entity cursor="rayOrigin: mouse;" raycaster="far: 2; objects: .clickable;"></a-entity></a-entity> -->
+            <a-entity id="rig" movement-controls="fly: true; speed: 2" position-limit="ymin: 0; ymax: 200">
+                <a-entity camera position="0 1.6 0" look-controls></a-entity>
+            </a-entity>
+            <a-plane position="0 0 -4" rotation="-90 0 0" width="600" height="600" color="#24A009"></a-plane>
             <a-sky color="#B8F6FF"></a-sky>
         </a-scene>
     </div>
