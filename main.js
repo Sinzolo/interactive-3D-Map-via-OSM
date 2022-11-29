@@ -2,8 +2,9 @@
 var overpassURL = "https://overpass-api.de/api/interpreter?data=";
 var centreLat = 54.008551;
 var centreLong = -2.787395;
+var boundingBox = "54.002150,-2.798493,54.014962,-2.776263"
 
-function loadMap() {
+async function loadMap() {
     /*
         Hides the welcome screen and shows the map
     */
@@ -14,7 +15,8 @@ function loadMap() {
 
     console.log("Loading Map...");
 
-    loadBuildings();
+    loadTerrain();
+    //loadBuildings();
 }
 
 function loadMenu() {
@@ -34,8 +36,8 @@ async function loadBuildings() {
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
     var overpassQuery = overpassURL +
     encodeURIComponent(
-        "(way[building](54.002150,-2.798493,54.014962,-2.776263);" +
-        "rel[building](54.002150,-2.798493,54.014962,-2.776263););" +
+        "(way[building]("+boundingBox+");" +
+        "rel[building]("+boundingBox+"););" +
         "out geom;>;out skel qt;"
     );
     console.log(overpassQuery);
@@ -74,11 +76,11 @@ async function loadBuildings() {
 function addBuilding(feature) {
     //console.log(feature);
     var tags = feature.properties;
-    console.log("Feature:", feature);
+    //console.log("Feature:", feature);
     var height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;
     else if(!height) height = 2;
-    console.log("Height:", height);
+    //console.log("Height:", height);
 
     var color = "#FFFFFF";
     if (tags["building:colour"]) {
@@ -89,21 +91,21 @@ function addBuilding(feature) {
     var xCoords = 0;
     var zCoords = 0;
     var count = 0;
-    console.log(feature.geometry.coordinates[0]);
+    //console.log(feature.geometry.coordinates[0]);
     feature.geometry.coordinates[0].forEach(coordinatesPair => {
-        console.log("Coords:");
-        console.log(coordinatesPair);
+        //console.log("Coords:");
+        //console.log(coordinatesPair);
         relativePos = getRelativePosition(coordinatesPair[1], coordinatesPair[0]);
-        console.log("Relative Coords:");
+        //console.log("Relative Coords:");
         relativePos.x = relativePos.x*4000
         relativePos.z = relativePos.z*4000
-        console.log(relativePos.x, relativePos.z);
+        //console.log(relativePos.x, relativePos.z);
         xCoords = xCoords + relativePos.x;
         zCoords = zCoords + relativePos.z;
         count++;
         outerPoints.push(new THREE.Vector2(relativePos.x, relativePos.z));
     });
-    console.log(outerPoints);
+    //console.log(outerPoints);
     // for (let way of feature.geometry.coordinates) {
     //   let wayPoints = [];
     //   for (let point of way) {
@@ -126,8 +128,8 @@ function addBuilding(feature) {
     newElement.setAttribute("class", "building");
     newElement.setAttribute("geometry", buildingProperties);
     newElement.setAttribute("material", {color: color});
-    newElement.setAttribute("position", {x: (xCoords/count), y:0, z: (zCoords/count)});
-    newElement.setAttribute("scale", "15 4 13");
+    newElement.setAttribute("position", {x: (xCoords/count), y:250, z: (zCoords/count)});
+    newElement.setAttribute("scale", "23 5 16");
     sceneElement.appendChild(newElement);
 }
 
@@ -156,4 +158,46 @@ AFRAME.registerGeometry('building', {
         geometry.center;
         this.geometry = geometry;
     }
+});
+
+
+
+
+
+
+
+
+
+
+
+// window.addEventListener("keydown", (event) => {
+//     if (event.defaultPrevented) {
+//       return; // Do nothing if the event was already processed
+//     }
+  
+//     switch (event.key) {
+//       case "Shift":
+//         console.log("shift");
+//         this.dVelocity.y -= 1;
+//         break;
+//       case "Space":
+//         console.log("Space");
+//         this.dVelocity.y += 1;
+//         break;
+//     }
+// });
+AFRAME.registerComponent('flight-controls', {
+    getVelocityDelta: function () {
+        var data = this.data,
+        keys = this.getKeys();
+
+        this.dVelocity.set(0, 0, 0);
+        if (data.enabled) {
+            // NEW STUFF HERE
+            if (keys.KeySpaceBar)  { console.log("Space"); this.dVelocity.y += 1; }
+            if (keys.KeyShift) { console.log("Shift"); this.dVelocity.y -= 1; }
+        }
+
+    return this.dVelocity.clone();
+    },
 });

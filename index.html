@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 
-<link>
+<head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,30 +9,76 @@
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
     <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script>
     <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>
+
+
+    <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">     <!-- GeoTiff image -->
+
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- GeoTiff converter -->
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
+    <script src="os-transform.js"></script>                                                     <!-- EPSG:27700 to WGS 84 converter -->
+
     <script src="main.js"></script>
     <script src="conversions.js"></script>
+    <script src="terrain.js"></script>
+
     <title>Interactive 3D Map via OSM</title>
 </head>
 <body>
+
     <div id = "WelcomeScreen">
-        <h2>Welcome to my Third Year Project for Lancaster University.</h2>
-        <br>
-        This website automatically generates a 3D map of the specified place using OSM's large database.
-        <br>
+        <h2>Welcome to my Third Year Project for Lancaster University.</h2> <br>
+        This website automatically generates a 3D map of the specified place using OSM's large database. <br>
         <button id="loadMapBtn" onclick="loadMap()">Load Map</button>
     </div>
+
+    <!-- <canvas id="plot"></canvas>
+    <script>
+        (async function() {
+          const tiff = await GeoTIFF.fromUrl("SD45ne_DTM_2m.tif");
+          const image = await tiff.getImage();
+          const data = await image.readRasters({ window: [left, top, right, bottom] });
+
+          const canvas = document.getElementById("plot");
+          const plot = new plotty.plot({
+            canvas,
+            data: data[0],
+            width: image.getWidth(),
+            height: image.getHeight(),
+            domain: [0, 256],
+            colorScale: "hot"
+          });
+          plot.render();
+        })();
+    </script> -->
+
     <div id = "MapScreen" style="display: none">
         <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
-        <a-scene>
-            <!-- <a-entity id="cameraRig" camera="head" wasd-controls="acceleration:100"  position="0 0 0" fly="true" position-limit="ymin: 0; ymax: 100;" movement-controls="true"> -->
-                <!-- camera -->
-            <!-- <a-entity id="head" camera="active: true" look-controls position="0 1.6 0"><a-entity cursor="rayOrigin: mouse;" raycaster="far: 2; objects: .clickable;"></a-entity></a-entity> -->
-            <a-entity id="rig" movement-controls="fly: true; speed: 2" position-limit="ymin: 0; ymax: 200">
-                <a-entity camera position="0 1.6 0" look-controls></a-entity>
+        <a-scene stats background="color: lightblue">
+
+            <a-entity id="rig" movement-controls="fly: true; speed: 10" position-limit="ymin: 250; ymax: 1000">
+                <a-entity camera position="0 251.6 0" look-controls></a-entity>
             </a-entity>
-            <a-plane position="0 0 -4" rotation="-90 0 0" width="600" height="600" color="#24A009"></a-plane>
-            <a-sky color="#B8F6FF"></a-sky>
-        </a-scene>
+
+            <!-- TODO Cant get flight control to work -->
+            <a-entity flight-controls>
+                <!-- or you could use universal-controls instead of both look- and wasd-controls. -->
+                <a-entity primitive= "flight-controls" universal-controls="movementControls: flight-controls, hmd"></a-entity>
+            </a-entity>
+
+            <!-- <a-plane position="0 0 -4" rotation="-90 0 0" width="600" height="600" color="#24A009"></a-plane> -->
+
+            <!-- <a-entity id="terrain" visible="true" 
+                geometry="
+                width: 600; height: 600; 
+                segmentsWidth: 80; segmentsHeight: 80; 
+                primitive: plane;" 
+                material="side: double; wireframe: true;
+                displacementScale: 30; displacementBias: -10;"
+                rotation="-90 0 0" position="0 0 0">
+            </a-entity> -->
+    </a-scene>
+
     </div>
 </body>
 

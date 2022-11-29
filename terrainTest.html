@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrain Test</title>
+
+    <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">
+
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/plotty@0.4.9/dist/plotty.min.js"></script>
+    <script src="terrain.js"></script>
+</head>
+
+<body>
+  <canvas id="plot"></canvas>
+  <canvas id="plot"></canvas>
+    <script>
+        (async function() {
+          const tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
+          const image = await tiff.getImage();
+          const data = await image.readRasters();
+
+          const canvas = document.getElementById("plot");
+          const plot = new plotty.plot({
+            canvas,
+            data: data[0],
+            width: image.getWidth(),
+            height: image.getHeight(),
+            domain: [0, 256],
+            colorScale: "hot"
+          });
+          plot.render();
+        })();
+    </script>
+</body>
+</html>

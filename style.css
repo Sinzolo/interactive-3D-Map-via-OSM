@@ -33,3 +33,7 @@ button {
     z-index: 100;
     position: relative;
 }
+
+.hidden {
+    display : none;
+}
