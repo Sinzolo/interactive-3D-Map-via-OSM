@@ -58,7 +58,7 @@
         <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
         <a-scene stats background="color: lightblue">
 
-            <a-entity id="rig" movement-controls="fly: true; speed: 1" position-limit="ymin: 250; ymax: 1000">
+            <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 250; ymax: 1000" rotation="0 -90 0">
                 <a-camera id="camera"></a-camera>
                 <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
             </a-entity>
@@ -82,12 +82,8 @@
             </a-entity> -->
 
             <a-entity buffer-geometry-merger material="vertexColors: vertex">
-                <a-entity geometry="primitive: box; skipCache: true" vertex-colors-buffer="baseColor: red" position="-2 0.75 -3"></a-entity>
-                <a-entity geometry="primitive: box; skipCache: true" vertex-colors-buffer="baseColor: green" position="2 0.75 -3" scale="0.5 0.5 0.5"></a-entity>
-                <a-entity position="0 2 0">
-                  <a-entity geometry="primitive: sphere; radius: 0.5" vertex-colors-buffer="baseColor: blue" position="0 0 -2"></a-entity>
-                </a-entity>
-              </a-entity>
+                  <a-entity geometry="primitive: sphere; radius: 3" vertex-colors-buffer="baseColor: red" position="200 2 0"></a-entity>
+            </a-entity>
     </a-scene>
 
     </div>

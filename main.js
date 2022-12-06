@@ -1,8 +1,11 @@
 var overpassURL = "https://overpass-api.de/api/interpreter?data=";
+/* Old coords for centre of uni */
 var centreLat = 54.008551;
 var centreLong = -2.787395;
+// var centreLat = 54.010212;
+// var centreLong = -2.785161;
 var boundingBox = "54.002150,-2.798493,54.014962,-2.776263"
-var boundingBox = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]
+var coordsScale = 0.5;
 
 async function loadMap() {
     /*
@@ -13,12 +16,19 @@ async function loadMap() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
-    camera = document.querySelector('#rig');
-    camera.setAttribute("position", centreLat+" 0 "+centreLong);
-
     await getHeightMap();
+
+    // camera = document.querySelector('#rig');
+    // var utm = convertLatLongToUTM(centreLat, centreLong);
+    // console.log("camera lat long coords: ", centreLat, centreLong);
+    // console.log("camera utm coords: ", utm.x, utm.y);
+    // var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
+    // console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
+    // camera.setAttribute("position", pixelCoords.x+" 0 "+pixelCoords.y);
+     camera.setAttribute("position", "0 0 0");
+
     loadTerrain();
-    //loadBuildings();
+    loadBuildings();
 }
 
 function loadMenu() {
@@ -33,8 +43,6 @@ function loadMenu() {
 
 
 async function loadBuildings() {
-    console.log(twoDHeightMapArray);
-
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
     var overpassQuery = overpassURL +
     encodeURIComponent(
@@ -54,8 +62,6 @@ async function loadBuildings() {
     .then((response) => {
         var parser = new DOMParser();
         var itemData = parser.parseFromString(response, "application/xml");
-        console.log(response);
-        console.log(itemData);
         var itemJSON = osmtogeojson(itemData);
         console.log(itemJSON);
         return itemJSON
@@ -89,38 +95,18 @@ async function addBuilding(feature) {
     var sumOfLatCoords = 0;
     var sumOfLongCoords = 0;
     var count = 0;
-    await fetch("uniTiff/SD45ne_DTM_2m.tfw").then(response => {
-        if (!response.ok) {
-            throw new Error("HTTP error " + response.status);
-        }
-        return response.text();
-    })
-    .then((data) => {
-        feature.geometry.coordinates[0].forEach(coordinatesPair => {
-            //relativePos = getRelativePosition(coordinatesPair[1], coordinatesPair[0]);
-            //relativePos.x = relativePos.x*20000
-            //relativePos.z = relativePos.z*20000
-            tempLat = coordinatesPair[1];
-            tempLong = coordinatesPair[0];
-            sumOfLatCoords += tempLat;
-            sumOfLongCoords += tempLong;
-            count++;
-            let temp = convertLatLongToUTM(tempLat, tempLong);
-            console.log(temp);
-            let easting = temp.x;
-            let northing = temp.y;
-            let twfData = data.split("\n");
-            let x = (twfData[3]*easting-twfData[2]*northing+twfData[2]*twfData[5]-twfData[3]*twfData[4])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
-            let y = (-twfData[1]*easting+twfData[0]*northing+twfData[1]*twfData[4]-twfData[0]*twfData[5])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
-            console.log(x, y);
-            let xy = convertToNewPixelCoords(x, y);
-            console.log(xy);
-            x = Math.round(xy.x);
-            y = Math.round(xy.y);
-            console.log({x: x, y: y});
-            return {x: x, y: y};
-        });
-    }).catch((err) => {console.error(err)});
+    feature.geometry.coordinates[0].forEach(coordinatesPair => {
+        tempLat = coordinatesPair[1];
+        tempLong = coordinatesPair[0];
+        sumOfLatCoords += tempLat;
+        sumOfLongCoords += tempLong;
+        count++;
+        let utm = convertLatLongToUTM(tempLat, tempLong);
+        let easting = utm.x;
+        let northing = utm.y;
+        let pixelCoords = convertUTMToPixelCoords(easting, northing);
+        outerPoints.push(new THREE.Vector2(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale));
+    });
 
     //console.log(outerPoints);
     // for (let way of feature.geometry.coordinates) {
@@ -146,38 +132,22 @@ async function addBuilding(feature) {
     newElement.setAttribute("geometry", buildingProperties);
     newElement.setAttribute("material", {color: color});
 
-    // var buildingCentreLatLong = getLatLongFromRelativePosition((sumOfLatCoords/count), (sumOfLongCoords/count));
-    // var buildingUTM = convertLatLongToUTM(buildingCentreLatLong.lat, buildingCentreLatLong.long);
-    // var pixelCoords = convertUTMToPixelCoords(buildingUTM.x, buildingUTM.y);        // Has to be y because of proj4
+    console.log("building lat: ", sumOfLatCoords/count);
+    console.log("building long: ", sumOfLongCoords/count);
+    
+    let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
+    let easting = utm.x;
+    let northing = utm.y;
+    console.log("building easting: ", easting);
+    console.log("building northing: ", northing);
+    let pixelCoords = convertUTMToPixelCoords(easting, northing);
+    console.log("building pixel x: ", pixelCoords.y*coordsScale);
+    console.log("building pixel y: ", pixelCoords.x*coordsScale);
 
-    // pixelCoords.then((coords) => {
-    //     //console.log(pixelCoords);
-    //     // var height = twoDHeightMapArray.length;
-    //     // var width = twoDHeightMapArray[0].length;
-    //     // console.log(coords);
-    //     //var correctY = (width/2)-coords.y
-    //     // coords.x += height/2;
-    //     // coords.y += width/2;
-    //     if(twoDHeightMapArray[coords.x][coords.y/*+correctY*/] != undefined) {
-    //         //console.log("Test");
-    //         newElement.setAttribute("position", {x: (sumOfLatCoords/count), y: 0/*-1*yScale*(twoDHeightMapArray[coords.x][coords.y/*+correctY])*/, z: (sumOfLongCoords/count)});
-    //         return Promise.resolve();
-    //     }
-    // }).catch((coords) => {
-    //     while(twoDHeightMapArray[coords.x][coords.y+correctY] == undefined){
-    //         coords.y++;
-    //         if(coords.y > twoDHeightMapArray[x].length) {
-    //             coords.y=0;
-    //             coords.x++;
-    //         }
-    //     }
-    //     console.log("hello");
-    //     newElement.setAttribute("position", {x: (xCoords/count), y: 100/*(twoDHeightMapArray[coords.x][coords.y])*/, z: (zCoords/count)});
-    //     return Promise.reject();
-    // });
-
-    //newElement.setAttribute("scale", "40 7 33");
-    newElement.setAttribute("position", {x: (sumOfLatCoords/count), y: 0/*(twoDHeightMapArray[coords.x][coords.y])*/, z: (sumOfLongCoords/count)});
+    //console.log("position: ", pixelCoords.x, pixelCoords.y);
+    //console.log("building base height: ", reversedHeightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]);
+    newElement.setAttribute("position", {x: (pixelCoords.x)*coordsScale, y: (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), z: (pixelCoords.y)*coordsScale});
+    //newElement.setAttribute("rotation", "90 90 90");
     sceneElement.appendChild(newElement);
 }
 
