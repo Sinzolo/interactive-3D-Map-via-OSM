@@ -1,7 +1,17 @@
+var oneDHeightMapArray;
+var twoDHeightMapArray;
+var reversedHeightMap;
+var height;
+var width;
 
-async function loadTerrain() {
-    console.log("LOADING TERRAIN");
-    console.log(GeoTIFF);
+var xPixel;
+var yPixel;
+var tiffWindow;
+
+const yScale = 1;
+const xzScale = 26;
+
+async function getHeightMap() {
     const tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
     const image = await tiff.getImage();
 
@@ -15,83 +25,102 @@ async function loadTerrain() {
     const centreLatInUTM = latLongUTM.y;
     const widthPct = ( centreLongInUTM - bbox[ 0 ] ) / bboxWidth;
     const heightPct = ( centreLatInUTM - bbox[ 1 ] ) / bboxHeight;
-    const xPx = Math.floor( pixelWidth * widthPct );
-    const yPx = Math.floor( pixelHeight * heightPct );
-    console.log("xPx ", xPx);
-    console.log("yPx ", yPx);
-    const window = [ xPx-130, yPx-40, xPx+200, yPx + 600 ];
-    const data = await image.readRasters( {window} );
+    xPixel = Math.floor( pixelWidth * widthPct );
+    yPixel = Math.floor( pixelHeight * heightPct );
+    tiffWindow = [ xPixel-150, yPixel-80, xPixel+200, yPixel + 600 ];
+    console.log(tiffWindow);
+    const window = tiffWindow;
+    oneDHeightMapArray = await image.readRasters(  );
+    oneDHeightMapArrayForBuildings = await image.readRasters(  );
+    console.log("windowed: ", oneDHeightMapArray);
+    console.log("full tiff: ", oneDHeightMapArrayForBuildings);
+    height = oneDHeightMapArray.height;
+    width = oneDHeightMapArray.width;
 
-    const width = image.getWidth();
-    const height = image.getHeight();
-    const tileWidth = image.getTileWidth();
-    const tileHeight = image.getTileHeight();
-    const origin = image.getOrigin();
-    
-    console.log(convertUTMToLatAndLong(345000, 460000));
-    console.log("width ", width);
-    console.log("height ", height);
-    console.log("tileWidth ", tileWidth);
-    console.log("tileHeight ", tileHeight);
-    console.log("origin ", origin);
-    console.log("bbox ", bbox);
-    
-    //const data = await image.readRasters({window: [1450, 900, 2000, 1750] });
+    var tempReversedHeightMap = [];
+    tempReversedHeightMap = [new Float32Array(oneDHeightMapArrayForBuildings[0])]
+    // tempReversedHeightMap = [new Float32Array(oneDHeightMapArrayForBuildings[0])] // doing this for some reason seems to make it better even tho it shouldnt
+    tempReversedHeightMap.width = width;
+    tempReversedHeightMap.height = height;
+    //tempReversedHeightMap[0].reverse();
+
+
     /*
-        To go from UTM(x'y') to pixel position(x,y) one can use the equation:
-        x = (Ex'-By'+BF-EC)/(AE-DB)
-        y = (-Dx'+Ay'+DC-AF)/(AE-DB)
+    Converts 1D data array into 2D array:
     */
-
-
-    /*
-       Converts 1D data array into 2D array:
-     */
-    console.log("Stuff");
-    console.log(data);
-    //console.log(points);
-
-    var length = data.height;
+    
+    var length = height;
     var start = 0;
-    var end = data.width;
-    const points = [];
-    while(length > 0) {
-        points.push(data[0].slice(start,end));
-        length -= 1;
-        start += data.width;
-        end += data.width;
-    }
-    console.log("points", points);
+    var end = width;
+    var count = 0;
+    twoDHeightMapArray = new Array(height);
 
+    for (var i = 0; i < twoDHeightMapArray.length; i++) {
+        twoDHeightMapArray[i] = new Array(width);
+    }
+    while(length > 0) {
+        oneDHeightMapArray[0].slice(start,end).forEach((element, index) => {
+            twoDHeightMapArray[index][count] = element;
+        });
+        //twoDHeightMapArray.push(oneDHeightMapArray[0].slice(start,end));
+        length -= 1;
+        start += width;
+        end += width;
+        count++;
+    }
+    console.log(twoDHeightMapArray);
+
+    var length = oneDHeightMapArrayForBuildings.height;
+    var start = 0;
+    var end = oneDHeightMapArrayForBuildings.width;
+    reversedHeightMap = [];
+    while(length > 0) {
+        reversedHeightMap.push(tempReversedHeightMap[0].slice(start,end));
+        length -= 1;
+        start += oneDHeightMapArrayForBuildings.width;
+        end += width;
+    }
+    console.log(reversedHeightMap);
+}
+
+
+
+async function loadTerrain() {
     /*
         Draws triangles for the floor
      */
-    const yscale = -1.1;
-    const xzscale = 4;
-    const xRelative = data.height/2;
-    const zRelative = data.width/2;
+    // const xRelative = oneDHeightMapArray.height/2;
+    // const zRelative = oneDHeightMapArray.width/2;
+    //const xRelative = 0;
+    //const zRelative = 0;
     var sceneElement = document.querySelector('a-scene');
-    for (let x = 0; x < points.length-xzscale; x+=xzscale) {
-        for (let z = 0; z < points[x].length-xzscale; z+=xzscale) {
+    for (let z = 0; z < twoDHeightMapArray.length-xzScale; z+=xzScale) {
+        for (let x = 0; x < twoDHeightMapArray[z].length-xzScale; x+=xzScale) {
             var newTriangle = document.createElement('a-triangle');
             newTriangle.setAttribute("class", "terrain");
             newTriangle.setAttribute("color", "#4c9141");
-            newTriangle.setAttribute("vertex-c", (x-xRelative)+" "+points[x][z]*yscale+" "+(z-zRelative));
-            newTriangle.setAttribute("vertex-b", (x-xRelative)+" "+points[x][z+xzscale]*yscale+" "+(z+xzscale-zRelative));
-            newTriangle.setAttribute("vertex-a", (x+xzscale-xRelative)+" "+points[x+xzscale][z]*yscale+" "+(z-zRelative));
-            newTriangle.setAttribute("rotation", "0 0 180");
-            newTriangle.setAttribute("scale", "2 4 2");
+            //+tiffWindow[1]
+            //+tiffWindow[0]
+            newTriangle.setAttribute("vertex-a", (x)+" "+twoDHeightMapArray[x][z]*yScale+" "+(z));
+            newTriangle.setAttribute("vertex-b", (x)+" "+twoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+xzScale));
+            newTriangle.setAttribute("vertex-c", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z]*yScale+" "+(z));
+            console.log({x: x, z: z});
+            //newTriangle.setAttribute("side", "back");
+            //newTriangle.setAttribute("rotation", "0 90 180");
+            //newTriangle.setAttribute("scale", "1 1 1");
             //newTriangle.setAttribute("wireframe", "true");
             sceneElement.appendChild(newTriangle);
 
             newTriangle = document.createElement('a-triangle');
             newTriangle.setAttribute("class", "terrain");
             newTriangle.setAttribute("color", "#4c9141");
-            newTriangle.setAttribute("vertex-c", (x-xRelative)+" "+points[x][z+xzscale]*yscale+" "+(z+xzscale-zRelative));
-            newTriangle.setAttribute("vertex-b", (x+xzscale-xRelative)+" "+points[x+xzscale][z+xzscale]*yscale+" "+(z+xzscale-zRelative));
-            newTriangle.setAttribute("vertex-a", (x+xzscale-xRelative)+" "+points[x+xzscale][z]*yscale+" "+(z-zRelative));
-            newTriangle.setAttribute("rotation", "0 0 180");
-            newTriangle.setAttribute("scale", "2 4 2");
+            newTriangle.setAttribute("vertex-a", (x)+" "+twoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+xzScale));
+            newTriangle.setAttribute("vertex-b", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z+xzScale]*yScale+" "+(z+xzScale));
+            newTriangle.setAttribute("vertex-c", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z]*yScale+" "+(z));
+            console.log({x: x, z: z+xzScale});
+            //newTriangle.setAttribute("side", "back");
+            //newTriangle.setAttribute("rotation", "0 90 180");
+            //newTriangle.setAttribute("scale", "1 1 1");
             //newTriangle.setAttribute("wireframe", "true");
             sceneElement.appendChild(newTriangle);
         }

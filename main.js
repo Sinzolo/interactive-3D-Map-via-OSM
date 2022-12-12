@@ -1,8 +1,11 @@
-
 var overpassURL = "https://overpass-api.de/api/interpreter?data=";
+/* Old coords for centre of uni */
 var centreLat = 54.008551;
 var centreLong = -2.787395;
+// var centreLat = 54.010212;
+// var centreLong = -2.785161;
 var boundingBox = "54.002150,-2.798493,54.014962,-2.776263"
+var coordsScale = 0.5;
 
 async function loadMap() {
     /*
@@ -13,10 +16,39 @@ async function loadMap() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
-    console.log("Loading Map...");
+
+    await getHeightMap();
+
+    getUsersLocation();
+    // camera = document.querySelector('#rig');
+    // var utm = convertLatLongToUTM(centreLat, centreLong);
+    // console.log("camera lat long coords: ", centreLat, centreLong);
+    // console.log("camera utm coords: ", utm.x, utm.y);
+    // var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
+    // console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
+    // camera.setAttribute("position", pixelCoords.x+" 0 "+pixelCoords.y);
+    //camera.setAttribute("position", "0 0 0");
 
     loadTerrain();
-    //loadBuildings();
+    loadBuildings();
+}
+
+function getUsersLocation() {
+    if ("geolocation" in navigator) {
+        // check if geolocation is supported
+        navigator.geolocation.getCurrentPosition(function(position) {
+            // success callback
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            console.log("Your current position is: " + latitude + ", " + longitude);
+        }, function(error) {
+            // error callback
+            console.log("Unable to retrieve your location: " + error.message);
+        });
+    }
+    else {
+        console.log("Geolocation is not supported by this browser.");
+    }
 }
 
 function loadMenu() {
@@ -27,8 +59,6 @@ function loadMenu() {
     mapDivElements.style.display = "none";
     welcomeDivElements = document.getElementById("WelcomeScreen");
     welcomeDivElements.style.display = "block";
-
-    console.log("Tried showing...");
 }
 
 
@@ -42,7 +72,8 @@ async function loadBuildings() {
     );
     console.log(overpassQuery);
 
-    let geoJSON = await fetch(overpassQuery).then((response) => {
+    // let geoJSON = await fetch(overpassQuery).then((response) => {
+    let geoJSON = await fetch("interpreter.xml").then((response) => {
         if(!response.ok) {
             throw new Error(`HTTP error: ${response.status}`);
         }
@@ -51,36 +82,29 @@ async function loadBuildings() {
     .then((response) => {
         var parser = new DOMParser();
         var itemData = parser.parseFromString(response, "application/xml");
-        console.log(response);
-        console.log(itemData);
         var itemJSON = osmtogeojson(itemData);
         console.log(itemJSON);
         return itemJSON
     });
 
-    console.log(geoJSON);
-    console.log("hello");
-    console.log("Looking for polygons...");
-
     var count = 0;
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {
             addBuilding(feature);
-            count = count + 3;
+            count = count + 1;
         } else {
         }
     });
+
+    console.log("Number of buidlings: ", count);
 }
 
 
-function addBuilding(feature) {
-    //console.log(feature);
+async function addBuilding(feature) {
     var tags = feature.properties;
-    //console.log("Feature:", feature);
     var height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;
     else if(!height) height = 2;
-    //console.log("Height:", height);
 
     var color = "#FFFFFF";
     if (tags["building:colour"]) {
@@ -88,23 +112,22 @@ function addBuilding(feature) {
     }
 
     var outerPoints = [];
-    var xCoords = 0;
-    var zCoords = 0;
+    var sumOfLatCoords = 0;
+    var sumOfLongCoords = 0;
     var count = 0;
-    //console.log(feature.geometry.coordinates[0]);
     feature.geometry.coordinates[0].forEach(coordinatesPair => {
-        //console.log("Coords:");
-        //console.log(coordinatesPair);
-        relativePos = getRelativePosition(coordinatesPair[1], coordinatesPair[0]);
-        //console.log("Relative Coords:");
-        relativePos.x = relativePos.x*4000
-        relativePos.z = relativePos.z*4000
-        //console.log(relativePos.x, relativePos.z);
-        xCoords = xCoords + relativePos.x;
-        zCoords = zCoords + relativePos.z;
+        tempLat = coordinatesPair[1];
+        tempLong = coordinatesPair[0];
+        sumOfLatCoords += tempLat;
+        sumOfLongCoords += tempLong;
         count++;
-        outerPoints.push(new THREE.Vector2(relativePos.x, relativePos.z));
+        let utm = convertLatLongToUTM(tempLat, tempLong);
+        let easting = utm.x;
+        let northing = utm.y;
+        let pixelCoords = convertUTMToPixelCoords(easting, northing);
+        outerPoints.push(new THREE.Vector2(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale));
     });
+
     //console.log(outerPoints);
     // for (let way of feature.geometry.coordinates) {
     //   let wayPoints = [];
@@ -128,8 +151,23 @@ function addBuilding(feature) {
     newElement.setAttribute("class", "building");
     newElement.setAttribute("geometry", buildingProperties);
     newElement.setAttribute("material", {color: color});
-    newElement.setAttribute("position", {x: (xCoords/count), y:250, z: (zCoords/count)});
-    newElement.setAttribute("scale", "23 5 16");
+
+    console.log("building lat: ", sumOfLatCoords/count);
+    console.log("building long: ", sumOfLongCoords/count);
+    
+    let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
+    let easting = utm.x;
+    let northing = utm.y;
+    console.log("building easting: ", easting);
+    console.log("building northing: ", northing);
+    let pixelCoords = convertUTMToPixelCoords(easting, northing);
+    console.log("building pixel x: ", pixelCoords.y*coordsScale);
+    console.log("building pixel y: ", pixelCoords.x*coordsScale);
+
+    //console.log("position: ", pixelCoords.x, pixelCoords.y);
+    //console.log("building base height: ", reversedHeightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]);
+    newElement.setAttribute("position", {x: (pixelCoords.x)*coordsScale, y: (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), z: (pixelCoords.y)*coordsScale});
+    //newElement.setAttribute("rotation", "90 90 90");
     sceneElement.appendChild(newElement);
 }
 
