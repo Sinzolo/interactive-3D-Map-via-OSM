@@ -16,8 +16,10 @@ async function loadMap() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
+
     await getHeightMap();
 
+    getUsersLocation();
     // camera = document.querySelector('#rig');
     // var utm = convertLatLongToUTM(centreLat, centreLong);
     // console.log("camera lat long coords: ", centreLat, centreLong);
@@ -25,10 +27,28 @@ async function loadMap() {
     // var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
     // console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
     // camera.setAttribute("position", pixelCoords.x+" 0 "+pixelCoords.y);
-     camera.setAttribute("position", "0 0 0");
+    //camera.setAttribute("position", "0 0 0");
 
     loadTerrain();
     loadBuildings();
+}
+
+function getUsersLocation() {
+    if ("geolocation" in navigator) {
+        // check if geolocation is supported
+        navigator.geolocation.getCurrentPosition(function(position) {
+            // success callback
+            var latitude = position.coords.latitude;
+            var longitude = position.coords.longitude;
+            console.log("Your current position is: " + latitude + ", " + longitude);
+        }, function(error) {
+            // error callback
+            console.log("Unable to retrieve your location: " + error.message);
+        });
+    }
+    else {
+        console.log("Geolocation is not supported by this browser.");
+    }
 }
 
 function loadMenu() {
