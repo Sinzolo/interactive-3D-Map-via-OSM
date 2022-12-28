@@ -23,6 +23,36 @@ function getLatLongFromRelativePosition(x, z) {
 }
 
 /**
+ * It takes a centre coordinate and a size, and returns a bounding box
+ * @param centreCoords - The coordinates of the centre of the bounding box.
+ * @param [size=50] - The size of the bounding box.
+ * @returns An object with four properties: minX, minY, maxX, maxY.
+ */
+function getBoundingBoxFromPixelCoords(centreCoords, metres) {
+    metres /= twfData[0];
+    return {minX: centreCoords.x-(size/2),
+            minY: centreCoords.y-(size/2),
+            maxX: centreCoords.x+(size/2),
+            maxY: centreCoords.y+(size/2)
+           }
+}
+
+function getBoundingBoxFromLatLong(centreCoords, metres=100) {
+    km = metres/1000;
+    minLat = centreCoords.lat - (0.009*km)
+    minLon = centreCoords.lon - (0.009*km)
+    maxLat = centreCoords.lat + (0.009*km)
+    maxLon = centreCoords.lon + (0.009*km)
+    console.log("Bounding bos solution one:\n", {minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon});
+    
+    // const p = turf.point([centreCoords.lon, centreCoords.lat]);
+    // buffer = turf.buffer(p, km, {units: 'kilometers'});
+    // bbox = turf.bbox(buffer);
+    // poly = turf.bboxPolygon(bbox);
+    // console.log("Second solution:\n", poly);
+}
+
+/**
  * Converts from UTM coords to lat and long coords.
  * @param {double} easting 
  * @param {double} northing 
@@ -32,7 +62,8 @@ function convertUTMToLatAndLong(easting, northing) {
     proj4.defs('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs');
     var source = new proj4.Proj('EPSG:27700');
     var dest = new proj4.Proj('EPSG:4326');     //WGS84
-    var testPt = new proj4.Point(easting, northing);
+    var testPt = new proj4.toPoint([easting, northing]);
+    //var testPt = new proj4.Point(easting, northing);
     return proj4.transform(source, dest, testPt);
 }
 
@@ -46,7 +77,7 @@ function convertLatLongToUTM(lat, long) {
     proj4.defs('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs');
     var source = new proj4.Proj('EPSG:4326');   //WGS84
     var dest = new proj4.Proj('EPSG:27700');
-    var testPt = new proj4.Point(long, lat);
+    var testPt = new proj4.toPoint([long, lat]);
     return proj4.transform(source, dest, testPt);
 }
 

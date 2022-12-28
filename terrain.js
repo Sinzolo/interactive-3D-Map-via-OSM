@@ -9,7 +9,7 @@ var yPixel;
 var tiffWindow;
 
 const yScale = 1;
-const xzScale = 26;
+const xzScale = 64;
 
 async function getHeightMap() {
     const tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
@@ -28,7 +28,7 @@ async function getHeightMap() {
     xPixel = Math.floor( pixelWidth * widthPct );
     yPixel = Math.floor( pixelHeight * heightPct );
     tiffWindow = [ xPixel-150, yPixel-80, xPixel+200, yPixel + 600 ];
-    console.log(tiffWindow);
+    //console.log(tiffWindow);
     const window = tiffWindow;
     oneDHeightMapArray = await image.readRasters(  );
     oneDHeightMapArrayForBuildings = await image.readRasters(  );
@@ -68,7 +68,7 @@ async function getHeightMap() {
         end += width;
         count++;
     }
-    console.log(twoDHeightMapArray);
+    //console.log(twoDHeightMapArray);
 
     var length = oneDHeightMapArrayForBuildings.height;
     var start = 0;
@@ -80,7 +80,7 @@ async function getHeightMap() {
         start += oneDHeightMapArrayForBuildings.width;
         end += width;
     }
-    console.log(reversedHeightMap);
+    //console.log(reversedHeightMap);
 }
 
 
@@ -93,7 +93,8 @@ async function loadTerrain() {
     // const zRelative = oneDHeightMapArray.width/2;
     //const xRelative = 0;
     //const zRelative = 0;
-    var sceneElement = document.querySelector('a-scene');
+    //var sceneElement = document.querySelector('a-scene');
+    var sceneElement = document.querySelector("a-scene");
     for (let z = 0; z < twoDHeightMapArray.length-xzScale; z+=xzScale) {
         for (let x = 0; x < twoDHeightMapArray[z].length-xzScale; x+=xzScale) {
             var newTriangle = document.createElement('a-triangle');
@@ -104,7 +105,7 @@ async function loadTerrain() {
             newTriangle.setAttribute("vertex-a", (x)+" "+twoDHeightMapArray[x][z]*yScale+" "+(z));
             newTriangle.setAttribute("vertex-b", (x)+" "+twoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+xzScale));
             newTriangle.setAttribute("vertex-c", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z]*yScale+" "+(z));
-            console.log({x: x, z: z});
+            //console.log({x: x, z: z});
             //newTriangle.setAttribute("side", "back");
             //newTriangle.setAttribute("rotation", "0 90 180");
             //newTriangle.setAttribute("scale", "1 1 1");
@@ -117,7 +118,7 @@ async function loadTerrain() {
             newTriangle.setAttribute("vertex-a", (x)+" "+twoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+xzScale));
             newTriangle.setAttribute("vertex-b", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z+xzScale]*yScale+" "+(z+xzScale));
             newTriangle.setAttribute("vertex-c", (x+xzScale)+" "+twoDHeightMapArray[x+xzScale][z]*yScale+" "+(z));
-            console.log({x: x, z: z+xzScale});
+            //console.log({x: x, z: z+xzScale});
             //newTriangle.setAttribute("side", "back");
             //newTriangle.setAttribute("rotation", "0 90 180");
             //newTriangle.setAttribute("scale", "1 1 1");

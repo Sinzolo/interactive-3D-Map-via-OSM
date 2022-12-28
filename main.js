@@ -2,10 +2,13 @@ var overpassURL = "https://overpass-api.de/api/interpreter?data=";
 /* Old coords for centre of uni */
 var centreLat = 54.008551;
 var centreLong = -2.787395;
+// var utm = convertLatLongToUTM(centreLat, centreLong);
+// var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y)
+// var boundingBox = getBoundingBoxFromPixelCoords(pixelCoords.x, pixelCoords.y, 100)
 // var centreLat = 54.010212;
 // var centreLong = -2.785161;
 var boundingBox = "54.002150,-2.798493,54.014962,-2.776263"
-var coordsScale = 0.5;
+var coordsScale = 0.5;  // I think this is due to the fact that the image im using is 2m per pixel so i need to half the pixel coords i get
 
 async function loadMap() {
     /*
@@ -16,39 +19,52 @@ async function loadMap() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
-
     await getHeightMap();
 
-    getUsersLocation();
-    // camera = document.querySelector('#rig');
-    // var utm = convertLatLongToUTM(centreLat, centreLong);
-    // console.log("camera lat long coords: ", centreLat, centreLong);
-    // console.log("camera utm coords: ", utm.x, utm.y);
-    // var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-    // console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
-    // camera.setAttribute("position", pixelCoords.x+" 0 "+pixelCoords.y);
-    //camera.setAttribute("position", "0 0 0");
+    const watchID = setUpLocationWatcher();
 
     loadTerrain();
     loadBuildings();
 }
 
-function getUsersLocation() {
-    if ("geolocation" in navigator) {
-        // check if geolocation is supported
-        navigator.geolocation.getCurrentPosition(function(position) {
-            // success callback
-            var latitude = position.coords.latitude;
-            var longitude = position.coords.longitude;
-            console.log("Your current position is: " + latitude + ", " + longitude);
-        }, function(error) {
-            // error callback
-            console.log("Unable to retrieve your location: " + error.message);
-        });
-    }
-    else {
-        console.log("Geolocation is not supported by this browser.");
-    }
+const options = {
+    enableHighAccuracy: true,
+    maximumAge: 0,
+    timeout: Infinity
+};
+
+function setUpLocationWatcher() {
+    return navigator.geolocation.watchPosition((position) => {
+        console.log("New location = ", {lat: position.coords.latitude, long: position.coords.longitude});
+        placeCameraAtGPSLocation(position.coords.latitude, position.coords.longitude);
+    }, function(error) {
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                console.log("User denied the request for Geolocation.")
+                break;
+            case error.POSITION_UNAVAILABLE:
+                console.log("Location information is unavailable.")
+                break;
+            case error.TIMEOUT:
+                console.log("The request to get user location timed out.")
+                break;
+            case error.UNKNOWN_ERROR:
+                console.log("An unknown error occurred.")
+                break;
+            }
+    }, options);
+}
+
+function placeCameraAtGPSLocation(latitude, longitude) {
+    camera = document.querySelector('#rig');
+    //var utm = convertLatLongToUTM(centreLat, centreLong);
+    var utm = convertLatLongToUTM(latitude, longitude);
+    var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
+    camera.setAttribute("position", pixelCoords.x +" "+ (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]+0.020) +" "+ pixelCoords.y);
+
+    console.log("Changing cameras location.");
+    console.log("New lat and long: ", latitude, longitude);
+    console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
 }
 
 function loadMenu() {
@@ -60,7 +76,6 @@ function loadMenu() {
     welcomeDivElements = document.getElementById("WelcomeScreen");
     welcomeDivElements.style.display = "block";
 }
-
 
 async function loadBuildings() {
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
@@ -98,7 +113,6 @@ async function loadBuildings() {
 
     console.log("Number of buidlings: ", count);
 }
-
 
 async function addBuilding(feature) {
     var tags = feature.properties;
@@ -152,22 +166,23 @@ async function addBuilding(feature) {
     newElement.setAttribute("geometry", buildingProperties);
     newElement.setAttribute("material", {color: color});
 
-    console.log("building lat: ", sumOfLatCoords/count);
-    console.log("building long: ", sumOfLongCoords/count);
+    //console.log("building lat: ", sumOfLatCoords/count);
+    //console.log("building long: ", sumOfLongCoords/count);
     
     let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
     let easting = utm.x;
     let northing = utm.y;
-    console.log("building easting: ", easting);
-    console.log("building northing: ", northing);
+    //console.log("building easting: ", easting);
+    //console.log("building northing: ", northing);
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    console.log("building pixel x: ", pixelCoords.y*coordsScale);
-    console.log("building pixel y: ", pixelCoords.x*coordsScale);
+    //console.log("building pixel x: ", pixelCoords.y*coordsScale);
+    //console.log("building pixel y: ", pixelCoords.x*coordsScale);
 
     //console.log("position: ", pixelCoords.x, pixelCoords.y);
     //console.log("building base height: ", reversedHeightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]);
-    newElement.setAttribute("position", {x: (pixelCoords.x)*coordsScale, y: (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), z: (pixelCoords.y)*coordsScale});
     //newElement.setAttribute("rotation", "90 90 90");
+    //newElement.setAttribute("position", {x: (pixelCoords.x)*coordsScale, y: (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), z: (pixelCoords.y)*coordsScale});
+    newElement.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
     sceneElement.appendChild(newElement);
 }
 
@@ -185,7 +200,7 @@ AFRAME.registerGeometry('building', {
         var shape = new THREE.Shape(data.outerPoints);
         shape.color = data.color;
 
-        var geometry = new THREE.ExtrudeGeometry(shape, {amount: data.height, bevelEnabled: false});
+        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height, bevelEnabled: false});
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);
         // Rotate around Y and Z as well to make it show up correctly.
