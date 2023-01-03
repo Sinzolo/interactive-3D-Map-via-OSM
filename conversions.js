@@ -1,26 +1,4 @@
-var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]
 
-/**
- * Gets the relative position based off the lat and long.
- * @param {integer} lat 
- * @param {integer} long 
- * @returns x: , y: , z: 
- */
-function getRelativePosition(lat, long) {
-    return {x: lat-centreLat,
-            y: 0,
-            z: long-centreLong};
-}
-
-/**
- * Gets the lat and long coordinates from the relative coordinates.
- * @param {double} x 
- * @param {double} z 
- * @returns lat and long
- */
-function getLatLongFromRelativePosition(x, z) {
-    return {lat: x+centreLat, long: z+centreLong};
-}
 
 /**
  * It takes a centre coordinate and a size, and returns a bounding box
@@ -51,6 +29,124 @@ function getBoundingBoxFromLatLong(centreCoords, metres=100) {
     // poly = turf.bboxPolygon(bbox);
     // console.log("Second solution:\n", poly);
 }
+
+
+// /**
+//  * It takes a latitude and longitude and a distance in kilometers, and returns the bounding box that is
+//  * the specified distance from the given latitude and longitude
+//  * @param latitude - The latitude of the center point of the bounding box.
+//  * @param longitude - The longitude of the center point of the bounding box.
+//  * @param distance - The distance in kilometers from the center point that you want to calculate the
+//  * bounding box for.
+//  * @returns an object with the north and south latitudes and the east and west longitudes.
+//  */
+// function getBoundingBox(latitude, longitude, distance) {
+//     const radius = 6371; // Earth's radius in kilometers
+
+//     // Calculate the bounding box's north and south latitudes
+//     const northLat = latitude + Math.asin(Math.sin(latitude) * Math.cos(distance / radius) +
+//       Math.cos(latitude) * Math.sin(distance / radius) * Math.cos(0));
+//     const southLat = latitude + Math.asin(Math.sin(latitude) * Math.cos(distance / radius) +
+//       Math.cos(latitude) * Math.sin(distance / radius) * Math.cos(180));
+
+//     // Calculate the bounding box's east and west longitudes
+//     const eastLng = longitude + Math.atan2(Math.sin(90) * Math.sin(distance / radius) * Math.cos(latitude),
+//       Math.cos(distance / radius) - Math.sin(latitude) * Math.sin(latitude));
+//     const westLng = longitude + Math.atan2(Math.sin(270) * Math.sin(distance / radius) * Math.cos(latitude),
+//       Math.cos(distance / radius) - Math.sin(latitude) * Math.sin(latitude));
+
+//     return {
+//         northLat: northLat,
+//         southLat: southLat,
+//         eastLng: eastLng,
+//         westLng: westLng
+//     };
+// }
+
+/**
+ * It returns the bounding box of a circle with a given center and radius.
+ * @param latitude - The latitude of the center point of the search.
+ * @param longitude - The longitude of the center of the circle.
+ * @param distance - The distance in meters from the center point that you want to find the bounding
+ * box for.
+ * @returns An object with the north latitude, west longitude, south latitude, and east longitude.
+ */
+// function getBoundingBox(latitude, longitude, distance) {
+//     // Earth's radius, sphere
+//     const R = 6378137;
+
+//     // Offsets in meters
+//     var dn = distance;
+//     var de = distance;
+
+//     // Coordinate offsets in radians
+//     var dLat = dn / R;
+//     var dLon = de / (R * Math.cos(Math.PI * latitude / 180));
+
+//     // OffsetPosition, decimal degrees
+//     var latO = latitude - dLat * 180 / Math.PI;
+//     var lonO = longitude - dLon * 180 / Math.PI;
+//     var lat1 = latitude + dLat * 180 / Math.PI;
+//     var lon1 = longitude + dLon * 180 / Math.PI;
+
+//     return {northLat: latO, westLong: lonO, southLat: lat1, eastLong: lon1};
+// }
+
+
+
+
+
+
+// /**
+//  * "Given a latitude and longitude, return the latitude and longitude of a box that is boundingBoxSize
+//  * meters in each direction."
+//  * 
+//  * The function is a little more complicated than that, but that's the gist of it
+//  * @param latitude - The latitude of the center of the bounding box.
+//  * @param longitude - The longitude of the center of the bounding box.
+//  * @param boundingBoxSize - The size of the bounding box in kilometers.
+//  * @returns An object with four properties: lat1, lon1, lat2, lon2.
+//  */
+// function getBoundingBox(latitude, longitude, boundingBoxSize) {
+//     const lat1 = latitude - boundingBoxSize / 110.574;
+//     const lon1 = longitude - boundingBoxSize / (111.320 * Math.cos(latitude));
+//     const lat2 = latitude + boundingBoxSize / 110.574;
+//     const lon2 = longitude + boundingBoxSize / (111.320 * Math.cos(latitude));
+//     return {northLat: lat1, westLong: lon1, southLat: lat2, eastLong: lon2};
+// }
+
+
+
+
+/**
+ * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
+ * with sides of length metres
+ * @param metres - the length of one side of the square
+ * @param lat - latitude of the center of the bounding box
+ * @param long - longitude of the center of the bounding box
+ * @returns An object with the minLat, minLng, maxLat, and maxLng properties.
+ */
+function getBoundingBox(lat, long, metres) {
+    metres /= 2;
+    const earthRadius = 6371e3; // metres
+    const latRadians = lat * Math.PI / 180; // convert latitude to radians
+    const lngRadians = long * Math.PI / 180; // convert longitude to radians
+    const latDelta = metres / earthRadius; // calculate change in latitude
+    const lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
+  
+    // calculate coordinates of bounding box
+    const minLat = lat - latDelta * 180 / Math.PI;
+    const maxLat = lat + latDelta * 180 / Math.PI;
+    const minLng = long - lngDelta * 180 / Math.PI;
+    const maxLng = long + lngDelta * 180 / Math.PI;
+  
+    //return { minLat, maxLat, minLng, maxLng };
+    return {minLat, minLng, maxLat, maxLng };
+}
+  
+
+
+
 
 /**
  * Converts from UTM coords to lat and long coords.
@@ -127,4 +223,48 @@ function convertToNewPixelCoords(x, y) {
     //y -= (yPixel);
     //console.log({x: x, y: y});
     return {x: x, y: y};
+}
+
+
+/**
+ * It takes a bounding box object and returns it as a string in the format
+ * "minLat,minLng,maxLat,maxLng".
+ * @param bbox - The bounding box of the area.
+ * @returns A string of the bounding box coordinates.
+ */
+function convertBBoxToString(bbox) {
+    let string = bbox.minLat+","+bbox.minLng+","+bbox.maxLat+","+bbox.maxLng;
+    return string;
+}
+
+
+
+/**
+ * It takes a one dimensional array, and converts it into a two dimensional array.
+ * The passed array must have the height and width of the 2D array already attached.
+ * @param oneDArray - The 1D array that you want to convert to a 2D array
+ * @returns A 2D array
+ */
+function convert1DArrayTo2DArray(oneDArray) {
+    let height = oneDArray.height;
+    let width = oneDArray.width;
+    var length = height;
+    var start = 0;
+    var end = width;
+    var count = 0;
+    // Initialise a 2D array
+    twoDArray = new Array(height);
+    for (var i = 0; i < twoDArray.length; i++) {
+        twoDArray[i] = new Array(width);
+    }
+    while(length > 0) {
+        oneDArray[0].slice(start,end).forEach((element, index) => {
+            twoDArray[index][count] = element;
+        });
+        length -= 1;
+        start += width;
+        end += width;
+        count++;
+    }
+    return twoDArray;
 }

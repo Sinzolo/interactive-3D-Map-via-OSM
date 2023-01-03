@@ -21,8 +21,10 @@
         <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
         
         <script src="interpreter.xml"></script>
+        <script src="squareUni.xml"></script>
         <script src="conversions.js"></script>
         <script src="terrain.js"></script>
+        <script src="buildings.js"></script>
         <script src="main.js"></script>
 
         <title>Interactive 3D Map via OSM</title>
@@ -32,13 +34,13 @@
         <div id = "WelcomeScreen">
             <h2>Welcome to my Third Year Project for Lancaster University.</h2>
             <br>This website automatically generates a 3D map of the specified place using OSM's large database.
-            <br><button id="loadMapBtn" onclick="loadMap()">Load Map</button>
+            <br><button id="loadMapBtn" onclick="showMap()">Load Map</button>
         </div>
 
         <div id = "MapScreen" style="display: none">
-            <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
+            <button id="loadMenuBtn" onclick="showMenu()">Load Menu</button>
             <a-scene stats background="color: lightblue">
-                <a-entity id="rig" movement-controls="fly: true; speed: 5" position-limit="ymin: 250; ymax: 1000" rotation="0 -90 0">
+                <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 250; ymax: 1000" rotation="0 -90 0">
                     <a-camera id="camera"></a-camera>
                     <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
                 </a-entity>
