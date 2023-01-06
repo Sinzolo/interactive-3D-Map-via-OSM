@@ -248,23 +248,35 @@ function convertBBoxToString(bbox) {
 function convert1DArrayTo2DArray(oneDArray) {
     let height = oneDArray.height;
     let width = oneDArray.width;
-    var length = height;
-    var start = 0;
-    var end = width;
-    var count = 0;
-    // Initialise a 2D array
-    twoDArray = new Array(height);
-    for (var i = 0; i < twoDArray.length; i++) {
-        twoDArray[i] = new Array(width);
-    }
-    while(length > 0) {
-        oneDArray[0].slice(start,end).forEach((element, index) => {
-            twoDArray[index][count] = element;
-        });
-        length -= 1;
-        start += width;
-        end += width;
-        count++;
+    let twoDArray = [];
+    for (let i = 0; i < width; i++) {
+        twoDArray[i] = [];
+        for (let j = 0; j < height; j++) {
+            let index = i + j * width;
+            twoDArray[i][j] = oneDArray[0][index];
+        }
     }
     return twoDArray;
 }
+
+    
+//     var length = height;
+//     var start = 0;
+//     var end = width;
+//     var count = 0;
+//     // Initialise a 2D array
+//     twoDArray = new Array(height);
+//     for (var i = 0; i < twoDArray.length; i++) {
+//         twoDArray[i] = new Array(width);
+//     }
+//     while(length > 0) {
+//         oneDArray[0].slice(start,end).forEach((element, index) => {
+//             twoDArray[index][count] = element;
+//         });
+//         length -= 1;
+//         start += width;
+//         end += width;
+//         count++;
+//     }
+//     return twoDArray;
+// }

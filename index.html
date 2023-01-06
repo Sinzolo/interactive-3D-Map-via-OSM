@@ -31,20 +31,25 @@
     </head>
     <body>
 
-        <div id = "WelcomeScreen">
+        <div id="WelcomeScreen">
             <h2>Welcome to my Third Year Project for Lancaster University.</h2>
             <br>This website automatically generates a 3D map of the specified place using OSM's large database.
             <br><button id="loadMapBtn" onclick="showMap()">Load Map</button>
         </div>
 
-        <div id = "MapScreen" style="display: none">
+        <div id="MapScreen" style="display: none">
             <button id="loadMenuBtn" onclick="showMenu()">Load Menu</button>
-            <a-scene stats background="color: lightblue">
-                <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 250; ymax: 1000" rotation="0 -90 0">
-                    <a-camera id="camera"></a-camera>
+            <a-scene vr-mode-ui="enabled: false" stats background="color: lightblue">
+                <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
+                    <a-camera id="player"></a-camera>
+                    <!-- <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
                     <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
+                <!-- </a-entity> -->
+                <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
+                    <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
+                    <a-entity id="debugCamera" camera="active: false" look-controls wasd-controls="acceleration: 5000; fly: true"></a-entity>
                 </a-entity>
-
+                
                 <!-- TODO Cant get flight control to work -->
                 <!-- <a-entity flight-controls> -->
                     <!-- or you could use universal-controls instead of both look- and wasd-controls. -->
@@ -53,6 +58,11 @@
 
                 <a-entity buffer-geometry-merger material="vertexColors: vertex">
                     <a-entity geometry="primitive: sphere; radius: 3" vertex-colors-buffer="baseColor: red" position="200 2 0"></a-entity>
+                </a-entity>
+
+                <a-entity id="terrainParent" class="terrain">
+                </a-entity>
+                <a-entity id="buildingParent" class="building">
                 </a-entity>
             </a-scene>
         </div>

@@ -8,11 +8,13 @@ var tiffWindow;
 var offset;
 
 const yScale = 1;
-const xzScale = 6;
+const xzScale = 10;
 
 async function getHeightMap(latitude, longitude, bboxSize) {
-    const tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
-    const image = await tiff.getImage();
+    if (typeof image === 'undefined') {
+        var tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
+        var image = await tiff.getImage();
+    }
 
     // const bbox = image.getBoundingBox();
     // console.log("bbox = ", bbox);
@@ -29,7 +31,7 @@ async function getHeightMap(latitude, longitude, bboxSize) {
     // tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
     // console.log("tiffWindow =", tiffWindow);
 
-    offset = (bboxSize/(2*twfData[0]));
+    offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
     let centreUTM = convertLatLongToUTM(latitude, longitude);
     let centrePixelCoords = convertUTMToPixelCoords(centreUTM.x, centreUTM.y);
     centrePixelCoords = { x: Math.round(centrePixelCoords.x), y: Math.round(centrePixelCoords.y) };
@@ -39,7 +41,7 @@ async function getHeightMap(latitude, longitude, bboxSize) {
     yPixel = centrePixelCoords.y;
 
     tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
-    console.log("tiffWindow =", tiffWindow);
+    //console.log("tiffWindow =", tiffWindow);
     var window = tiffWindow;
 
 
@@ -57,8 +59,8 @@ async function getHeightMap(latitude, longitude, bboxSize) {
     windowedTwoDHeightMapArray = convert1DArrayTo2DArray(windowedOneDHeightMapArray);
     twoDHeightMapArray = convert1DArrayTo2DArray(oneDHeightMapArray);
 
-    console.log(windowedTwoDHeightMapArray);
-    console.log(twoDHeightMapArray);
+    //console.log(windowedTwoDHeightMapArray);
+    //console.log(twoDHeightMapArray);
 
 }
 
@@ -70,24 +72,22 @@ async function loadTerrain() {
      */
     let xOffset = tiffWindow[0];
     let zOffset = tiffWindow[1];
-    var sceneElement = document.querySelector("a-scene");
+    var triangleParent = document.querySelector("#terrainParent");
     for (let z = 0; z < windowedTwoDHeightMapArray.length-xzScale; z+=xzScale) {
         for (let x = 0; x < windowedTwoDHeightMapArray[z].length-xzScale; x+=xzScale) {
             var newTriangle = document.createElement('a-triangle');
-            newTriangle.setAttribute("class", "terrain");
             newTriangle.setAttribute("color", "#4c9141");
             newTriangle.setAttribute("vertex-a", (x+xOffset)+" "+windowedTwoDHeightMapArray[x][z]*yScale+" "+(z+zOffset));
             newTriangle.setAttribute("vertex-b", (x+xOffset)+" "+windowedTwoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+zOffset+xzScale));
             newTriangle.setAttribute("vertex-c", (x+xOffset+xzScale)+" "+windowedTwoDHeightMapArray[x+xzScale][z]*yScale+" "+(z+zOffset));
-            sceneElement.appendChild(newTriangle);
+            triangleParent.appendChild(newTriangle);
 
             newTriangle = document.createElement('a-triangle');
-            newTriangle.setAttribute("class", "terrain");
             newTriangle.setAttribute("color", "#4c9141");
             newTriangle.setAttribute("vertex-a", (x+xOffset)+" "+windowedTwoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+zOffset+xzScale));
             newTriangle.setAttribute("vertex-b", (x+xOffset+xzScale)+" "+windowedTwoDHeightMapArray[x+xzScale][z+xzScale]*yScale+" "+(z+zOffset+xzScale));
             newTriangle.setAttribute("vertex-c", (x+xOffset+xzScale)+" "+windowedTwoDHeightMapArray[x+xzScale][z]*yScale+" "+(z+zOffset));
-            sceneElement.appendChild(newTriangle);
+            triangleParent.appendChild(newTriangle);
         }
     }
 }

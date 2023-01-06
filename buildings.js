@@ -4,6 +4,8 @@ async function loadBuildings(lat, long, bboxSize) {
 
     var bbox = getBoundingBox(lat, long, bboxSize);
     console.log(bbox);
+    // TODO Put this (below) into the REST DTM 2m 2020 website and it works!
+    console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
     var stringBBox = convertBBoxToString(bbox);
 
     var overpassQuery = overpassURL +
@@ -26,7 +28,7 @@ async function loadBuildings(lat, long, bboxSize) {
         var parser = new DOMParser();
         var itemData = parser.parseFromString(response, "application/xml");
         var itemJSON = osmtogeojson(itemData);
-        console.log(itemJSON);
+        //console.log(itemJSON);
         return itemJSON
     });
 
@@ -44,16 +46,15 @@ async function loadBuildings(lat, long, bboxSize) {
 
 async function addBuilding(feature) {
     var tags = feature.properties;
-    console.log("tags.height", tags.height);
-    console.log("tags[building:levels]", tags["building:levels"]);
     var height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;
     else if(!height) height = 2;
     height = parseInt(height)
     height += heightOffset/buildingHeightScale;
-    console.log("Hiehgt = ", height);
 
-    var color = "#FFFFFF";
+    var color = "#FDF8EF";
+    console.log(tags);
+    console.log(tags["building:colour"]);
     if (tags["building:colour"]) {
       color = tags["building:colour"];
     }
@@ -91,24 +92,19 @@ async function addBuilding(feature) {
     //   }
     // }
 
+    var buildingParent = document.querySelector('#buildingParent');
+    var newBuilding = document.createElement('a-entity');
     var buildingProperties = {primitive: "building", outerPoints: outerPoints, height: height};
-    console.log("height: ", height);
-
-
-    var sceneElement = document.querySelector('a-scene');
-    var newElement = document.createElement('a-entity');
-    newElement.setAttribute("class", "building");
-    newElement.setAttribute("geometry", buildingProperties);
-    newElement.setAttribute("material", {color: color});
+    newBuilding.setAttribute("geometry", buildingProperties);
+    newBuilding.setAttribute("material", {color: color});
+    newBuilding.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
     let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
     let easting = utm.x;
     let northing = utm.y;
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-
-    newElement.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
-    newElement.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-heightOffset, (pixelCoords.y*coordsScale));
-    sceneElement.appendChild(newElement);
+    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-heightOffset, (pixelCoords.y*coordsScale));
+    buildingParent.appendChild(newBuilding);
 }
 
 

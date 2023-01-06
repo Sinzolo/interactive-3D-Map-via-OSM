@@ -6,11 +6,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terrain Test</title>
 
-    <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">
+    <img id = "geotiff" src="exportImage (1).tiff" class="hidden">
 
     <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/plotty@0.4.9/dist/plotty.min.js"></script>
-    <script src="terrain.js"></script>
+    <!-- <script src="terrain.js"></script> -->
 </head>
 
 <body>
@@ -18,9 +18,14 @@
   <canvas id="plot"></canvas>
     <script>
         (async function() {
-          const tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
+          const tiff = await GeoTIFF.fromUrl("exportImage (1).tiff");
           const image = await tiff.getImage();
           const data = await image.readRasters();
+
+          console.log(tiff);
+          console.log(image);
+          console.log(data);
+
 
           const canvas = document.getElementById("plot");
           const plot = new plotty.plot({
