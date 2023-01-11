@@ -1,27 +1,43 @@
 async function loadBuildings(lat, long, bboxSize) {
+    console.log("=== Loading Buildings ===");
+
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
     //var uniBoundingBox = "54.002150,-2.798493,54.014962,-2.776263"
 
-    var bbox = getBoundingBox(lat, long, bboxSize);
-    console.log(bbox);
+    //console.log(bbox);
     // TODO Put this (below) into the REST DTM 2m 2020 website and it works!
-    console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
+    // 348391,457481,348747,456988 (just saving this for later (put this into the website))
+    // https://stackoverflow.com/questions/41478249/aframe-extend-component-and-override
+    // https://stackoverflow.com/questions/639695/how-to-convert-latitude-or-longitude-to-meters
+    //helpful but not for this problem
+    //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
+    
+    var bbox = getBoundingBox(lat, long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
-
-    var overpassQuery = overpassURL +
-    encodeURIComponent(
+    var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building]("+stringBBox+");" +
         "rel[building]("+stringBBox+"););" +
         "out geom;>;out skel qt;"
     );
-    console.log(overpassQuery);
 
-    let geoJSON = await fetch(overpassQuery).then((response) => {           // Fetches the OSM data needed for the specific bbox
+    // caches.match('https://example.com/data')
+    // .then(response => {
+    //     if (response) {
+    //         return response;
+    //     }
+    //     return fetch('https://example.com/data')
+    // })
+    // .then(response => response.json())
+    // .then(data => {
+    //     // Use the data here
+    // });
+
+    // currently working on this^ 11th jan 1:49pm
+
+
+    let geoJSON = await fetchWithRetry(overpassQuery).then((response) => {           // Fetches the OSM data needed for the specific bbox
     //let geoJSON = await fetch("interpreter.xml").then((response) => {     // Uses the preloaded uni area of buildings
     //let geoJSON = await fetch("squareUni.xml").then((response) => {       // Uses the preloaded square area of the uni buildings
-        if(!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
-        }
         return response.text();
     })
     .then((response) => {
@@ -32,10 +48,16 @@ async function loadBuildings(lat, long, bboxSize) {
         return itemJSON
     });
 
+    let sceneElement = document.querySelector('a-scene');
+    let buildingParent = document.createElement('a-entity');
+    buildingParent.setAttribute("id", "buildingParent");
+    buildingParent.setAttribute("class", "building");
+    sceneElement.appendChild(buildingParent);
+
     var count = 0;
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {
-            addBuilding(feature);
+            addBuilding(feature, buildingParent);
             count = count + 1;
         } else {
         }
@@ -44,25 +66,45 @@ async function loadBuildings(lat, long, bboxSize) {
     console.log("Number of buidlings: ", count);
 }
 
-async function addBuilding(feature) {
-    var tags = feature.properties;
-    var height = tags.height ? tags.height : tags["building:levels"];
+
+async function fetchWithRetry(url, retries = 3) {
+    while (retries) {
+        try {
+            let response = await fetch(url);
+            if (!response.ok) {
+                throw new Error("Fetch failed with status "+response.status);
+            }
+            return response;
+        } catch (err) {
+            retries--;
+            console.log("Retrying, "+retries+" attempts left.");
+        }
+    }
+    throw new Error("All retries failed.");
+}
+
+
+async function addBuilding(feature, parentElement) {
+    console.log("=== Adding Building ===");
+
+    let tags = feature.properties;
+    let height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;
     else if(!height) height = 2;
     height = parseInt(height)
-    height += heightOffset/buildingHeightScale;
+    height += buildingHeightOffset/buildingHeightScale;
 
-    var color = "#FDF8EF";
-    console.log(tags);
-    console.log(tags["building:colour"]);
+    let color = "#FDF8EF";
+    //console.log(tags);
+    //console.log(tags["building:colour"]);
     if (tags["building:colour"]) {
       color = tags["building:colour"];
     }
 
-    var outerPoints = [];
-    var sumOfLatCoords = 0;
-    var sumOfLongCoords = 0;
-    var count = 0;
+    let outerPoints = [];
+    let sumOfLatCoords = 0;
+    let sumOfLongCoords = 0;
+    let count = 0;
     feature.geometry.coordinates[0].forEach(coordinatesPair => {
         tempLat = coordinatesPair[1];
         tempLong = coordinatesPair[0];
@@ -92,9 +134,8 @@ async function addBuilding(feature) {
     //   }
     // }
 
-    var buildingParent = document.querySelector('#buildingParent');
-    var newBuilding = document.createElement('a-entity');
-    var buildingProperties = {primitive: "building", outerPoints: outerPoints, height: height};
+    let newBuilding = document.createElement('a-entity');
+    let buildingProperties = {primitive: "building", outerPoints: outerPoints, height: height};
     newBuilding.setAttribute("geometry", buildingProperties);
     newBuilding.setAttribute("material", {color: color});
     newBuilding.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
@@ -103,8 +144,8 @@ async function addBuilding(feature) {
     let easting = utm.x;
     let northing = utm.y;
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-heightOffset, (pixelCoords.y*coordsScale));
-    buildingParent.appendChild(newBuilding);
+    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-buildingHeightOffset, (pixelCoords.y*coordsScale));
+    parentElement.appendChild(newBuilding);
 }
 
 

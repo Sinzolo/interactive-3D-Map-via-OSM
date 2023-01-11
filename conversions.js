@@ -15,53 +15,6 @@ function getBoundingBoxFromPixelCoords(centreCoords, metres) {
            }
 }
 
-function getBoundingBoxFromLatLong(centreCoords, metres=100) {
-    km = metres/1000;
-    minLat = centreCoords.lat - (0.009*km)
-    minLon = centreCoords.lon - (0.009*km)
-    maxLat = centreCoords.lat + (0.009*km)
-    maxLon = centreCoords.lon + (0.009*km)
-    console.log("Bounding bos solution one:\n", {minLat: minLat, minLon: minLon, maxLat: maxLat, maxLon: maxLon});
-    
-    // const p = turf.point([centreCoords.lon, centreCoords.lat]);
-    // buffer = turf.buffer(p, km, {units: 'kilometers'});
-    // bbox = turf.bbox(buffer);
-    // poly = turf.bboxPolygon(bbox);
-    // console.log("Second solution:\n", poly);
-}
-
-
-// /**
-//  * It takes a latitude and longitude and a distance in kilometers, and returns the bounding box that is
-//  * the specified distance from the given latitude and longitude
-//  * @param latitude - The latitude of the center point of the bounding box.
-//  * @param longitude - The longitude of the center point of the bounding box.
-//  * @param distance - The distance in kilometers from the center point that you want to calculate the
-//  * bounding box for.
-//  * @returns an object with the north and south latitudes and the east and west longitudes.
-//  */
-// function getBoundingBox(latitude, longitude, distance) {
-//     const radius = 6371; // Earth's radius in kilometers
-
-//     // Calculate the bounding box's north and south latitudes
-//     const northLat = latitude + Math.asin(Math.sin(latitude) * Math.cos(distance / radius) +
-//       Math.cos(latitude) * Math.sin(distance / radius) * Math.cos(0));
-//     const southLat = latitude + Math.asin(Math.sin(latitude) * Math.cos(distance / radius) +
-//       Math.cos(latitude) * Math.sin(distance / radius) * Math.cos(180));
-
-//     // Calculate the bounding box's east and west longitudes
-//     const eastLng = longitude + Math.atan2(Math.sin(90) * Math.sin(distance / radius) * Math.cos(latitude),
-//       Math.cos(distance / radius) - Math.sin(latitude) * Math.sin(latitude));
-//     const westLng = longitude + Math.atan2(Math.sin(270) * Math.sin(distance / radius) * Math.cos(latitude),
-//       Math.cos(distance / radius) - Math.sin(latitude) * Math.sin(latitude));
-
-//     return {
-//         northLat: northLat,
-//         southLat: southLat,
-//         eastLng: eastLng,
-//         westLng: westLng
-//     };
-// }
 
 /**
  * It returns the bounding box of a circle with a given center and radius.
@@ -205,10 +158,20 @@ function convertLatLongToUTM(lat, long) {
 function convertUTMToPixelCoords(easting, northing) {
     let x = (twfData[3]*easting-twfData[2]*northing+twfData[2]*twfData[5]-twfData[3]*twfData[4])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
     let y = (-twfData[1]*easting+twfData[0]*northing+twfData[1]*twfData[4]-twfData[0]*twfData[5])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
-    let xy = convertToNewPixelCoords(x, y);
-    //x = Math.round(xy.x);
-    //y = Math.round(xy.y);
-    return {x: xy.x, y: xy.y};
+    return {x: x, y: y};
+}
+
+
+/**
+ * Convert a latitude/longitude coordinate to a pixel coordinate of the '.tiff' file.
+ * 
+ * @param coordinate - a coordinate object with a lat and long property
+ * @returns An object with the x and y coordinates of the pixel.
+ */
+function convertLatLongToPixelCoords(coordinate) {
+    let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
+    let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
+    return { x: Math.round(pixelCoords.x), y: Math.round(pixelCoords.y) };
 }
 
 
@@ -258,25 +221,3 @@ function convert1DArrayTo2DArray(oneDArray) {
     }
     return twoDArray;
 }
-
-    
-//     var length = height;
-//     var start = 0;
-//     var end = width;
-//     var count = 0;
-//     // Initialise a 2D array
-//     twoDArray = new Array(height);
-//     for (var i = 0; i < twoDArray.length; i++) {
-//         twoDArray[i] = new Array(width);
-//     }
-//     while(length > 0) {
-//         oneDArray[0].slice(start,end).forEach((element, index) => {
-//             twoDArray[index][count] = element;
-//         });
-//         length -= 1;
-//         start += width;
-//         end += width;
-//         count++;
-//     }
-//     return twoDArray;
-// }

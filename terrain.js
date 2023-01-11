@@ -1,3 +1,5 @@
+var tiff;
+var image;
 var oneDHeightMapArray;
 var twoDHeightMapArray;
 var windowedOneDHeightMapArray;
@@ -8,13 +10,19 @@ var tiffWindow;
 var offset;
 
 const yScale = 1;
-const xzScale = 10;
+const xzScale = 8;
 
-async function getHeightMap(latitude, longitude, bboxSize) {
+async function getHeightMap(pixelCoords, bboxSize) {
+    console.log("=== Getting Height Map ===");
+
     if (typeof image === 'undefined') {
-        var tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
-        var image = await tiff.getImage();
+        tiff = await GeoTIFF.fromUrl("uniTiff/SD45ne_DTM_2m.tif");
+        image = await tiff.getImage();
+        console.log("Getting tif hopefully once");
     }
+
+    //console.log(tiff);
+    //console.log(image);
 
     // const bbox = image.getBoundingBox();
     // console.log("bbox = ", bbox);
@@ -32,13 +40,13 @@ async function getHeightMap(latitude, longitude, bboxSize) {
     // console.log("tiffWindow =", tiffWindow);
 
     offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
-    let centreUTM = convertLatLongToUTM(latitude, longitude);
-    let centrePixelCoords = convertUTMToPixelCoords(centreUTM.x, centreUTM.y);
-    centrePixelCoords = { x: Math.round(centrePixelCoords.x), y: Math.round(centrePixelCoords.y) };
-    console.log("centrePixelCoords = ", centrePixelCoords);
+    // let centreUTM = convertLatLongToUTM(latitude, longitude);
+    // let centrePixelCoords = convertUTMToPixelCoords(centreUTM.x, centreUTM.y);
+    // centrePixelCoords = { x: Math.round(centrePixelCoords.x), y: Math.round(centrePixelCoords.y) };
+    //console.log("centrePixelCoords = ", centrePixelCoords);
 
-    xPixel = centrePixelCoords.x;
-    yPixel = centrePixelCoords.y;
+    xPixel = pixelCoords.x;
+    yPixel = pixelCoords.y;
 
     tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
     //console.log("tiffWindow =", tiffWindow);
@@ -67,15 +75,23 @@ async function getHeightMap(latitude, longitude, bboxSize) {
 
 
 async function loadTerrain() {
+    console.log("=== Loading Terrain ===");
+
     /*
         Draws triangles for the floor
      */
     let xOffset = tiffWindow[0];
     let zOffset = tiffWindow[1];
-    var triangleParent = document.querySelector("#terrainParent");
+
+    let sceneElement = document.querySelector('a-scene');
+    let triangleParent = document.createElement('a-entity');
+    triangleParent.setAttribute("id", "terrainParent");
+    triangleParent.setAttribute("class", "terrain");
+    sceneElement.appendChild(triangleParent);
+    let newTriangle;
     for (let z = 0; z < windowedTwoDHeightMapArray.length-xzScale; z+=xzScale) {
         for (let x = 0; x < windowedTwoDHeightMapArray[z].length-xzScale; x+=xzScale) {
-            var newTriangle = document.createElement('a-triangle');
+            newTriangle = document.createElement('a-triangle');
             newTriangle.setAttribute("color", "#4c9141");
             newTriangle.setAttribute("vertex-a", (x+xOffset)+" "+windowedTwoDHeightMapArray[x][z]*yScale+" "+(z+zOffset));
             newTriangle.setAttribute("vertex-b", (x+xOffset)+" "+windowedTwoDHeightMapArray[x][z+xzScale]*yScale+" "+(z+zOffset+xzScale));
