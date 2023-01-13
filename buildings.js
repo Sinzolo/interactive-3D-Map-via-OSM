@@ -11,7 +11,7 @@ async function loadBuildings(lat, long, bboxSize) {
     // https://stackoverflow.com/questions/639695/how-to-convert-latitude-or-longitude-to-meters
     //helpful but not for this problem
     //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
-    
+
     var bbox = getBoundingBox(lat, long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     var overpassQuery = overpassURL + encodeURIComponent(
@@ -20,33 +20,41 @@ async function loadBuildings(lat, long, bboxSize) {
         "out geom;>;out skel qt;"
     );
 
-    // caches.match('https://example.com/data')
-    // .then(response => {
-    //     if (response) {
-    //         return response;
-    //     }
-    //     return fetch('https://example.com/data')
-    // })
-    // .then(response => response.json())
-    // .then(data => {
-    //     // Use the data here
-    // });
+    if ('caches' in window) {
+        var geoJSON = caches.match(overpassQuery)
+        .then((response) => {
+            if (response) {     // If found in cache return response
+                console.log("Found it in cache");
+                return response;
+            }
+            console.log("NOT found in cache... Fetching URL");
+            return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
+                osmCache.then((cache) => {
+                    cache.put(overpassQuery, response);        //  Once fetched cache the response
+                    console.log("Storing in cache");
+                });
+                return response.clone();        // Return fetched resource
+            });
+        });
+    }
+    else {
+        var geoJSON = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
+        //let geoJSON = await fetch("interpreter.xml");     // Uses the preloaded uni area of buildings
+        //let geoJSON = await fetch("squareUni.xml");       // Uses the preloaded square area of the uni buildings
+    }
+
+    geoJSON = await geoJSON
+    .then((response) => {return response.text();})
+    .then((response) => {
+        let parser = new DOMParser();
+        let itemData = parser.parseFromString(response, "application/xml");
+        let itemJSON = osmtogeojson(itemData);
+        return itemJSON
+    });
 
     // currently working on this^ 11th jan 1:49pm
 
 
-    let geoJSON = await fetchWithRetry(overpassQuery).then((response) => {           // Fetches the OSM data needed for the specific bbox
-    //let geoJSON = await fetch("interpreter.xml").then((response) => {     // Uses the preloaded uni area of buildings
-    //let geoJSON = await fetch("squareUni.xml").then((response) => {       // Uses the preloaded square area of the uni buildings
-        return response.text();
-    })
-    .then((response) => {
-        var parser = new DOMParser();
-        var itemData = parser.parseFromString(response, "application/xml");
-        var itemJSON = osmtogeojson(itemData);
-        //console.log(itemJSON);
-        return itemJSON
-    });
 
     let sceneElement = document.querySelector('a-scene');
     let buildingParent = document.createElement('a-entity');
@@ -70,11 +78,12 @@ async function loadBuildings(lat, long, bboxSize) {
 async function fetchWithRetry(url, retries = 3) {
     while (retries) {
         try {
-            let response = await fetch(url);
-            if (!response.ok) {
-                throw new Error("Fetch failed with status "+response.status);
-            }
-            return response;
+            return fetch(url).then((response) => {
+                if (!response.ok) {
+                    throw new Error("Fetch failed with status "+response.status);
+                }
+                return response;
+            });
         } catch (err) {
             retries--;
             console.log("Retrying, "+retries+" attempts left.");
@@ -85,7 +94,7 @@ async function fetchWithRetry(url, retries = 3) {
 
 
 async function addBuilding(feature, parentElement) {
-    console.log("=== Adding Building ===");
+    //console.log("=== Adding Building ===");
 
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];

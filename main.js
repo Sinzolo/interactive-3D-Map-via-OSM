@@ -9,7 +9,7 @@ const buildingScale = 4.3;                                // Scaling the buildin
 const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis).
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building.
 const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
-const bboxSize = 600;                                     // Length of one side of bounding box in metres
+const bboxSize = 400;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough.
 const locationOptions = {
     enableHighAccuracy: true,
@@ -18,6 +18,21 @@ const locationOptions = {
 };
 
 const debug = true;
+
+const osmCacheName = "osmCache";
+var osmCache = caches.open(osmCacheName);
+
+// Once a minute transmit the latest co-ordinates
+setInterval(async function() {
+    await caches.delete(osmCacheName);
+    console.log("Caches Deleted");
+    console.log("Opening New Cache");
+    osmCache = caches.open(osmCacheName)
+}, 1000*60);
+
+window.addEventListener("unload", async function() {
+    await caches.delete(osmCacheName);
+});
 
 
 /**
@@ -42,7 +57,7 @@ function showMenu() {
     mapDivElements.style.display = "none";
     welcomeDivElements = document.getElementById("WelcomeScreen");
     welcomeDivElements.style.display = "block";
-    
+
     navigator.geolocation.clearWatch(watchID);
     watchID = -1;
     startShowingMap = false;
@@ -65,9 +80,9 @@ async function locationSuccess(position) {
     if (startShowingMap == false) return;
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     if (newPixelCoords.x < 0 || newPixelCoords.x > 5000 || newPixelCoords.y < 0 || newPixelCoords.y > 5000) throw "Invalid Coordinates"
-    if (!movedFarEnough(newPixelCoords)) {console.log("Not moved far enough..."); return;}
-
-    await loadMap(newLatLong, newPixelCoords, bboxSize);
+    if (movedFarEnough(newPixelCoords)) {
+        await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
+    }
     placeCameraAtPixelCoords(newPixelCoords);
 }
 
@@ -138,18 +153,24 @@ function placeCameraAtGPSLocation({ lat: lat, long: long }) {
     }
 }
 
+/**
+ * It takes a pixel coordinate and places the camera at that pixel coordinate
+ * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
+ */
 function placeCameraAtPixelCoords(pixelCoords) {
-    console.log("=== Placing Camera ===");
-    //console.log(lat);
-    //console.log(long);
-    if (isPlayerCameraActive()) {
-        camera = document.getElementById("rig");
-        camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
-    }
+    camera = document.getElementById("rig");
+    camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
 }
 
 
-async function loadMap(coordinate, pixelCoords, bboxSize) {
+/**
+ * It loads the map by getting the height map, removing the current map, loading the terrain, and
+ * loading the buildings.
+ * @param coordinate - The coordinate of the center of the map.
+ * @param pixelCoords - The pixel coordinates of the center of the map.
+ * @param bboxSize - The size of the bounding box in metres.
+ */
+async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     console.log("=== Loading Map ===");
     await getHeightMap(pixelCoords, bboxSize);
     setCurrentMapForRemoval();
@@ -173,6 +194,7 @@ function isPlayerCameraActive() {
 
 /**
  * Remove the element with the given id from the document.
+ * Does nothing if element does not exist.
  * @param id - The id of the element to remove.
  */
 function removeElement(id) {
@@ -204,11 +226,20 @@ function removeCurrentMap() {
     removeCurrentBuildings();
 }
 
+/**
+ * If the element with the given ID exists, change its ID to the new ID.
+ * @param elementID - The ID of the element you want to change.
+ * @param newElementID - The new ID you want to give the element.
+ */
 function changeElementID(elementID, newElementID) {
     let element = document.getElementById(elementID);
     if (element) element.setAttribute("id", newElementID);
 }
 
+/**
+ * It changes the ID of the terrain and building parents to "terrainToRemove" and "buildingToRemove"
+ * respectively.
+ */
 function setCurrentMapForRemoval() {
     changeElementID("terrainParent", "terrainToRemove")
     changeElementID("buildingParent", "buildingToRemove")
