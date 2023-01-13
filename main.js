@@ -1,35 +1,37 @@
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]
 var usersPixelCoords = { x: -1, y: -1 };           // Impossible coordinates
-var startShowingMap = false;
 var watchID = -1;
 
 const overpassURL = "https://overpass-api.de/api/interpreter?data=";
 const uniCoordinate = { lat: 54.01028, long: -2.78536 }   // Centre of uni
-const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z).
-const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis).
-const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building.
+const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
+const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
 const bboxSize = 400;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough.
+const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 600,    // Will only update every 600ms
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
-
 const debug = true;
+const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
+var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
 
-const osmCacheName = "osmCache";
-var osmCache = caches.open(osmCacheName);
+var cacheDeletionInterval = setInterval(deleteAndReOpenCache(), 1000*60);   // Once a minute clear the caches.
 
-// Once a minute transmit the latest co-ordinates
-setInterval(async function() {
+/**
+ * Deletes the cache and then opens a new cache.
+ */
+async function deleteAndReOpenCache() {
     await caches.delete(osmCacheName);
-    console.log("Caches Deleted");
-    console.log("Opening New Cache");
+    console.log("Cache Storage Deleted");
+    console.log("Opening New Cache Storage");
     osmCache = caches.open(osmCacheName)
-}, 1000*60);
+}
 
+/* Delete the cache when the page is unloaded. */
 window.addEventListener("unload", async function() {
     await caches.delete(osmCacheName);
 });
@@ -45,7 +47,6 @@ function showMap() {
     mapDivElements.style.display = "block";
 
     //navigator.geolocation.getCurrentPosition(locationSuccess, locationError, locationOptions);
-    startShowingMap = true;
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
 }
 
@@ -60,24 +61,13 @@ function showMenu() {
 
     navigator.geolocation.clearWatch(watchID);
     watchID = -1;
-    startShowingMap = false;
-
-    navigator.storage.estimate().then((estimate) => {
-        document.getElementById("percent").value =
-            (estimate.usage / estimate.quota * 100).toFixed(2);
-    });
 }
 
-navigator.storage.estimate().then((estimate) => {
-    document.getElementById("percent").value =
-        (estimate.usage / estimate.quota * 100).toFixed(2);
-});
 
 async function locationSuccess(position) {
     console.log("\n\n===== NEW LOCATION ======");
     let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
 
-    if (startShowingMap == false) return;
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     if (newPixelCoords.x < 0 || newPixelCoords.x > 5000 || newPixelCoords.y < 0 || newPixelCoords.y > 5000) throw "Invalid Coordinates"
     if (movedFarEnough(newPixelCoords)) {
@@ -108,50 +98,35 @@ function locationError(error) {
 }
 
 
-
-function movedFarEnough({x: newX, y: newY}) {
+/**
+ * If the user has moved more than 'distanceNeededToMove' metres, return true
+ * @param newPixelCoords - The new pixel coordinates of the user.
+ * @returns a boolean value.
+ */
+function movedFarEnough(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
     if (usersPixelCoords.x == -1 && usersPixelCoords.y == -1) {
         console.log("First time moving");
-        usersPixelCoords = {x: newX, y: newY};
+        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
         return true;
     }
 
     // Storing how many metres the user has moved in the x and y directions.
-    let xDistance = usersPixelCoords.x - newX;
+    let xDistance = usersPixelCoords.x - newPixelCoords.x;
     xDistance = Math.abs(xDistance)*2;
-    let yDistance = usersPixelCoords.y - newY;
+    let yDistance = usersPixelCoords.y - newPixelCoords.y;
     yDistance = Math.abs(yDistance)*2;
     console.log(xDistance);
     console.log(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
     if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
-        usersPixelCoords = {x: newX, y: newY};
+        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
         return true;
     }
     return false;
 }
 
-function validateCoords({ lat: lat, long: long }) {
-    return lat == 91 && long == 181 ? true : lat >= -90 && lat <= 90 && long >= -180 && long <= 180 ? true : false;
-}
-
-
-function placeCameraAtGPSLocation({ lat: lat, long: long }) {
-    console.log("=== Placing Camera ===");
-    //console.log(lat);
-    //console.log(long);
-    if (isPlayerCameraActive()) {
-        camera = document.getElementById("rig");
-        var utm = convertLatLongToUTM(lat, long);
-        var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-        console.log({ lat: lat, long: long });
-        console.log(utm);
-        console.log(pixelCoords);
-        camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
-    }
-}
 
 /**
  * It takes a pixel coordinate and places the camera at that pixel coordinate
@@ -189,7 +164,6 @@ function isPlayerCameraActive() {
     var playerCamera = document.getElementById("playerCamera");
     return playerCamera.getAttribute('camera').active;
 }
-
 
 
 /**

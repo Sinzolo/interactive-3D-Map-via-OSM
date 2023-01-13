@@ -21,7 +21,7 @@ async function loadBuildings(lat, long, bboxSize) {
     );
 
     if ('caches' in window) {
-        var geoJSON = caches.match(overpassQuery)
+        var response = caches.match(overpassQuery)
         .then((response) => {
             if (response) {     // If found in cache return response
                 console.log("Found it in cache");
@@ -38,12 +38,13 @@ async function loadBuildings(lat, long, bboxSize) {
         });
     }
     else {
-        var geoJSON = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
-        //let geoJSON = await fetch("interpreter.xml");     // Uses the preloaded uni area of buildings
-        //let geoJSON = await fetch("squareUni.xml");       // Uses the preloaded square area of the uni buildings
+        var response = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
+        //let response = await fetch("interpreter.xml");     // Uses the preloaded uni area of buildings
+        //let response = await fetch("squareUni.xml");       // Uses the preloaded square area of the uni buildings
     }
 
-    geoJSON = await geoJSON
+    /* Converting the response from the overpass API into a JSON object. */
+    let geoJSON = await response
     .then((response) => {return response.text();})
     .then((response) => {
         let parser = new DOMParser();

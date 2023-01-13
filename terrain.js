@@ -52,10 +52,13 @@ async function getHeightMap(pixelCoords, bboxSize) {
     //console.log("tiffWindow =", tiffWindow);
     var window = tiffWindow;
 
-
-
     windowedOneDHeightMapArray = await image.readRasters( { window } );
+    console.log(windowedOneDHeightMapArray);
+
     oneDHeightMapArray = await image.readRasters( );
+
+    console.log(oneDHeightMapArray);
+
 
     height = oneDHeightMapArray.height;
     width = oneDHeightMapArray.width;
