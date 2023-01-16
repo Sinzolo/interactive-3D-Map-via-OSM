@@ -9,7 +9,6 @@ async function loadPaths(coordinate, bboxSize) {
 
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
-    console.log(stringBBox);
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[highway=path]("+stringBBox+");" +
         "way[highway=pedestrian]("+stringBBox+");" +
@@ -75,7 +74,6 @@ async function loadPaths(coordinate, bboxSize) {
     numberOfPaths = 0;
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-            console.log("IS A POLYGON");
         }
         else if (feature.geometry.type == "LineString") {
             numberOfPaths += 1;
@@ -88,21 +86,18 @@ async function loadPaths(coordinate, bboxSize) {
 
 // TODO this does not work
 async function fetchWithRetry(url, retries = 5) {
-    console.log("Yeet");
     var response;
     while (retries > 0) {
         response = await fetch(url).then((response) => {
             if (!response.ok) {
                 throw new Error("Fetch failed with status "+response.status);
             }
-            console.log("what");
             retries = 0;
             return response;
         }).catch((error) => {
             retries--;
             console.log("Retrying, "+retries+" attempts left.");
         });
-        console.log(response);
     }
     if (typeof response === 'undefined') throw new Error("All retries failed.");
     return response;
@@ -123,13 +118,10 @@ async function addPath(feature, parentElement) {
       color = color;
     }
 
-    console.log(feature.geometry.coordinates.length);
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i-1];
         let point2 = feature.geometry.coordinates[i];
-        console.log(point1);
-        console.log(point2);
         let pixelCoords1 = convertLatLongToPixelCoords({lat: point1[1], long: point1[0]});
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
 

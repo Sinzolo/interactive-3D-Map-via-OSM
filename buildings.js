@@ -140,7 +140,6 @@ async function addBuilding(feature, parentElement) {
     let easting = utm.x;
     let northing = utm.y;
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    console.log(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale);
     if ((twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
         throw new Error("Height map not found! (My own error)");
     }
