@@ -1,6 +1,18 @@
-var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]
+var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
+//const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
+//const tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
+//const tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
+
+
 var usersPixelCoords = { x: -1, y: -1 };           // Impossible coordinates
 var watchID = -1;
+var numberOfPositionChanges = 0;
+var coordsTotal = {lat: 0, long: 0};
+var mapBeingShown = false;
 
 const overpassURL = "https://overpass-api.de/api/interpreter?data=";
 const uniCoordinate = { lat: 54.01028, long: -2.78536 }   // Centre of uni
@@ -8,19 +20,18 @@ const buildingScale = 4.3;                                // Scaling the buildin
 const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
-const bboxSize = 400;                                     // Length of one side of bounding box in metres
+const bboxSize = 500;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 600,    // Will only update every 600ms
+    maximumAge: 1000,    // Will only update every 600ms
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
+
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
 var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
-
-var cacheDeletionInterval = setInterval(deleteAndReOpenCache(), 1000*60);   // Once a minute clear the caches.
-
+var cacheDeletionInterval;
 /**
  * Deletes the cache and then opens a new cache.
  */
@@ -30,11 +41,25 @@ async function deleteAndReOpenCache() {
     console.log("Opening New Cache Storage");
     osmCache = caches.open(osmCacheName)
 }
-
 /* Delete the cache when the page is unloaded. */
 window.addEventListener("unload", async function() {
     await caches.delete(osmCacheName);
 });
+/* Clearing the interval when the window is not in focus. */
+window.onblur = function() {
+    if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = clearInterval(cacheDeletionInterval);
+        console.log("Interval Cleared");
+    }
+};
+/* Restarting the cache deletion interval when the window is in focus. */
+window.onfocus = function() {
+    if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+        console.log("Interval Restarted");
+    }
+};
+
 
 
 /**
@@ -46,8 +71,9 @@ function showMap() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
-    //navigator.geolocation.getCurrentPosition(locationSuccess, locationError, locationOptions);
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
+    cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+    mapBeingShown = true;
 }
 
 /**
@@ -61,6 +87,9 @@ function showMenu() {
 
     navigator.geolocation.clearWatch(watchID);
     watchID = -1;
+    clearInterval(cacheDeletionInterval);
+    console.log("Interval Cleared");
+    mapBeingShown = false;
 }
 
 
@@ -69,11 +98,10 @@ async function locationSuccess(position) {
     let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
 
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
-    if (newPixelCoords.x < 0 || newPixelCoords.x > 5000 || newPixelCoords.y < 0 || newPixelCoords.y > 5000) throw "Invalid Coordinates"
-    if (movedFarEnough(newPixelCoords)) {
-        await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
-    }
-    placeCameraAtPixelCoords(newPixelCoords);
+    console.log(newPixelCoords);
+    if (newPixelCoords.x < 0 || newPixelCoords.x > 2500 || newPixelCoords.y < 0 || newPixelCoords.y > 2500) throw "Invalid Coordinates"
+    if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
+    if (twoDHeightMapArray) placeCameraAtPixelCoords(newPixelCoords);
 }
 
 /**
@@ -135,6 +163,7 @@ function movedFarEnough(newPixelCoords) {
 function placeCameraAtPixelCoords(pixelCoords) {
     camera = document.getElementById("rig");
     camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
+    // TODO Smooth camera movement or smooth out GPS coordinates
 }
 
 
@@ -151,7 +180,8 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     setCurrentMapForRemoval();
     removeCurrentMap();
     loadTerrain();
-    loadBuildings(coordinate.lat, coordinate.long, bboxSize);
+    loadBuildings(coordinate, bboxSize);
+    loadPaths(coordinate, bboxSize);
 }
 
 

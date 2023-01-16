@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Terrain Test</title>
 
-    <!-- <img id = "geotiff" src="exportImage (1).tiff" class="hidden"> -->
-    <img id = "geotiff" src="https://environment.data.gov.uk/image/rest/services/SURVEY/LIDAR_Composite_2m_DTM_2020_Elevation/ImageServer/exportImage?bbox=348391%2C457481%2C348747%2C456988&bboxSR=&size=&imageSR=&time=&format=tiff&pixelType=F32&noData=&noDataInterpretation=esriNoDataMatchAny&interpolation=+RSP_BilinearInterpolation&compression=&compressionQuality=&bandIds=&sliceId=&mosaicRule=&renderingRule=&adjustAspectRatio=true&lercVersion=1&compressionTolerance=&f=image" class="hidden">
+    <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">
+    <!-- <img id = "geotiff" src="https://environment.data.gov.uk/image/rest/services/SURVEY/LIDAR_Composite_2m_DTM_2020_Elevation/ImageServer/exportImage?bbox=348391%2C457481%2C348747%2C456988&bboxSR=&size=&imageSR=&time=&format=tiff&pixelType=F32&noData=&noDataInterpretation=esriNoDataMatchAny&interpolation=+RSP_BilinearInterpolation&compression=&compressionQuality=&bandIds=&sliceId=&mosaicRule=&renderingRule=&adjustAspectRatio=true&lercVersion=1&compressionTolerance=&f=image" class="hidden"> -->
     <!-- https://environment.data.gov.uk/image/rest/services/SURVEY/LIDAR_Composite_2m_DTM_2020_Elevation/ImageServer/exportImage?bbox=348391%2C457481%2C348747%2C456988&bboxSR=&size=&imageSR=&time=&format=tiff&pixelType=F32&noData=&noDataInterpretation=esriNoDataMatchAny&interpolation=+RSP_BilinearInterpolation&compression=&compressionQuality=&bandIds=&sliceId=&mosaicRule=&renderingRule=&adjustAspectRatio=true&lercVersion=1&compressionTolerance=&f=image -->
 
 
@@ -21,7 +21,7 @@
   <canvas id="plot"></canvas>
     <script>
         (async function() {
-          const tiff = await GeoTIFF.fromUrl("_ags_41cd876c_dabc_4660_a534_25532792dd9c.tif");
+          const tiff = await GeoTIFF.fromUrl("leylandTiff/SD52sw_DTM_2m.tif");
           const image = await tiff.getImage();
           const data = await image.readRasters();
 

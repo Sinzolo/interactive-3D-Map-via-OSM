@@ -1,4 +1,6 @@
-async function loadBuildings(lat, long, bboxSize) {
+var numberOfBuildings = 0;
+
+async function loadBuildings(coordinate, bboxSize) {
     console.log("=== Loading Buildings ===");
 
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
@@ -12,8 +14,9 @@ async function loadBuildings(lat, long, bboxSize) {
     //helpful but not for this problem
     //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
 
-    var bbox = getBoundingBox(lat, long, bboxSize);
+    var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
+    console.log(stringBBox);
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building]("+stringBBox+");" +
         "rel[building]("+stringBBox+"););" +
@@ -63,16 +66,16 @@ async function loadBuildings(lat, long, bboxSize) {
     buildingParent.setAttribute("class", "building");
     sceneElement.appendChild(buildingParent);
 
-    var count = 0;
+    numberOfBuildings = 0;
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {
             addBuilding(feature, buildingParent);
-            count = count + 1;
+            numberOfBuildings += 1;
         } else {
         }
     });
 
-    console.log("Number of buidlings: ", count);
+    console.log("Number of buidlings: ", numberOfBuildings);
 }
 
 
@@ -99,6 +102,7 @@ async function addBuilding(feature, parentElement) {
 
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];
+    //console.log(height);
     if(tags.amenity == "shelter" && !height) height = 1;
     else if(!height) height = 2;
     height = parseInt(height)
@@ -154,7 +158,13 @@ async function addBuilding(feature, parentElement) {
     let easting = utm.x;
     let northing = utm.y;
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-buildingHeightOffset, (pixelCoords.y*coordsScale));
+    console.log(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale);
+    if ((twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
+        throw new Error("Height map not found! (My own error)");
+    }
+    else {
+        newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-buildingHeightOffset, (pixelCoords.y*coordsScale));
+    }
     parentElement.appendChild(newBuilding);
 }
 
