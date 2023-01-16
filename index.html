@@ -2,47 +2,59 @@
 <html lang="en">
 
     <head>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!-- <meta charset="UTF-8"> -->
+        <!-- <meta http-equiv="X-UA-Compatible" content="IE=edge"> -->
+        <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
         <link rel="stylesheet" href="style.css">
-        <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-        <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script>
-        <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>
-        <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script> -->
+        <title>Interactive 3D Map via OSM</title>
+        <link rel="shortcut icon" type="image/png" href="favicon.png"/>
+        
+        <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>  <!-- A-Frame -->
+        <!-- <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script> -->  <!-- Convert from OSM to GeoJSON -->
+        <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
+        <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
 
         <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- GeoTiff converter -->
-        <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">     <!-- GeoTiff image -->
-        <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>
+        <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">                         <!-- GeoTiff image -->
+        <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>                                           <!-- GeoTiff data file-->
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
-        <script src="os-transform.js"></script>                                                     <!-- EPSG:27700 to WGS 84 converter -->
 
-        <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
-        
+        <!-- <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script> -->    <!-- might be helpful ive not decided yet-->
+
         <script src="interpreter.xml"></script>
+        <script src="squareUni.xml"></script>
+        <script src="paths.xml"></script>
+        <script src="osmtogeojson.js"></script>
         <script src="conversions.js"></script>
         <script src="terrain.js"></script>
+        <script src="buildings.js"></script>
+        <script src="paths.js"></script>
         <script src="main.js"></script>
 
-        <title>Interactive 3D Map via OSM</title>
     </head>
     <body>
 
-        <div id = "WelcomeScreen">
+        <div id="WelcomeScreen">
             <h2>Welcome to my Third Year Project for Lancaster University.</h2>
             <br>This website automatically generates a 3D map of the specified place using OSM's large database.
-            <br><button id="loadMapBtn" onclick="loadMap()">Load Map</button>
+            <br><button id="loadMapBtn" onclick="showMap()">Load Map</button>
         </div>
 
-        <div id = "MapScreen" style="display: none">
-            <button id="loadMenuBtn" onclick="loadMenu()">Load Menu</button>
-            <a-scene stats background="color: lightblue">
-                <a-entity id="rig" movement-controls="fly: true; speed: 5" position-limit="ymin: 250; ymax: 1000" rotation="0 -90 0">
-                    <a-camera id="camera"></a-camera>
+        <div id="MapScreen" style="display: none">
+            <button id="loadMenuBtn" onclick="showMenu()">Load Menu</button>
+            
+            <a-scene vr-mode-ui="enabled: false" stats background="color: lightblue">
+                <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
+                    <a-camera id="player"></a-camera>
+                    <!-- <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
                     <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
+                <!-- </a-entity> -->
+                <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
+                    <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
+                    <a-entity id="debugCamera" camera="active: false" look-controls wasd-controls="acceleration: 1000; fly: true"></a-entity>
                 </a-entity>
-
+                
                 <!-- TODO Cant get flight control to work -->
                 <!-- <a-entity flight-controls> -->
                     <!-- or you could use universal-controls instead of both look- and wasd-controls. -->

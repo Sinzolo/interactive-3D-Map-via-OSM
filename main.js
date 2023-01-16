@@ -1,224 +1,253 @@
-var overpassURL = "https://overpass-api.de/api/interpreter?data=";
-/* Old coords for centre of uni */
-var centreLat = 54.008551;
-var centreLong = -2.787395;
-// var utm = convertLatLongToUTM(centreLat, centreLong);
-// var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y)
-// var boundingBox = getBoundingBoxFromPixelCoords(pixelCoords.x, pixelCoords.y, 100)
-// var centreLat = 54.010212;
-// var centreLong = -2.785161;
-var boundingBox = "54.002150,-2.798493,54.014962,-2.776263"
-var coordsScale = 0.5;  // I think this is due to the fact that the image im using is 2m per pixel so i need to half the pixel coords i get
+var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
+//const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
+//const tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
+//const tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
-async function loadMap() {
-    /*
-        Hides the welcome screen and shows the map
-    */
+
+var usersPixelCoords = { x: -1, y: -1 };           // Impossible coordinates
+var watchID = -1;
+var numberOfPositionChanges = 0;
+var coordsTotal = {lat: 0, long: 0};
+var mapBeingShown = false;
+
+const overpassURL = "https://overpass-api.de/api/interpreter?data=";
+const uniCoordinate = { lat: 54.01028, long: -2.78536 }   // Centre of uni
+const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
+const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
+const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
+const bboxSize = 500;                                     // Length of one side of bounding box in metres
+const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
+const locationOptions = {
+    enableHighAccuracy: true,
+    maximumAge: 1000,    // Will only update every 600ms
+    timeout: 5000       // 5 second timeout until it errors if it can't get their location
+};
+const debug = true;
+
+const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
+var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
+var cacheDeletionInterval;
+/**
+ * Deletes the cache and then opens a new cache.
+ */
+async function deleteAndReOpenCache() {
+    await caches.delete(osmCacheName);
+    console.log("Cache Storage Deleted");
+    console.log("Opening New Cache Storage");
+    osmCache = caches.open(osmCacheName)
+}
+/* Delete the cache when the page is unloaded. */
+window.addEventListener("unload", async function() {
+    await caches.delete(osmCacheName);
+});
+/* Clearing the interval when the window is not in focus. */
+window.onblur = function() {
+    if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = clearInterval(cacheDeletionInterval);
+        console.log("Interval Cleared");
+    }
+};
+/* Restarting the cache deletion interval when the window is in focus. */
+window.onfocus = function() {
+    if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+        console.log("Interval Restarted");
+    }
+};
+
+
+
+/**
+ * Hides the welcome screen and shows the map
+ */
+function showMap() {
     welcomeDivElements = document.getElementById("WelcomeScreen");
     welcomeDivElements.style.display = "none";
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "block";
 
-    await getHeightMap();
-
-    const watchID = setUpLocationWatcher();
-
-    loadTerrain();
-    loadBuildings();
+    if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
+    cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+    mapBeingShown = true;
 }
 
-const options = {
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: Infinity
-};
-
-function setUpLocationWatcher() {
-    return navigator.geolocation.watchPosition((position) => {
-        console.log("New location = ", {lat: position.coords.latitude, long: position.coords.longitude});
-        placeCameraAtGPSLocation(position.coords.latitude, position.coords.longitude);
-    }, function(error) {
-        switch(error.code) {
-            case error.PERMISSION_DENIED:
-                console.log("User denied the request for Geolocation.")
-                break;
-            case error.POSITION_UNAVAILABLE:
-                console.log("Location information is unavailable.")
-                break;
-            case error.TIMEOUT:
-                console.log("The request to get user location timed out.")
-                break;
-            case error.UNKNOWN_ERROR:
-                console.log("An unknown error occurred.")
-                break;
-            }
-    }, options);
-}
-
-function placeCameraAtGPSLocation(latitude, longitude) {
-    camera = document.querySelector('#rig');
-    //var utm = convertLatLongToUTM(centreLat, centreLong);
-    var utm = convertLatLongToUTM(latitude, longitude);
-    var pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-    camera.setAttribute("position", pixelCoords.x +" "+ (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]+0.020) +" "+ pixelCoords.y);
-
-    console.log("Changing cameras location.");
-    console.log("New lat and long: ", latitude, longitude);
-    console.log("camera pixel coords: ", pixelCoords.x, pixelCoords.y);
-}
-
-function loadMenu() {
-    /*
-        Hides the map and shows the welcome screen
-    */
+/**
+ * Hides the map and shows the welcome screen
+ */
+function showMenu() {
     mapDivElements = document.getElementById("MapScreen")
     mapDivElements.style.display = "none";
     welcomeDivElements = document.getElementById("WelcomeScreen");
     welcomeDivElements.style.display = "block";
+
+    navigator.geolocation.clearWatch(watchID);
+    watchID = -1;
+    clearInterval(cacheDeletionInterval);
+    console.log("Interval Cleared");
+    mapBeingShown = false;
 }
 
-async function loadBuildings() {
-    //(way(around:50, 51.1788435,-1.826204);>;);out body;
-    var overpassQuery = overpassURL +
-    encodeURIComponent(
-        "(way[building]("+boundingBox+");" +
-        "rel[building]("+boundingBox+"););" +
-        "out geom;>;out skel qt;"
-    );
-    console.log(overpassQuery);
 
-    // let geoJSON = await fetch(overpassQuery).then((response) => {
-    let geoJSON = await fetch("interpreter.xml").then((response) => {
-        if(!response.ok) {
-            throw new Error(`HTTP error: ${response.status}`);
-        }
-        return response.text();
-    })
-    .then((response) => {
-        var parser = new DOMParser();
-        var itemData = parser.parseFromString(response, "application/xml");
-        var itemJSON = osmtogeojson(itemData);
-        console.log(itemJSON);
-        return itemJSON
-    });
+async function locationSuccess(position) {
+    console.log("\n\n===== NEW LOCATION ======");
+    let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
 
-    var count = 0;
-    geoJSON.features.forEach(feature => {
-        if (feature.geometry.type == "Polygon") {
-            addBuilding(feature);
-            count = count + 1;
-        } else {
-        }
-    });
-
-    console.log("Number of buidlings: ", count);
+    let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
+    console.log(newPixelCoords);
+    if (newPixelCoords.x < 0 || newPixelCoords.x > 2500 || newPixelCoords.y < 0 || newPixelCoords.y > 2500) throw "Invalid Coordinates"
+    if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
+    if (twoDHeightMapArray) placeCameraAtPixelCoords(newPixelCoords);
 }
 
-async function addBuilding(feature) {
-    var tags = feature.properties;
-    var height = tags.height ? tags.height : tags["building:levels"];
-    if(tags.amenity == "shelter" && !height) height = 1;
-    else if(!height) height = 2;
+/**
+ * Will log the error that occured from the geolocation API to the console.
+ * @param error - The error object returned by the geolocation API.
+ */
+function locationError(error) {
+    switch (error.code) {
+        case error.PERMISSION_DENIED:
+            console.log("User denied the request for Geolocation.")
+            break;
+        case error.POSITION_UNAVAILABLE:
+            console.log("Location information is unavailable.")
+            break;
+        case error.TIMEOUT:
+            console.log("The request to get user location timed out.")
+            break;
+        case error.UNKNOWN_ERROR:
+            console.log("An unknown error occurred.")
+            break;
+    }
+}
 
-    var color = "#FFFFFF";
-    if (tags["building:colour"]) {
-      color = tags["building:colour"];
+
+/**
+ * If the user has moved more than 'distanceNeededToMove' metres, return true
+ * @param newPixelCoords - The new pixel coordinates of the user.
+ * @returns a boolean value.
+ */
+function movedFarEnough(newPixelCoords) {
+    // Guard check. If -1, this is first time user has moved.
+    if (usersPixelCoords.x == -1 && usersPixelCoords.y == -1) {
+        console.log("First time moving");
+        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
+        return true;
     }
 
-    var outerPoints = [];
-    var sumOfLatCoords = 0;
-    var sumOfLongCoords = 0;
-    var count = 0;
-    feature.geometry.coordinates[0].forEach(coordinatesPair => {
-        tempLat = coordinatesPair[1];
-        tempLong = coordinatesPair[0];
-        sumOfLatCoords += tempLat;
-        sumOfLongCoords += tempLong;
-        count++;
-        let utm = convertLatLongToUTM(tempLat, tempLong);
-        let easting = utm.x;
-        let northing = utm.y;
-        let pixelCoords = convertUTMToPixelCoords(easting, northing);
-        outerPoints.push(new THREE.Vector2(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale));
-    });
+    // Storing how many metres the user has moved in the x and y directions.
+    let xDistance = usersPixelCoords.x - newPixelCoords.x;
+    xDistance = Math.abs(xDistance)*2;
+    let yDistance = usersPixelCoords.y - newPixelCoords.y;
+    yDistance = Math.abs(yDistance)*2;
+    console.log(xDistance);
+    console.log(yDistance);
 
-    //console.log(outerPoints);
-    // for (let way of feature.geometry.coordinates) {
-    //   let wayPoints = [];
-    //   for (let point of way) {
-    //     let tpos = tileposFromLatlon(latlonFromJSON(point));
-    //     let ppos = getRelativePositionFromTilepos(tpos, itemPos);
-    //     wayPoints.push({x: ppos.x, y: ppos.z});
-    //   }
-    //   if (!outerPoints.length) {
-    //     outerPoints = wayPoints;
-    //   }
-    //   else {
-    //     innerWays.push(wayPoints);
-    //   }
-    // }
-
-    var buildingProperties = {primitive: "building", outerPoints: outerPoints, height: height};
-
-    var sceneElement = document.querySelector('a-scene');
-    var newElement = document.createElement('a-entity');
-    newElement.setAttribute("class", "building");
-    newElement.setAttribute("geometry", buildingProperties);
-    newElement.setAttribute("material", {color: color});
-
-    //console.log("building lat: ", sumOfLatCoords/count);
-    //console.log("building long: ", sumOfLongCoords/count);
-    
-    let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
-    let easting = utm.x;
-    let northing = utm.y;
-    //console.log("building easting: ", easting);
-    //console.log("building northing: ", northing);
-    let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    //console.log("building pixel x: ", pixelCoords.y*coordsScale);
-    //console.log("building pixel y: ", pixelCoords.x*coordsScale);
-
-    //console.log("position: ", pixelCoords.x, pixelCoords.y);
-    //console.log("building base height: ", reversedHeightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]);
-    //newElement.setAttribute("rotation", "90 90 90");
-    //newElement.setAttribute("position", {x: (pixelCoords.x)*coordsScale, y: (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), z: (pixelCoords.y)*coordsScale});
-    newElement.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
-    sceneElement.appendChild(newElement);
+    // The user has to have moved 'distanceNeededToMove' metres.
+    if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
+        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
+        return true;
+    }
+    return false;
 }
 
 
-AFRAME.registerGeometry('building', {
-    schema: {
-        outerPoints: {
-            default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
-        },
-        height: { type: 'number', default: 1 },
-    },
-
-    init: function (data) {
-
-        var shape = new THREE.Shape(data.outerPoints);
-        shape.color = data.color;
-
-        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height, bevelEnabled: false});
-        // As Y is the coordinate going up, let's rotate by 90° to point Z up.
-        geometry.rotateX(-Math.PI / 2);
-        // Rotate around Y and Z as well to make it show up correctly.
-        geometry.rotateY(Math.PI);
-        geometry.rotateZ(Math.PI);
-        // Now we would point under ground, move up the height, and any above-ground space as well.
-        geometry.translate (0, data.height, 0);
-        geometry.center;
-        this.geometry = geometry;
-    }
-});
+/**
+ * It takes a pixel coordinate and places the camera at that pixel coordinate
+ * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
+ */
+function placeCameraAtPixelCoords(pixelCoords) {
+    camera = document.getElementById("rig");
+    camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
+    // TODO Smooth camera movement or smooth out GPS coordinates
+}
 
 
+/**
+ * It loads the map by getting the height map, removing the current map, loading the terrain, and
+ * loading the buildings.
+ * @param coordinate - The coordinate of the center of the map.
+ * @param pixelCoords - The pixel coordinates of the center of the map.
+ * @param bboxSize - The size of the bounding box in metres.
+ */
+async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
+    console.log("=== Loading Map ===");
+    await getHeightMap(pixelCoords, bboxSize);
+    setCurrentMapForRemoval();
+    removeCurrentMap();
+    loadTerrain();
+    loadBuildings(coordinate, bboxSize);
+    loadPaths(coordinate, bboxSize);
+}
 
 
+/**
+ * Return true if the player's camera is active, otherwise return false.
+ * 
+ * @returns The active state of the players camera.
+ */
+function isPlayerCameraActive() {
+    var playerCamera = document.getElementById("playerCamera");
+    return playerCamera.getAttribute('camera').active;
+}
 
 
+/**
+ * Remove the element with the given id from the document.
+ * Does nothing if element does not exist.
+ * @param id - The id of the element to remove.
+ */
+function removeElement(id) {
+    let parentElement = document.getElementById(id);
+    if (parentElement) parentElement.remove();
+}
 
+/**
+ * Removes the terrain from the scene
+ */
+function removeCurrentTerrain() {
+    console.log("=== Deleting Terrain ===");
+    removeElement("terrainToRemove")
+}
+
+/**
+ * Removes all the buildings from the scene
+ */
+function removeCurrentBuildings() {
+    console.log("=== Deleting Buildings ===");
+    removeElement("buildingToRemove")
+}
+
+/**
+ * Removes the current terrain and buildings
+ */
+function removeCurrentMap() {
+    removeCurrentTerrain();
+    removeCurrentBuildings();
+}
+
+/**
+ * If the element with the given ID exists, change its ID to the new ID.
+ * @param elementID - The ID of the element you want to change.
+ * @param newElementID - The new ID you want to give the element.
+ */
+function changeElementID(elementID, newElementID) {
+    let element = document.getElementById(elementID);
+    if (element) element.setAttribute("id", newElementID);
+}
+
+/**
+ * It changes the ID of the terrain and building parents to "terrainToRemove" and "buildingToRemove"
+ * respectively.
+ */
+function setCurrentMapForRemoval() {
+    changeElementID("terrainParent", "terrainToRemove")
+    changeElementID("buildingParent", "buildingToRemove")
+}
 
 
 
@@ -227,7 +256,7 @@ AFRAME.registerGeometry('building', {
 //     if (event.defaultPrevented) {
 //       return; // Do nothing if the event was already processed
 //     }
-  
+
 //     switch (event.key) {
 //       case "Shift":
 //         console.log("shift");
@@ -242,15 +271,42 @@ AFRAME.registerGeometry('building', {
 AFRAME.registerComponent('flight-controls', {
     getVelocityDelta: function () {
         var data = this.data,
-        keys = this.getKeys();
+            keys = this.getKeys();
 
         this.dVelocity.set(0, 0, 0);
         if (data.enabled) {
             // NEW STUFF HERE
-            if (keys.KeySpaceBar)  { console.log("Space"); this.dVelocity.y += 1; }
+            if (keys.KeySpaceBar) { console.log("Space"); this.dVelocity.y += 1; }
             if (keys.KeyShift) { console.log("Shift"); this.dVelocity.y -= 1; }
         }
 
-    return this.dVelocity.clone();
+        return this.dVelocity.clone();
     },
 });
+
+
+
+
+
+/* Listening for the keydown event and if the key pressed is the c key,
+then it will switch the active camera. */
+document.addEventListener("keydown", function (event) {
+    if (event.code === "KeyC") {
+        var playerCamera = document.getElementById("playerCamera");
+        if (playerCamera.getAttribute('camera').active == true) {
+            var debugCamera = document.getElementById("debugCamera");
+            debugCamera.setAttribute('camera', 'active', true);
+            console.log("Debug camera now active");
+        }
+        else {
+            playerCamera.setAttribute('camera', 'active', true)
+            console.log("Player camera now active");
+        }
+    }
+});
+
+
+
+function debugLog(log) {
+    if (debug == true) console.log(log);
+}
