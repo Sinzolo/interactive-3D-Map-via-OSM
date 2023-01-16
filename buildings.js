@@ -79,24 +79,6 @@ async function loadBuildings(coordinate, bboxSize) {
 }
 
 
-async function fetchWithRetry(url, retries = 3) {
-    while (retries) {
-        try {
-            return fetch(url).then((response) => {
-                if (!response.ok) {
-                    throw new Error("Fetch failed with status "+response.status);
-                }
-                return response;
-            });
-        } catch (err) {
-            retries--;
-            console.log("Retrying, "+retries+" attempts left.");
-        }
-    }
-    throw new Error("All retries failed.");
-}
-
-
 async function addBuilding(feature, parentElement) {
     //console.log("=== Adding Building ===");
 

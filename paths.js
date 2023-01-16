@@ -75,7 +75,6 @@ async function loadPaths(coordinate, bboxSize) {
     numberOfPaths = 0;
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-            //addBuilding(feature, buildingParent);
             console.log("IS A POLYGON");
         }
         else if (feature.geometry.type == "LineString") {
@@ -88,23 +87,26 @@ async function loadPaths(coordinate, bboxSize) {
 }
 
 // TODO this does not work
-async function fetchWithRetry(url, retries = 3) {
-    while (retries) {
-        try {
-            return fetch(url).then((response) => {
-                if (!response.ok) {
-                    throw new Error("Fetch failed with status "+response.status);
-                }
-                return response;
-            });
-        } catch (err) {
+async function fetchWithRetry(url, retries = 5) {
+    console.log("Yeet");
+    var response;
+    while (retries > 0) {
+        response = await fetch(url).then((response) => {
+            if (!response.ok) {
+                throw new Error("Fetch failed with status "+response.status);
+            }
+            console.log("what");
+            retries = 0;
+            return response;
+        }).catch((error) => {
             retries--;
             console.log("Retrying, "+retries+" attempts left.");
-        }
+        });
+        console.log(response);
     }
-    throw new Error("All retries failed.");
+    if (typeof response === 'undefined') throw new Error("All retries failed.");
+    return response;
 }
-
 
 async function addPath(feature, parentElement) {
     //console.log("=== Adding Building ===");
@@ -132,7 +134,7 @@ async function addPath(feature, parentElement) {
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
 
         let newPath = document.createElement('a-entity');
-        let pathProperties = {primitive: "path", points: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale}), height: height};
+        let pathProperties = {primitive: "path", fourCorners: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale}), height: height};
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", {color: color});
         newPath.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
@@ -251,7 +253,7 @@ function getRectangleCorners({x: x1, y: y1}, {x: x2, y: y2}) {
 
 AFRAME.registerGeometry('path', {
     schema: {
-        points: {
+        fourCorners: {
             default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
         },
         height: { type: 'number', default: pathHeight },
@@ -259,7 +261,7 @@ AFRAME.registerGeometry('path', {
 
     init: function (data) {
 
-        var shape = new THREE.Shape(data.points);
+        var shape = new THREE.Shape(data.fourCorners);
         shape.color = data.color;
 
         var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height, bevelEnabled: false});

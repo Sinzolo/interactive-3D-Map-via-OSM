@@ -20,11 +20,11 @@ const buildingScale = 4.3;                                // Scaling the buildin
 const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
-const bboxSize = 500;                                     // Length of one side of bounding box in metres
+const bboxSize = 300;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 1000,    // Will only update every 600ms
+    maximumAge: 50,    // Will only update every 600ms
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;

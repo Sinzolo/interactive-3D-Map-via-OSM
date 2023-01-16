@@ -10,7 +10,7 @@ var tiffWindow;
 var offset;
 
 const yScale = 1;
-const xzScale = 4;
+const xzScale = 8;
 
 async function getHeightMap(pixelCoords, bboxSize) {
     console.log("=== Getting Height Map ===");
@@ -26,6 +26,8 @@ async function getHeightMap(pixelCoords, bboxSize) {
     offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
     tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
 
+
+    // TODO make these run simultanesously
     windowedOneDHeightMapArray = await image.readRasters( {window: tiffWindow} );
     oneDHeightMapArray = await image.readRasters( );
 
