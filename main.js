@@ -24,7 +24,7 @@ const bboxSize = 300;                                     // Length of one side 
 const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 50,    // Will only update every 600ms
+    maximumAge: 0,    // Will only update every 600ms
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
