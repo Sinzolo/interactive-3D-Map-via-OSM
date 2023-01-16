@@ -1,7 +1,7 @@
-var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
-const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
-//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
-//const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+//const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
+const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
 //const tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
