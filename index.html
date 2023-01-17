@@ -47,7 +47,7 @@
             <label id="loading" style="display: none">Loading</label>
             <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
             
-            <a-scene vr-mode-ui="enabled: false" background="color: lightblue">
+            <a-scene vr-mode-ui="enabled: false" stats background="color: lightblue">
                 <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
                     <a-camera id="player"></a-camera>
                     <!-- <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
@@ -70,7 +70,7 @@
             </a-scene>
         </div>
 
-        <div id="navigationScreen" style="display: block">
+        <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
             <input type="text" id="destinationTextBox" required name="destination">
             <button onclick="startNavigation()">Go!</button>

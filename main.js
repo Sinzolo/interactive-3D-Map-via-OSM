@@ -17,10 +17,10 @@ var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const tiff = GeoTIFF.fromUrl(tiffURL);
-const image = tiff.then((result) => { return result.getImage() });
+const image = tiff.then((tiff) => { return tiff.getImage() });
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const bboxSize = 300;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
+const distanceNeededToMove = (bboxSize/2)*0.6;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 0,    // Will only update every 600ms
@@ -232,8 +232,17 @@ function removeCurrentTerrain() {
  */
 function removeCurrentBuildings() {
     console.log("=== Deleting Buildings ===");
-    removeElement("buildingToRemove")
+    removeElement("buildingsToRemove")
 }
+
+/**
+ * Removes all the paths from the scene
+ */
+function removeCurrentPaths() {
+    console.log("=== Deleting Buildings ===");
+    removeElement("pathsToRemove")
+}
+
 
 /**
  * Removes the current terrain and buildings
@@ -241,6 +250,7 @@ function removeCurrentBuildings() {
 function removeCurrentMap() {
     removeCurrentTerrain();
     removeCurrentBuildings();
+    removeCurrentPaths();
 }
 
 /**
@@ -254,12 +264,13 @@ function changeElementID(elementID, newElementID) {
 }
 
 /**
- * It changes the ID of the terrain and building parents to "terrainToRemove" and "buildingToRemove"
+ * It changes the ID of the terrain and building parents to "terrainToRemove" and "buildingsToRemove"
  * respectively.
  */
 function setCurrentMapForRemoval() {
-    changeElementID("terrainParent", "terrainToRemove")
-    changeElementID("buildingParent", "buildingToRemove")
+    changeElementID("terrainParent", "terrainToRemove");
+    changeElementID("buildingParent", "buildingsToRemove");
+    changeElementID("pathParent", "pathsToRemove");
 }
 
 

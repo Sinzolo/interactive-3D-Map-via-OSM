@@ -75,14 +75,17 @@ async function loadPaths(coordinate, bboxSize) {
     getRectangleCorners({x:0, y:0}, {x:3, y:3});
 
     numberOfPaths = 0;
+    var paths = [];
     geoJSON.features.forEach(feature => {
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
         }
-        else if (feature.geometry.type == "LineString") {
+        else if (feature.geometry.type == "LineString") {   // Path
+            paths.push(feature);
             numberOfPaths += 1;
             addPath(feature, pathParent);
         }
     });
+    console.log(paths);
 
     console.log("Number of paths: ", numberOfPaths);
 }
