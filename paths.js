@@ -1,15 +1,18 @@
 var numberOfPaths = 0;
-const pathWidth = 1;  // Path width in metres
-const pathHeight = 0.3;  // How far it should stick above ground
+const pathWidth = 0.7;  // Path width in metres
+const roadWidth = 1.5;  // Road width in metres
+const pathHeight = 0.16;  // How far it should stick above ground
+const pathHeightUnderGround = 100;  // How far it should stick below ground
 const pathSegmentationLength = 5;  // The length of each segment of a path (bigger number = less segments per path so better performance)
-const scale = 0.5;
 
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
+    bboxSize -= 30;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     var overpassQuery = overpassURL + encodeURIComponent(
+        "[timeout:40];"+
         "(way[highway=path]("+stringBBox+");" +
         "way[highway=pedestrian]("+stringBBox+");" +
         "way[highway=footway]("+stringBBox+");" +
@@ -84,40 +87,13 @@ async function loadPaths(coordinate, bboxSize) {
     console.log("Number of paths: ", numberOfPaths);
 }
 
-// TODO this does not work
-async function fetchWithRetry(url, retries = 5) {
-    var response;
-    while (retries > 0) {
-        response = await fetch(url).then((response) => {
-            if (!response.ok) {
-                throw new Error("Fetch failed with status "+response.status);
-            }
-            retries = 0;
-            return response;
-        }).catch((error) => {
-            retries--;
-            console.log("Retrying, "+retries+" attempts left.");
-        });
-    }
-    if (typeof response === 'undefined') throw new Error("All retries failed.");
-    return response;
-}
 
 async function addPath(feature, parentElement) {
-    //console.log("=== Adding Building ===");
-
     let tags = feature.properties;
-
-    let height = pathHeight;
-   //height += buildingHeightOffset/buildingHeightScale;
-
     let color = "#979797";
-    //console.log(tags);
-    //console.log(tags["building:colour"]);
-    if (tags["surface"]) {
+    if (tags["surface"]) {  // TODO would be cool to change colour based on road surface.
       color = color;
     }
-
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i-1];
@@ -126,32 +102,24 @@ async function addPath(feature, parentElement) {
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
 
         let newPath = document.createElement('a-entity');
-        let pathProperties = {primitive: "path", fourCorners: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale}), height: height};
+        let pathProperties = {primitive: "path", fourCorners: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale})};
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", {color: color});
         newPath.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
-        // let newSphere = document.createElement('a-sphere');
-        // newSphere.setAttribute("color", "#FF0000");
-        // newSphere.setAttribute("position", pixelCoords1.x+" "+(twoDHeightMapArray[Math.round(pixelCoords1.x)][Math.round(pixelCoords1.y)])+" "+pixelCoords1.y);
-        // parentElement.appendChild(newSphere);
-        // newSphere = document.createElement('a-sphere');
-        // newSphere.setAttribute("color", "#FF0000");
-        // newSphere.setAttribute("position", pixelCoords2.x+" "+(twoDHeightMapArray[Math.round(pixelCoords2.x)][Math.round(pixelCoords2.y)])+" "+pixelCoords2.y);
-        // parentElement.appendChild(newSphere);
-
         let pixelCoords = {x: (pixelCoords1.x+pixelCoords2.x)/2, y: (pixelCoords1.y+pixelCoords2.y)/2};
-        // console.log(pixelCoords1.x, pixelCoords1.y);
-        // console.log(pixelCoords2.x, pixelCoords2.y);
-        // console.log(pixelCoords.x, pixelCoords.y);
-        if ((twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
-            newPath.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
-            throw new Error("Height map not found! (My own error)");
-        }
-        else {
-            newPath.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
-        }
-        parentElement.appendChild(newPath);
+        heightMaps.then(({ twoDHeightMapArray }) => {
+            twoDHeightMapArray.then((heightMap) => {
+                if ((heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
+                    newPath.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
+                    throw new Error("Specfic location on height map not found! (My own error)");
+                }
+                else {
+                    newPath.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
+                }
+                parentElement.appendChild(newPath);
+            });
+        });
     }
 }
 
@@ -250,13 +218,9 @@ AFRAME.registerGeometry('path', {
         },
         height: { type: 'number', default: pathHeight },
     },
-
     init: function (data) {
-
         var shape = new THREE.Shape(data.fourCorners);
-        shape.color = data.color;
-
-        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height, bevelEnabled: false});
+        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height+pathHeightUnderGround, bevelEnabled: false});
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);
         // Rotate around Y and Z as well to make it show up correctly.

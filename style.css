@@ -1,4 +1,4 @@
-#WelcomeScreen {
+#welcomeScreen {
     width: auto;
     height: auto;
     border: 13px dashed forestgreen;
@@ -30,6 +30,19 @@ button {
     padding-top: 10px;
     padding-bottom: 10px;
     background-color: #a4e09f;
+    z-index: 100;
+    position: relative;
+}
+
+label {
+    font-size: large;
+    font-weight: 600;
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    margin-top: 25px;
+    padding-left: 30px;
+    padding-right: 30px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     z-index: 100;
     position: relative;
 }

@@ -1,3 +1,7 @@
+const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
+const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const buildingHeight = 2;                                 // Building height if height is unknown
+const buildingHeightUnderGround = 100;                    // How far to extend the buildings under the ground
 var numberOfBuildings = 0;
 
 async function loadBuildings(coordinate, bboxSize) {
@@ -14,6 +18,7 @@ async function loadBuildings(coordinate, bboxSize) {
     //helpful but not for this problem
     //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
 
+    bboxSize -= 30;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     console.log(stringBBox);
@@ -56,10 +61,6 @@ async function loadBuildings(coordinate, bboxSize) {
         return itemJSON
     });
 
-    // currently working on this^ 11th jan 1:49pm
-
-
-
     let sceneElement = document.querySelector('a-scene');
     let buildingParent = document.createElement('a-entity');
     buildingParent.setAttribute("id", "buildingParent");
@@ -80,19 +81,13 @@ async function loadBuildings(coordinate, bboxSize) {
 
 
 async function addBuilding(feature, parentElement) {
-    //console.log("=== Adding Building ===");
-
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];
-    //console.log(height);
     if(tags.amenity == "shelter" && !height) height = 1;
-    else if(!height) height = 2;
+    else if(!height) height = buildingHeight;
     height = parseInt(height)
-    height += buildingHeightOffset/buildingHeightScale;
 
     let color = "#FDF8EF";
-    //console.log(tags);
-    //console.log(tags["building:colour"]);
     if (tags["building:colour"]) {
       color = tags["building:colour"];
     }
@@ -140,13 +135,18 @@ async function addBuilding(feature, parentElement) {
     let easting = utm.x;
     let northing = utm.y;
     let pixelCoords = convertUTMToPixelCoords(easting, northing);
-    if ((twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
-        throw new Error("Height map not found! (My own error)");
-    }
-    else {
-        newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)])-buildingHeightOffset, (pixelCoords.y*coordsScale));
-    }
-    parentElement.appendChild(newBuilding);
+    heightMaps.then(({ twoDHeightMapArray }) => {
+        twoDHeightMapArray.then((heightMap) => {
+            if ((heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
+                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
+                throw new Error("Specfic location on height map not found! (My own error)");
+            }
+            else {
+                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
+            }
+            parentElement.appendChild(newBuilding);
+        });
+    });
 }
 
 
@@ -155,15 +155,11 @@ AFRAME.registerGeometry('building', {
         outerPoints: {
             default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
         },
-        height: { type: 'number', default: 1 },
+        height: { type: 'number', default: buildingHeight },
     },
-
     init: function (data) {
-
         var shape = new THREE.Shape(data.outerPoints);
-        shape.color = data.color;
-
-        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height, bevelEnabled: false});
+        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height+buildingHeightUnderGround, bevelEnabled: false});
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);
         // Rotate around Y and Z as well to make it show up correctly.

@@ -1,7 +1,7 @@
-//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
-//const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
-var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
-const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+//var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
+//const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
 //const tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
@@ -13,13 +13,12 @@ var watchID = -1;
 var numberOfPositionChanges = 0;
 var coordsTotal = {lat: 0, long: 0};
 var mapBeingShown = false;
+var heightMaps;
 
-const overpassURL = "https://overpass-api.de/api/interpreter?data=";
-const uniCoordinate = { lat: 54.01028, long: -2.78536 }   // Centre of uni
-const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
-const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
+const tiff = GeoTIFF.fromUrl(tiffURL);
+const image = tiff.then((result) => { return result.getImage() });
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const buildingHeightOffset = 200;                         // How far to extend the buildings under the ground
 const bboxSize = 300;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.7;            // Used to check if the user has moved far enough
 const locationOptions = {
@@ -66,10 +65,9 @@ window.onfocus = function() {
  * Hides the welcome screen and shows the map
  */
 function showMap() {
-    welcomeDivElements = document.getElementById("WelcomeScreen");
-    welcomeDivElements.style.display = "none";
-    mapDivElements = document.getElementById("MapScreen")
-    mapDivElements.style.display = "block";
+    document.getElementById("welcomeScreen").style.display = "none";
+    document.getElementById("navigationScreen").style.display = "none";
+    document.getElementById("mapScreen").style.display = "block";
 
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
@@ -79,10 +77,10 @@ function showMap() {
 /**
  * Hides the map and shows the welcome screen
  */
-function showMenu() {
-    mapDivElements = document.getElementById("MapScreen")
+function showMainMenu() {
+    mapDivElements = document.getElementById("mapScreen")
     mapDivElements.style.display = "none";
-    welcomeDivElements = document.getElementById("WelcomeScreen");
+    welcomeDivElements = document.getElementById("welcomeScreen");
     welcomeDivElements.style.display = "block";
 
     navigator.geolocation.clearWatch(watchID);
@@ -92,7 +90,30 @@ function showMenu() {
     mapBeingShown = false;
 }
 
+function showNavigationMenu() {
+    //mapDivElements = document.getElementById("mapScreen")
+    //mapDivElements.style.display = "block";
+    welcomeDivElements = document.getElementById("welcomeScreen");
+    welcomeDivElements.style.display = "none";
+    welcomeDivElements = document.getElementById("navigationScreen");
+    welcomeDivElements.style.display = "block";
+}
 
+
+function startNavigation() {
+    destinationTextBox = document.getElementById("destinationTextBox")
+    destination = destinationTextBox.value;
+    if (!destination) return;
+    console.log(destination);
+    destinationTextBox.value = "";
+}
+
+
+/**
+ * If the user has moved far enough, load a new map area, and place the camera at the user's new
+ * location.
+ * @param position - the position object returned by the geolocation API
+ */
 async function locationSuccess(position) {
     console.log("\n\n===== NEW LOCATION ======");
     let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
@@ -161,9 +182,12 @@ function movedFarEnough(newPixelCoords) {
  * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
  */
 function placeCameraAtPixelCoords(pixelCoords) {
-    camera = document.getElementById("rig");
-    camera.setAttribute("position", pixelCoords.x + " " + (twoDHeightMapArray[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
-    // TODO Smooth camera movement or smooth out GPS coordinates
+    heightMaps.then(({ twoDHeightMapArray }) => {
+        twoDHeightMapArray.then((heightMap) => {
+            camera = document.getElementById("rig");
+            camera.setAttribute("position", pixelCoords.x + " " + (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
+        });
+    });
 }
 
 
@@ -176,23 +200,12 @@ function placeCameraAtPixelCoords(pixelCoords) {
  */
 async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     console.log("=== Loading Map ===");
-    await getHeightMap(pixelCoords, bboxSize);
+    heightMaps = getHeightMap(pixelCoords, bboxSize);
     setCurrentMapForRemoval();
     removeCurrentMap();
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
     loadPaths(coordinate, bboxSize);
-}
-
-
-/**
- * Return true if the player's camera is active, otherwise return false.
- * 
- * @returns The active state of the players camera.
- */
-function isPlayerCameraActive() {
-    var playerCamera = document.getElementById("playerCamera");
-    return playerCamera.getAttribute('camera').active;
 }
 
 
@@ -304,9 +317,3 @@ document.addEventListener("keydown", function (event) {
         }
     }
 });
-
-
-
-function debugLog(log) {
-    if (debug == true) console.log(log);
-}
