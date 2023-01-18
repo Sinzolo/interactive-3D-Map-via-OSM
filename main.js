@@ -1,5 +1,5 @@
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
-const tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
 //const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
@@ -38,7 +38,7 @@ async function deleteAndReOpenCache() {
     await caches.delete(osmCacheName);
     console.log("Cache Storage Deleted");
     console.log("Opening New Cache Storage");
-    osmCache = caches.open(osmCacheName)
+    osmCache = caches.open(osmCacheName);
 }
 /* Delete the cache when the page is unloaded. */
 window.addEventListener("unload", async function() {
@@ -59,6 +59,14 @@ window.onfocus = function() {
     }
 };
 
+function cityMap() {
+    twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
+    tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+}
+function uniMap() {
+    twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+    tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+}
 
 
 /**

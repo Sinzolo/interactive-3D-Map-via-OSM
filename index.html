@@ -15,8 +15,8 @@
         <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
 
         <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- GeoTiff converter -->
-        <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">                         <!-- GeoTiff image -->
-        <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>                                           <!-- GeoTiff data file-->
+        <!-- <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">                         GeoTiff image -->
+        <!-- <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>                                           GeoTiff data file -->
 
         <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
 
@@ -39,7 +39,8 @@
         <div id="welcomeScreen">
             <h2>Welcome to my Third Year Project for Lancaster University.</h2>
             <br>This website automatically generates a 3D map of the specified place using OSM's large database.
-            <br><button id="loadMapBtn" onclick="showMap()">Load Map</button>
+            <br><button id="loadMapBtn" onclick="cityMap(), showMap()">Load City Map</button>
+            <br><button id="loadMapBtn" onclick="uniMap(), showMap()">Load Uni Map</button>
         </div>
 
         <div id="mapScreen" style="display: none">
@@ -55,7 +56,7 @@
                 <!-- </a-entity> -->
                 <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
                     <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
-                    <a-entity id="debugCamera" camera="active: false" look-controls wasd-controls="acceleration: 1000; fly: true"></a-entity>
+                    <a-entity id="debugCamera" camera="active: false" look-controls wasd-controls="acceleration: 600; fly: true"></a-entity>
                 </a-entity>
                 
                 <!-- TODO Cant get flight control to work -->

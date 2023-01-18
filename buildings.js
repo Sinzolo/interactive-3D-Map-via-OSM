@@ -21,7 +21,7 @@ async function loadBuildings(coordinate, bboxSize) {
     bboxSize -= 30;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
-    console.log(stringBBox);
+    //console.log(stringBBox);
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building]("+stringBBox+");" +
         "rel[building]("+stringBBox+"););" +
