@@ -1,16 +1,16 @@
 var numberOfPaths = 0;
-const defaultPathWidth = 0.7;  // Path width in metres
-const roadWidth = 1.5;  // Road width in metres
-const pathHeightAboveGround = 0.15;  // How far it should stick above ground
+const defaultPathWidth = 0.7;       // Path width in metres
+const roadWidth = 1.5;              // Road width in metres
+const pathHeightAboveGround = 0.15; // How far it should stick above ground
 const pathHeightUnderGround = 100;  // How far it should stick below ground
-const pathSegmentationLength = 5;  // The length of each segment of a path (bigger number = less segments per path so better performance)
+const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 var paths;
 var pathNodes;
 
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
-    bboxSize -= 30;
+    bboxSize *= 0.9;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     var overpassQuery = overpassURL + encodeURIComponent(
@@ -25,7 +25,8 @@ async function loadPaths(coordinate, bboxSize) {
         "way[highway=secondary]("+stringBBox+");" +
         "way[highway=tertiary]("+stringBBox+");" +
         "way[highway=residential]("+stringBBox+");" +
-        "way[highway=unclassified]("+stringBBox+"););" +
+        "way[highway=unclassified]("+stringBBox+");" +
+        "way[highway=service]("+stringBBox+"););" +
         "out geom;>;out skel qt;"
     );
 
@@ -100,7 +101,7 @@ async function loadPaths(coordinate, bboxSize) {
 }
 
 
-async function addPath(feature, parentElement) {
+function addPath(feature, parentElement) {
     let tags = feature.properties;
     let color = "#979797";
     let pathWidth = defaultPathWidth;
@@ -115,10 +116,15 @@ async function addPath(feature, parentElement) {
     else if (tags.highway == "tertiary") {color ="#808080"; pathWidth = 1.05}
     else if (tags.highway == "residential") {color ="#909090"; pathWidth = 1}
     else if (tags.highway == "unclassified") {color ="#9B9B9B"; pathWidth = 1}
-    else if (tags.highway == "pedestrian") {color = "#ABABAB"; pathWidth = 0.8}
+    else if (tags.highway == "service") {color ="#b3a994"; pathWidth = 0.8}
+    else if (tags.highway == "pedestrian") {color = "#ABABAB"; pathWidth = 0.7}
     else if (tags.highway == "footway") {color ="#C6C6C6"; pathWidth = 0.3}
     else if (tags.highway == "path") {color ="#C6C6C6"; pathWidth = 0.3}
-    else if (tags.highway == "steps") {color ="#C6C6C6"; pathWidth = 0.3}
+    else if (tags.highway == "steps") {color ="#d16c4a"; pathWidth = 0.3}
+    if (tags.service == "alley") {color ="#967A72"; pathWidth = 0.2}
+    //if (tags.highway == "service") {console.log(tags);}
+
+
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         if (!paths.includes(feature.geometry.coordinates[i-1])) pathNodes.push(feature.geometry.coordinates[i-1]);
@@ -180,7 +186,7 @@ function getRectangleCorners({x: x1, y: y1}, {x: x2, y: y2}, width) {
     const length = Math.hypot((x1 - x2), (y1 - y2));    // Distance between the two points
     const angle = Math.atan2(y2 - y1, x2 - x1);         // The angle of the line between the two points
     const halfWidth = width/2;                          // Half the width
-    const halfLength = length*0.65;                     // A little bit more than half to ensure overlapping
+    const halfLength = length*0.63;                     // A little bit more than half to ensure overlapping
 
     // Calculate the four rectangle coordinates
     const topLeftX = centerX + halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2);

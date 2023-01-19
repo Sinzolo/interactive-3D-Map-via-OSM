@@ -4,37 +4,32 @@ var windowedOneDHeightMapArray;
 var windowedTwoDHeightMapArray;
 
 var tiffWindow;
-var offset;
 
 const yScale = 1;
-const xzScale = 6;
+const xzScale = 4;
 
 function getHeightMap(pixelCoords, bboxSize) {
     console.log("=== Getting Height Map ===");
-
-    return image.then(async (image) => {
-        let xPixel = pixelCoords.roundedX;
-        let yPixel = pixelCoords.roundedY;
-        offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
-        tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
-        //[windowedOneDHeightMapArray, oneDHeightMapArray] = await Promise.all([image.readRasters( {window: tiffWindow} ), image.readRasters( )]);
-
+    let xPixel = pixelCoords.roundedX;
+    let yPixel = pixelCoords.roundedY;
+    let offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
+    tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
+    return tiffImage.then((image) => {
         windowedTwoDHeightMapArray = image.readRasters({window: tiffWindow})
         .then((oneDArray) => {
             return convert1DArrayTo2DArray(oneDArray);
         })
 
         twoDHeightMapArray = image.readRasters()
-        .then(async (oneDArray) => {
+        .then((oneDArray) => {
             return convert1DArrayTo2DArray(oneDArray);
         })
-
         return { windowedTwoDHeightMapArray, twoDHeightMapArray };
     });
 }
 
 
-async function loadTerrain() {
+function loadTerrain() {
     console.log("=== Loading Terrain ===");
 
     /*

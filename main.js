@@ -1,15 +1,15 @@
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
 var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
-//const tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+//var tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
-//const tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
+//var tiffURL = "leylandTiff/SD52sw_DTM_2m.tif";    // Leyland .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
-//const tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
+//var tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
 
-var currentCentreOfBBox = { x: -1, y: -1 };           // Impossible coordinates in pixel coords
-var currentUsersLocation = { x: -1, y: -1 };                   // Impossible coordinates in pixel coords
+var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };           // Impossible coordinates in pixel coords
+var currentUsersLocation = { x: -1, y: -1, roundedX: -1, roundedY: -1 };                   // Impossible coordinates in pixel coords
 var watchID = -1;
 var numberOfPositionChanges = 0;
 var coordsTotal = {lat: 0, long: 0};
@@ -17,10 +17,8 @@ var mapBeingShown = false;
 var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
-const tiff = GeoTIFF.fromUrl(tiffURL);
-const image = tiff.then((tiff) => { return tiff.getImage() });
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 300;                                     // Length of one side of bounding box in metres
+const bboxSize = 280;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.6;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
@@ -28,6 +26,25 @@ const locationOptions = {
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
+// const tiff = GeoTIFF.fromUrl(tiffURL);
+// const image = tiff.then((tiff) => { return tiff.getImage() });
+var tiffImage;
+
+var uniTiffImage = fetch("uniTiff/SD45ne_DTM_2m.tif").then((response) => {
+    return response.arrayBuffer();
+}).then((response) => {
+    return GeoTIFF.fromArrayBuffer(response);
+}).then((response) => {
+    return response.getImage()
+});
+
+var cityTiffImage = fetch("cityTiff/SD46se_DTM_2m.tif").then((response) => {
+    return response.arrayBuffer();
+}).then((response) => {
+    return GeoTIFF.fromArrayBuffer(response);
+}).then((response) => {
+    return response.getImage()
+});
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
 var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
@@ -63,10 +80,12 @@ window.onfocus = function() {
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+    tiffImage = cityTiffImage;
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
     tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+    tiffImage = uniTiffImage;
 }
 
 
@@ -129,8 +148,8 @@ async function locationSuccess(position) {
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     console.log(newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
-    if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
-    if (twoDHeightMapArray) placeCameraAtPixelCoords(newPixelCoords);
+    if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
+    placeCameraAtPixelCoords(newPixelCoords);
 }
 
 /**
@@ -164,7 +183,7 @@ function movedFarEnough(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
     if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
         console.log("First time moving");
-        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y};
+        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY};
         return true;
     }
 
@@ -178,7 +197,7 @@ function movedFarEnough(newPixelCoords) {
 
     // The user has to have moved 'distanceNeededToMove' metres.
     if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
-        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y};
+        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY};
         return true;
     }
     return false;

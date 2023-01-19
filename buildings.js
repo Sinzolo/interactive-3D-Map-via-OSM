@@ -18,7 +18,7 @@ async function loadBuildings(coordinate, bboxSize) {
     //helpful but not for this problem
     //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
 
-    bboxSize -= 30;
+    bboxSize *= 0.9;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     //console.log(stringBBox);
@@ -80,7 +80,7 @@ async function loadBuildings(coordinate, bboxSize) {
 }
 
 
-async function addBuilding(feature, parentElement) {
+function addBuilding(feature, parentElement) {
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;
