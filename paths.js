@@ -1,9 +1,11 @@
 var numberOfPaths = 0;
-const pathWidth = 0.7;  // Path width in metres
+const defaultPathWidth = 0.7;  // Path width in metres
 const roadWidth = 1.5;  // Road width in metres
-const pathHeight = 0.16;  // How far it should stick above ground
+const pathHeightAboveGround = 0.15;  // How far it should stick above ground
 const pathHeightUnderGround = 100;  // How far it should stick below ground
 const pathSegmentationLength = 5;  // The length of each segment of a path (bigger number = less segments per path so better performance)
+var paths;
+var pathNodes;
 
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
@@ -16,6 +18,7 @@ async function loadPaths(coordinate, bboxSize) {
         "(way[highway=path]("+stringBBox+");" +
         "way[highway=pedestrian]("+stringBBox+");" +
         "way[highway=footway]("+stringBBox+");" +
+        "way[highway=steps]("+stringBBox+");" +
         "way[highway=motorway]("+stringBBox+");" +
         "way[highway=trunk]("+stringBBox+");" +
         "way[highway=primary]("+stringBBox+");" +
@@ -72,12 +75,14 @@ async function loadPaths(coordinate, bboxSize) {
     pathParent.setAttribute("class", "path");
     sceneElement.appendChild(pathParent);
 
-    getRectangleCorners({x:0, y:0}, {x:3, y:3});
-
     numberOfPaths = 0;
     //var paths = [[]];
-    geoJSON.features.forEach(feature => {
+    paths = [];
+    geoJSON.features.forEach((feature, index) => {
+        pathNodes = [];
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
+            //numberOfPaths++;
+            //addPath(feature, pathParent);
         }
         else if (feature.geometry.type == "LineString") {   // Path
             // feature.geometry.coordinates.forEach((element, index) => {
@@ -85,6 +90,8 @@ async function loadPaths(coordinate, bboxSize) {
             // });
             numberOfPaths++;
             addPath(feature, pathParent);
+            //console.log(index, pathNodes);
+            paths.push(pathNodes);
         }
     });
     //console.log(paths);
@@ -96,39 +103,53 @@ async function loadPaths(coordinate, bboxSize) {
 async function addPath(feature, parentElement) {
     let tags = feature.properties;
     let color = "#979797";
+    let pathWidth = defaultPathWidth;
     if (tags["surface"]) {  // TODO would be cool to change colour based on road surface.
       color = color;
     }
 
+    if (tags.highway == "motorway") {color ="#404040"; pathWidth = 1.6}
+    else if (tags.highway == "trunk") {color ="#505050"; pathWidth = 1.45}
+    else if (tags.highway == "primary") {color ="#606060"; pathWidth = 1.3}
+    else if (tags.highway == "secondary") {color ="#707070"; pathWidth = 1.2}
+    else if (tags.highway == "tertiary") {color ="#808080"; pathWidth = 1.05}
+    else if (tags.highway == "residential") {color ="#909090"; pathWidth = 1}
+    else if (tags.highway == "unclassified") {color ="#9B9B9B"; pathWidth = 1}
+    else if (tags.highway == "pedestrian") {color = "#ABABAB"; pathWidth = 0.8}
+    else if (tags.highway == "footway") {color ="#C6C6C6"; pathWidth = 0.3}
+    else if (tags.highway == "path") {color ="#C6C6C6"; pathWidth = 0.3}
+    else if (tags.highway == "steps") {color ="#C6C6C6"; pathWidth = 0.3}
+
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
+        if (!paths.includes(feature.geometry.coordinates[i-1])) pathNodes.push(feature.geometry.coordinates[i-1]);
+        if (!paths.includes(feature.geometry.coordinates[i])) pathNodes.push(feature.geometry.coordinates[i]);
         let point1 = feature.geometry.coordinates[i-1];
         let point2 = feature.geometry.coordinates[i];
         let pixelCoords1 = convertLatLongToPixelCoords({lat: point1[1], long: point1[0]});
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
+        //let segmentedPath = segmentPath({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale});
 
         let newPath = document.createElement('a-entity');
-        let pathProperties = {primitive: "path", fourCorners: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale})};
+        let pathProperties = {primitive: "path", fourCorners: getRectangleCorners({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale}, pathWidth)};
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", {color: color});
         newPath.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
-        let pixelCoords = {x: (pixelCoords1.x+pixelCoords2.x)/2, y: (pixelCoords1.y+pixelCoords2.y)/2};
+        let pixelCoords = {x: (pixelCoords1.x+pixelCoords2.x)/2, y: (pixelCoords1.y+pixelCoords2.y)/2, roundedX: Math.round((pixelCoords1.x+pixelCoords2.x)/2), roundedY: Math.round((pixelCoords1.y+pixelCoords2.y)/2)};
         heightMaps.then(({ twoDHeightMapArray }) => {
             twoDHeightMapArray.then((heightMap) => {
-                if ((heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
+                if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) {
                     newPath.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
                     throw new Error("Specfic location on height map not found! (My own error)");
                 }
                 else {
-                    newPath.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
+                    newPath.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
                 }
                 parentElement.appendChild(newPath);
             });
         });
     }
 }
-
-
 
 
 // function getRectangleCorners(coord1, coord2) {
@@ -144,51 +165,24 @@ async function addPath(feature, parentElement) {
 //     return [new THREE.Vector2(corner1.x, corner1.y), new THREE.Vector2(corner2.x, corner2.y), new THREE.Vector2(corner3.x, corner3.y), new THREE.Vector2(corner4.x, corner4.y)];
 // }
 
-
-function findThirdCoordinate(coordinateA, coordinateB, b) {
-    let a = pathWidth;
-    let Ax = coordinateA.x;
-    let Ay = coordinateA.y;
-    let Bx = coordinateB.x;
-    let By = coordinateB.y;
-
-    // Calculate side a (distance between A and B)
-    let c = Math.hypot(a, b);
-    console.log("c = ", c);
-
-    // c^2 = a^2 + b^2 − 2abcos(C)
-    // C = acos((a^2 + b^2 - c^2)/2ab)
-    // Use Law of Cosines to find angle C
-    var C = Math.acos((Math.pow(a, 2) + Math.pow(b, 2) - Math.pow(c, 2)) / (2 * a * b));
-
-    // Use angle C and distance AC to find coordinate C
-    var Cx = Ax + lengthAC * Math.cos(C);
-    var Cy = Ay + lengthAC * Math.sin(C);
-
-    return [Cx, Cy];
+function segmentPath({x: x1, y: y1}, {x: x2, y: y2}) {
+    // TODO
 }
 
+function findAngleBetweenTwoCoords({x: x1, y: y1}, {x: x2, y: y2}) {
+    // TODO
+}
 
-function getRectangleCorners({x: x1, y: y1}, {x: x2, y: y2}) {
+function getRectangleCorners({x: x1, y: y1}, {x: x2, y: y2}, width) {
     // Find the center point between the two given points
     const centerX = (x1 + x2) / 2;
     const centerY = (y1 + y2) / 2;
-  
-    // Find the distance between the two given points
-    const distanceX = Math.abs(x1 - x2);
-    const distanceY = Math.abs(y1 - y2);
-    let length = Math.hypot((x1 - x2), (y1 - y2));
-  
-    // Calculate the angle of the line between the two points
-    const angle = Math.atan2(y2 - y1, x2 - x1);
-    
-    // Calculate the half-width of the rectangle
-    const halfWidth = 0.3;
-    
-    // Calculate the half-height of the rectangle
-    const halfLength = length*0.7;
-  
-    // calculate the four rectangle coordinates
+    const length = Math.hypot((x1 - x2), (y1 - y2));    // Distance between the two points
+    const angle = Math.atan2(y2 - y1, x2 - x1);         // The angle of the line between the two points
+    const halfWidth = width/2;                          // Half the width
+    const halfLength = length*0.65;                     // A little bit more than half to ensure overlapping
+
+    // Calculate the four rectangle coordinates
     const topLeftX = centerX + halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2);
     const topLeftY = centerY + halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2);
     const topRightX = centerX + halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2);
@@ -197,23 +191,22 @@ function getRectangleCorners({x: x1, y: y1}, {x: x2, y: y2}) {
     const bottomLeftY = centerY - halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2);
     const bottomRightX = centerX - halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2);
     const bottomRightY = centerY - halfWidth * Math.sin(angle - Math.PI / 2) + halfLength * Math.cos(angle - Math.PI / 2);
-  
+
     let rectangle = {
-      bottomLeft: { x: topLeftX, y: topLeftY },
+      topLeft: { x: topLeftX, y: topLeftY },
       topRight: { x: topRightX, y: topRightY },
-      topLeft: { x: bottomLeftX, y: bottomLeftY },
+      bottomLeft: { x: bottomLeftX, y: bottomLeftY },
       bottomRight: { x: bottomRightX, y: bottomRightY },
     };
 
-    return [new THREE.Vector2(rectangle.topLeft.x, rectangle.topLeft.y), new THREE.Vector2(rectangle.topRight.x, rectangle.topRight.y), new THREE.Vector2(rectangle.bottomRight.x, rectangle.bottomRight.y), new THREE.Vector2(rectangle.bottomLeft.x, rectangle.bottomLeft.y)];
+    return [new THREE.Vector2(rectangle.bottomLeft.x, rectangle.bottomLeft.y), new THREE.Vector2(rectangle.topRight.x, rectangle.topRight.y), new THREE.Vector2(rectangle.bottomRight.x, rectangle.bottomRight.y), new THREE.Vector2(rectangle.topLeft.x, rectangle.topLeft.y)];
 }
-  
-  
 
 
 
-
-
+function findClosestPath(pixelCoords) {
+    
+}
 
 
 AFRAME.registerGeometry('path', {
@@ -221,7 +214,7 @@ AFRAME.registerGeometry('path', {
         fourCorners: {
             default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
         },
-        height: { type: 'number', default: pathHeight },
+        height: { type: 'number', default: pathHeightAboveGround },
     },
     init: function (data) {
         var shape = new THREE.Shape(data.fourCorners);

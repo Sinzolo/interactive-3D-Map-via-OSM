@@ -87,7 +87,7 @@ async function addBuilding(feature, parentElement) {
     else if(!height) height = buildingHeight;
     height = parseInt(height)
 
-    let color = "#FDF8EF";
+    let color = "#85c8d0";
     if (tags["building:colour"]) {
       color = tags["building:colour"];
     }
@@ -97,15 +97,10 @@ async function addBuilding(feature, parentElement) {
     let sumOfLongCoords = 0;
     let count = 0;
     feature.geometry.coordinates[0].forEach(coordinatesPair => {
-        tempLat = coordinatesPair[1];
-        tempLong = coordinatesPair[0];
-        sumOfLatCoords += tempLat;
-        sumOfLongCoords += tempLong;
+        sumOfLatCoords += coordinatesPair[1];
+        sumOfLongCoords += coordinatesPair[0];
         count++;
-        let utm = convertLatLongToUTM(tempLat, tempLong);
-        let easting = utm.x;
-        let northing = utm.y;
-        let pixelCoords = convertUTMToPixelCoords(easting, northing);
+        let pixelCoords = convertLatLongToPixelCoords({lat: coordinatesPair[1], long: coordinatesPair[0]})
         outerPoints.push(new THREE.Vector2(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale));
     });
 
@@ -131,18 +126,15 @@ async function addBuilding(feature, parentElement) {
     newBuilding.setAttribute("material", {color: color});
     newBuilding.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
-    let utm = convertLatLongToUTM(sumOfLatCoords/count, sumOfLongCoords/count);
-    let easting = utm.x;
-    let northing = utm.y;
-    let pixelCoords = convertUTMToPixelCoords(easting, northing);
+    let pixelCoords = convertLatLongToPixelCoords({lat: sumOfLatCoords/count, long: sumOfLongCoords/count})
     heightMaps.then(({ twoDHeightMapArray }) => {
         twoDHeightMapArray.then((heightMap) => {
-            if ((heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]) == null) {
+            if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) {
                 newBuilding.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
                 throw new Error("Specfic location on height map not found! (My own error)");
             }
             else {
-                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)]), (pixelCoords.y*coordsScale));
+                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
             }
             parentElement.appendChild(newBuilding);
         });

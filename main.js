@@ -8,7 +8,8 @@ var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //const tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
 
-var usersPixelCoords = { x: -1, y: -1 };           // Impossible coordinates
+var currentCentreOfBBox = { x: -1, y: -1 };           // Impossible coordinates in pixel coords
+var currentUsersLocation = { x: -1, y: -1 };                   // Impossible coordinates in pixel coords
 var watchID = -1;
 var numberOfPositionChanges = 0;
 var coordsTotal = {lat: 0, long: 0};
@@ -125,10 +126,9 @@ function startNavigation() {
 async function locationSuccess(position) {
     console.log("\n\n===== NEW LOCATION ======");
     let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
-
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     console.log(newPixelCoords);
-    if (newPixelCoords.x < 0 || newPixelCoords.x > 2500 || newPixelCoords.y < 0 || newPixelCoords.y > 2500) throw "Invalid Coordinates"
+    if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
     if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, newPixelCoords, bboxSize);
     if (twoDHeightMapArray) placeCameraAtPixelCoords(newPixelCoords);
 }
@@ -162,23 +162,23 @@ function locationError(error) {
  */
 function movedFarEnough(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
-    if (usersPixelCoords.x == -1 && usersPixelCoords.y == -1) {
+    if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
         console.log("First time moving");
-        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
+        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y};
         return true;
     }
 
     // Storing how many metres the user has moved in the x and y directions.
-    let xDistance = usersPixelCoords.x - newPixelCoords.x;
+    let xDistance = currentCentreOfBBox.x - newPixelCoords.x;
     xDistance = Math.abs(xDistance)*2;
-    let yDistance = usersPixelCoords.y - newPixelCoords.y;
+    let yDistance = currentCentreOfBBox.y - newPixelCoords.y;
     yDistance = Math.abs(yDistance)*2;
     console.log(xDistance);
     console.log(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
     if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
-        usersPixelCoords = {x: newPixelCoords.x, y: newPixelCoords.y};
+        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y};
         return true;
     }
     return false;
@@ -193,7 +193,8 @@ function placeCameraAtPixelCoords(pixelCoords) {
     heightMaps.then(({ twoDHeightMapArray }) => {
         twoDHeightMapArray.then((heightMap) => {
             camera = document.getElementById("rig");
-            camera.setAttribute("position", pixelCoords.x + " " + (heightMap[Math.round(pixelCoords.x)][Math.round(pixelCoords.y)] + 1.6) + " " + pixelCoords.y);
+            camera.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6) + " " + pixelCoords.y);
+            currentUsersLocation = pixelCoords;
         });
     });
 }

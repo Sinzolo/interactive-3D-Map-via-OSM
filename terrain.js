@@ -3,8 +3,6 @@ var twoDHeightMapArray;
 var windowedOneDHeightMapArray;
 var windowedTwoDHeightMapArray;
 
-var xPixel;
-var yPixel;
 var tiffWindow;
 var offset;
 
@@ -15,8 +13,8 @@ function getHeightMap(pixelCoords, bboxSize) {
     console.log("=== Getting Height Map ===");
 
     return image.then(async (image) => {
-        xPixel = pixelCoords.x;
-        yPixel = pixelCoords.y;
+        let xPixel = pixelCoords.roundedX;
+        let yPixel = pixelCoords.roundedY;
         offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
         tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
         //[windowedOneDHeightMapArray, oneDHeightMapArray] = await Promise.all([image.readRasters( {window: tiffWindow} ), image.readRasters( )]);

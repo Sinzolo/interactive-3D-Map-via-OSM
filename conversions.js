@@ -1,76 +1,3 @@
-
-
-/**
- * It takes a centre coordinate and a size, and returns a bounding box
- * @param centreCoords - The coordinates of the centre of the bounding box.
- * @param [size=50] - The size of the bounding box.
- * @returns An object with four properties: minX, minY, maxX, maxY.
- */
-function getBoundingBoxFromPixelCoords(centreCoords, metres) {
-    metres /= twfData[0];
-    return {minX: centreCoords.x-(size/2),
-            minY: centreCoords.y-(size/2),
-            maxX: centreCoords.x+(size/2),
-            maxY: centreCoords.y+(size/2)
-           }
-}
-
-
-/**
- * It returns the bounding box of a circle with a given center and radius.
- * @param latitude - The latitude of the center point of the search.
- * @param longitude - The longitude of the center of the circle.
- * @param distance - The distance in meters from the center point that you want to find the bounding
- * box for.
- * @returns An object with the north latitude, west longitude, south latitude, and east longitude.
- */
-// function getBoundingBox(latitude, longitude, distance) {
-//     // Earth's radius, sphere
-//     const R = 6378137;
-
-//     // Offsets in meters
-//     var dn = distance;
-//     var de = distance;
-
-//     // Coordinate offsets in radians
-//     var dLat = dn / R;
-//     var dLon = de / (R * Math.cos(Math.PI * latitude / 180));
-
-//     // OffsetPosition, decimal degrees
-//     var latO = latitude - dLat * 180 / Math.PI;
-//     var lonO = longitude - dLon * 180 / Math.PI;
-//     var lat1 = latitude + dLat * 180 / Math.PI;
-//     var lon1 = longitude + dLon * 180 / Math.PI;
-
-//     return {northLat: latO, westLong: lonO, southLat: lat1, eastLong: lon1};
-// }
-
-
-
-
-
-
-// /**
-//  * "Given a latitude and longitude, return the latitude and longitude of a box that is boundingBoxSize
-//  * meters in each direction."
-//  * 
-//  * The function is a little more complicated than that, but that's the gist of it
-//  * @param latitude - The latitude of the center of the bounding box.
-//  * @param longitude - The longitude of the center of the bounding box.
-//  * @param boundingBoxSize - The size of the bounding box in kilometers.
-//  * @returns An object with four properties: lat1, lon1, lat2, lon2.
-//  */
-// function getBoundingBox(latitude, longitude, boundingBoxSize) {
-//     const lat1 = latitude - boundingBoxSize / 110.574;
-//     const lon1 = longitude - boundingBoxSize / (111.320 * Math.cos(latitude));
-//     const lat2 = latitude + boundingBoxSize / 110.574;
-//     const lon2 = longitude + boundingBoxSize / (111.320 * Math.cos(latitude));
-//     return {northLat: lat1, westLong: lon1, southLat: lat2, eastLong: lon2};
-// }
-
-
-
-
 /**
  * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
  * with sides of length metres
@@ -96,9 +23,6 @@ function getBoundingBox(lat, long, metres) {
     //return { minLat, maxLat, minLng, maxLng };
     return {minLat, minLng, maxLat, maxLng };
 }
-  
-
-
 
 
 /**
@@ -171,8 +95,21 @@ function convertUTMToPixelCoords(easting, northing) {
 function convertLatLongToPixelCoords(coordinate) {
     let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
     let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-    return { x: Math.round(pixelCoords.x), y: Math.round(pixelCoords.y) };
+    return { x: pixelCoords.x, y: pixelCoords.y, roundedX: Math.round(pixelCoords.x), roundedY: Math.round(pixelCoords.y)};
 }
+
+
+// /**
+//  * Convert a latitude/longitude coordinate to a pixel coordinate of the '.tiff' file.
+//  * 
+//  * @param coordinate - a coordinate object with a lat and long property
+//  * @returns An object with the x and y coordinates of the pixel.
+//  */
+// function convertLatLongToPixelCoordsNotRounded(coordinate) {
+//     let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
+//     let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
+//     return { x: pixelCoords.x, y: pixelCoords.y };
+// }
 
 
 /**
