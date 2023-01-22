@@ -6,7 +6,7 @@ var windowedTwoDHeightMapArray;
 var tiffWindow;
 
 const yScale = 1;
-const xzScale = 4;
+const xzScale = 6;
 
 function getHeightMap(pixelCoords, bboxSize) {
     console.log("=== Getting Height Map ===");
@@ -14,6 +14,8 @@ function getHeightMap(pixelCoords, bboxSize) {
     let yPixel = pixelCoords.roundedY;
     let offset = (bboxSize/(2*twfData[0])); // Converts bbox size into an offset
     tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
+
+    // TODO Move the below code into a worker. This seems to be what is making the UI hang.
     return tiffImage.then(async (image) => {
         windowedTwoDHeightMapArray = image.readRasters({window: tiffWindow})
         .then((oneDArray) => {
@@ -24,7 +26,6 @@ function getHeightMap(pixelCoords, bboxSize) {
         .then((oneDArray) => {
             return convert1DArrayTo2DArray(oneDArray);
         });
-        //await sleep(15);
         return { windowedTwoDHeightMapArray, twoDHeightMapArray };
     });
 }

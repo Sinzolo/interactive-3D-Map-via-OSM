@@ -90,13 +90,13 @@ async function loadPaths(coordinate, bboxSize) {
             // feature.geometry.coordinates.forEach((element, index) => {
             //     paths[numberOfPaths].push(element[index]);
             // });
-            numberOfPaths++;
             addPath(feature, pathParent);
+            numberOfPaths++;
             //paths.push(pathNodes);
         }
     });
     console.log(pathNodes);
-    //console.log(paths);
+    console.log(paths);
 
     console.log("Number of paths: ", numberOfPaths);
 }
@@ -125,13 +125,26 @@ function addPath(feature, parentElement) {
     if (tags.service == "alley") {color ="#967A72"; pathWidth = 0.2}
 
 
-
-    if (!nodeExists(feature.geometry.coordinates[0])) pathNodes.push(feature.geometry.coordinates[0]);
+    paths[numberOfPaths] = [];
+    let firstPoint = feature.geometry.coordinates[0];
+    if (nodeExists(firstPoint)) {
+        paths[numberOfPaths].push(pathNodes.findIndex(elem => JSON.stringify(elem) === JSON.stringify(firstPoint)));
+    }
+    else {
+        pathNodes.push(firstPoint);
+        paths[numberOfPaths].push(pathNodes.length-1);
+    }
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i-1];
         let point2 = feature.geometry.coordinates[i];
-        if (!nodeExists(point2)) pathNodes.push(point2);
+        if (nodeExists(point2)) {
+            paths[numberOfPaths].push(pathNodes.findIndex(elem => JSON.stringify(elem) === JSON.stringify(point2)));
+        }
+        else {
+            pathNodes.push(point2);
+            paths[numberOfPaths].push(pathNodes.length-1);
+        }
 
         let pixelCoords1 = convertLatLongToPixelCoords({lat: point1[1], long: point1[0]});
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
