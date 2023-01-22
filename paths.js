@@ -79,8 +79,9 @@ async function loadPaths(coordinate, bboxSize) {
     numberOfPaths = 0;
     //var paths = [[]];
     paths = [];
+    pathNodes = [];
     geoJSON.features.forEach((feature, index) => {
-        pathNodes = [];
+        //pathNodes = [];
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
             //numberOfPaths++;
             //addPath(feature, pathParent);
@@ -91,10 +92,10 @@ async function loadPaths(coordinate, bboxSize) {
             // });
             numberOfPaths++;
             addPath(feature, pathParent);
-            //console.log(index, pathNodes);
-            paths.push(pathNodes);
+            //paths.push(pathNodes);
         }
     });
+    console.log(pathNodes);
     //console.log(paths);
 
     console.log("Number of paths: ", numberOfPaths);
@@ -122,15 +123,16 @@ function addPath(feature, parentElement) {
     else if (tags.highway == "path") {color ="#C6C6C6"; pathWidth = 0.3}
     else if (tags.highway == "steps") {color ="#d16c4a"; pathWidth = 0.3}
     if (tags.service == "alley") {color ="#967A72"; pathWidth = 0.2}
-    //if (tags.highway == "service") {console.log(tags);}
 
 
+
+    if (!nodeExists(feature.geometry.coordinates[0])) pathNodes.push(feature.geometry.coordinates[0]);
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
-        if (!paths.includes(feature.geometry.coordinates[i-1])) pathNodes.push(feature.geometry.coordinates[i-1]);
-        if (!paths.includes(feature.geometry.coordinates[i])) pathNodes.push(feature.geometry.coordinates[i]);
         let point1 = feature.geometry.coordinates[i-1];
         let point2 = feature.geometry.coordinates[i];
+        if (!nodeExists(point2)) pathNodes.push(point2);
+
         let pixelCoords1 = convertLatLongToPixelCoords({lat: point1[1], long: point1[0]});
         let pixelCoords2 = convertLatLongToPixelCoords({lat: point2[1], long: point2[0]});
         //let segmentedPath = segmentPath({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale});
@@ -142,19 +144,20 @@ function addPath(feature, parentElement) {
         newPath.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
         let pixelCoords = {x: (pixelCoords1.x+pixelCoords2.x)/2, y: (pixelCoords1.y+pixelCoords2.y)/2, roundedX: Math.round((pixelCoords1.x+pixelCoords2.x)/2), roundedY: Math.round((pixelCoords1.y+pixelCoords2.y)/2)};
-        heightMaps.then(({ twoDHeightMapArray }) => {
-            twoDHeightMapArray.then((heightMap) => {
-                if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) {
-                    newPath.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
-                    throw new Error("Specfic location on height map not found! (My own error)");
-                }
-                else {
-                    newPath.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
-                }
-                parentElement.appendChild(newPath);
+        newPath.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
+        parentElement.appendChild(newPath);
+
+        heightMaps.then(({windowedTwoDHeightMapArray, twoDHeightMapArray}) => {
+            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
+                if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
+                newPath.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
             });
         });
     }
+}
+
+function nodeExists(node) {
+    return pathNodes.some(item => item.length === node.length && item.every((v, j) => v === node[j]));
 }
 
 

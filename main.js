@@ -209,12 +209,17 @@ function movedFarEnough(newPixelCoords) {
  * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
  */
 function placeCameraAtPixelCoords(pixelCoords) {
-    heightMaps.then(({ twoDHeightMapArray }) => {
-        twoDHeightMapArray.then((heightMap) => {
-            camera = document.getElementById("rig");
+    camera = document.getElementById("rig");
+    camera.setAttribute("position", pixelCoords.x + " 1.6 " + pixelCoords.y);
+    currentUsersLocation = pixelCoords;
+
+    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             camera.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6) + " " + pixelCoords.y);
             currentUsersLocation = pixelCoords;
         });
+    }).catch((err) => {
+        console.log(err);
     });
 }
 
@@ -229,6 +234,9 @@ function placeCameraAtPixelCoords(pixelCoords) {
 async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     console.log("=== Loading Map ===");
     heightMaps = getHeightMap(pixelCoords, bboxSize);
+    // heightMaps = new Promise((resolve, reject) => {
+    //     reject(new Error("Test error"));
+    // });
     setCurrentMapForRemoval();
     removeCurrentMap();
     loadTerrain();

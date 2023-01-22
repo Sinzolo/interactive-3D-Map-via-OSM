@@ -127,16 +127,13 @@ function addBuilding(feature, parentElement) {
     newBuilding.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
 
     let pixelCoords = convertLatLongToPixelCoords({lat: sumOfLatCoords/count, long: sumOfLongCoords/count})
-    heightMaps.then(({ twoDHeightMapArray }) => {
-        twoDHeightMapArray.then((heightMap) => {
-            if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) {
-                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
-                throw new Error("Specfic location on height map not found! (My own error)");
-            }
-            else {
-                newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
-            }
-            parentElement.appendChild(newBuilding);
+    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
+    parentElement.appendChild(newBuilding);
+
+    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
+            if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
+            newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
         });
     });
 }
