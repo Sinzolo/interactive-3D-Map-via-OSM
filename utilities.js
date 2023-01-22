@@ -22,6 +22,7 @@ async function fetchWithRetry(url, retries = 10) {
             retries = 0;
             return response;
         }).catch((error) => {
+            console.log(error);
             retries--;
             console.log("Retrying, "+retries+" attempts left.");
         });

@@ -7,7 +7,6 @@ var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
 //var tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
-
 var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };           // Impossible coordinates in pixel coords
 var currentUsersLocation = { x: -1, y: -1, roundedX: -1, roundedY: -1 };                   // Impossible coordinates in pixel coords
 var watchID = -1;
@@ -30,21 +29,31 @@ const debug = true;
 // const image = tiff.then((tiff) => { return tiff.getImage() });
 var tiffImage;
 
-var uniTiffImage = fetch("uniTiff/SD45ne_DTM_2m.tif").then((response) => {
-    return response.arrayBuffer();
-}).then((response) => {
-    return GeoTIFF.fromArrayBuffer(response);
-}).then((response) => {
-    return response.getImage()
+// var uniTiffImage = fetch("uniTiff/SD45ne_DTM_2m.tif").then((response) => {
+//     return response.arrayBuffer();
+// }).then((response) => {
+//     return GeoTIFF.fromArrayBuffer(response);
+// }).then((response) => {
+//     return response.getImage()
+// });
+
+// var cityTiffImage = fetch("cityTiff/SD46se_DTM_2m.tif").then((response) => {
+//     return response.arrayBuffer();
+// }).then((response) => {
+//     return GeoTIFF.fromArrayBuffer(response);
+// }).then((response) => {
+//     return response.getImage()
+// });
+
+var raster;
+const worker = new Worker('rasterWorker.js');
+const rasters = new Promise((resolve, reject) => {
+    worker.postMessage({uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif"});
+    worker.onmessage = function(e) {
+        resolve({uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster});
+    }
 });
 
-var cityTiffImage = fetch("cityTiff/SD46se_DTM_2m.tif").then((response) => {
-    return response.arrayBuffer();
-}).then((response) => {
-    return GeoTIFF.fromArrayBuffer(response);
-}).then((response) => {
-    return response.getImage()
-});
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
 var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
@@ -80,12 +89,16 @@ window.onfocus = function() {
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
-    tiffImage = cityTiffImage;
+    raster = rasters.then((rasters) => {
+        return rasters.cityRaster;
+    });
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
     tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
-    tiffImage = uniTiffImage;
+    raster = rasters.then((rasters) => {
+        return rasters.uniRaster;
+    });
 }
 
 

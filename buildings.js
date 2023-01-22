@@ -80,7 +80,7 @@ async function loadBuildings(coordinate, bboxSize) {
 }
 
 
-function addBuilding(feature, parentElement) {
+async function addBuilding(feature, parentElement) {
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];
     if(tags.amenity == "shelter" && !height) height = 1;

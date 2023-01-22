@@ -95,14 +95,14 @@ async function loadPaths(coordinate, bboxSize) {
             //paths.push(pathNodes);
         }
     });
-    console.log(pathNodes);
-    console.log(paths);
+    //console.log(pathNodes);
+    //console.log(paths);
 
     console.log("Number of paths: ", numberOfPaths);
 }
 
 
-function addPath(feature, parentElement) {
+async function addPath(feature, parentElement) {
     let tags = feature.properties;
     let color = "#979797";
     let pathWidth = defaultPathWidth;

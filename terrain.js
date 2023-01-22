@@ -1,14 +1,8 @@
-var oneDHeightMapArray;
-var twoDHeightMapArray;
-var windowedOneDHeightMapArray;
-var windowedTwoDHeightMapArray;
-
 var tiffWindow;
 
-const yScale = 1;
-const xzScale = 6;
+const xzScale = 6;      // Smaller number = more triangles that make up the terrain = worse performance
 
-function getHeightMap(pixelCoords, bboxSize) {
+async function getHeightMap(pixelCoords, bboxSize) {
     console.log("=== Getting Height Map ===");
     let xPixel = pixelCoords.roundedX;
     let yPixel = pixelCoords.roundedY;
@@ -16,76 +10,92 @@ function getHeightMap(pixelCoords, bboxSize) {
     tiffWindow = [ xPixel-offset, yPixel-offset, xPixel+offset, yPixel+offset ];
 
     // TODO Move the below code into a worker. This seems to be what is making the UI hang.
-    return tiffImage.then(async (image) => {
-        windowedTwoDHeightMapArray = image.readRasters({window: tiffWindow})
-        .then((oneDArray) => {
-            return convert1DArrayTo2DArray(oneDArray);
-        });
 
-        twoDHeightMapArray = image.readRasters()
-        .then((oneDArray) => {
-            return convert1DArrayTo2DArray(oneDArray);
-        });
-        return { windowedTwoDHeightMapArray, twoDHeightMapArray };
+    // let test = tiffImage.then((image) => {
+    //     const pool = new GeoTIFF.Pool();
+
+    //     let windowedTwoDHeightMapArray = image.readRasters({pool, window: tiffWindow})
+    //     .then((oneDArray) => {
+    //         return convert1DArrayTo2DArray(oneDArray);
+    //     });
+
+    //     let twoDHeightMapArray = image.readRasters( {pool} )
+    //     .then((oneDArray) => {
+    //         return convert1DArrayTo2DArray(oneDArray);
+    //     });
+    //     return { windowedTwoDHeightMapArray, twoDHeightMapArray };
+    // });
+    let heightMaps = raster.then((raster) => {
+        let twoDHeightMapArray = convert1DArrayTo2DArray(raster);
+        let windowedTwoDHeightMapArray = getAreaOf2DArray(twoDHeightMapArray, tiffWindow[0], tiffWindow[1], tiffWindow[2], tiffWindow[3]);
+        return {windowedTwoDHeightMapArray, twoDHeightMapArray}
     });
+    console.log(heightMaps);
+    return heightMaps;
 }
 
 
-function loadTerrain() {
+function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
+    let windowedTwoDArray = [];
+    for (let x = 0; x < maxX-minX; x++) {
+        windowedTwoDArray[x] = [];
+        for (let y = 0; y < maxY-minY; y++) {
+            windowedTwoDArray[x].push(twoDArray[x+minX][y+minY]);
+        }
+    }
+    return windowedTwoDArray;
+}
+
+
+async function loadTerrain() {
     console.log("=== Loading Terrain ===");
 
-    /*
-        Draws triangles for the floor
-     */
+    drawTriangles(createTrianglesForTerrain(xzScale, true));    // Draws a flat terrain while waiting for the height map
+
+    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([heightMap, _unused]) => {  // Waits for both height maps to succeed
+            changeElementID("terrainParent", "terrainToRemove");
+            removeCurrentTerrain();
+            drawTriangles(createTrianglesForTerrain(xzScale, false, heightMap));    // Draws a height map accurate terrain
+        }).catch((err) => {
+            console.log(err);
+        });
+    }).catch((err) => {
+        console.log(err);
+    });
+}
+
+function drawTriangles(triangles) {
     let sceneElement = document.querySelector('a-scene');
     let triangleParent = document.createElement('a-entity');
     triangleParent.setAttribute("id", "terrainParent");
     triangleParent.setAttribute("class", "terrain");
     sceneElement.appendChild(triangleParent);
-
-    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([heightMap, _unused]) => {
-            for (let z = 0; z < heightMap.length-xzScale; z+=xzScale) {
-                for (let x = 0; x < heightMap[z].length-xzScale; x+=xzScale) {
-                    newTriangle = document.createElement('a-triangle');
-                    newTriangle.setAttribute("color", "#4c9141");
-                    newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" "+heightMap[x][z]*yScale+" "+(z+tiffWindow[1]));
-                    newTriangle.setAttribute("vertex-b", (x+tiffWindow[0])+" "+heightMap[x][z+xzScale]*yScale+" "+(z+tiffWindow[1]+xzScale));
-                    newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+xzScale)+" "+heightMap[x+xzScale][z]*yScale+" "+(z+tiffWindow[1]));
-                    triangleParent.appendChild(newTriangle);
-        
-                    newTriangle = document.createElement('a-triangle');
-                    newTriangle.setAttribute("color", "#4c9141");
-                    newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" "+heightMap[x][z+xzScale]*yScale+" "+(z+tiffWindow[1]+xzScale));
-                    newTriangle.setAttribute("vertex-b", (x+tiffWindow[0]+xzScale)+" "+heightMap[x+xzScale][z+xzScale]*yScale+" "+(z+tiffWindow[1]+xzScale));
-                    newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+xzScale)+" "+heightMap[x+xzScale][z]*yScale+" "+(z+tiffWindow[1]));
-                    triangleParent.appendChild(newTriangle);
-                }
-            }
-        }).catch(() => {
-            drawFlatTerrain(triangleParent);
-        });
-    }).catch(() => {
-        drawFlatTerrain(triangleParent);
+    triangles.forEach(triangle => {
+        triangleParent.appendChild(triangle);
     });
 }
 
-function drawFlatTerrain(triangleParent) {
-    for (let z = 0; z < bboxSize/2-xzScale; z+=xzScale) {
-        for (let x = 0; x < bboxSize/2-xzScale; x+=xzScale) {
+function createTrianglesForTerrain(resolution, flat, heightMap) {
+    let newTriangle;
+    let triangles = [];
+    if(flat) resolution = bboxSize/2-1;
+    for (let z = 0; z < bboxSize/2-resolution; z+=resolution) {
+        for (let x = 0; x < bboxSize/2-resolution; x+=resolution) {
             newTriangle = document.createElement('a-triangle');
             newTriangle.setAttribute("color", "#4c9141");
-            newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" 0 "+(z+tiffWindow[1]));
-            newTriangle.setAttribute("vertex-b", (x+tiffWindow[0])+" 0 "+(z+tiffWindow[1]+xzScale));
-            newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+xzScale)+" 0 "+(z+tiffWindow[1]));
-            triangleParent.appendChild(newTriangle);
+            newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" "+ ((flat) ? 0 : heightMap[x][z]) +" "+(z+tiffWindow[1]));
+            newTriangle.setAttribute("vertex-b", (x+tiffWindow[0])+" "+ ((flat) ? 0 : heightMap[x][z+xzScale]) +" "+(z+tiffWindow[1]+resolution));
+            newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+resolution)+" "+ ((flat) ? 0 : heightMap[x+xzScale][z]) +" "+(z+tiffWindow[1]));
+            triangles.push(newTriangle);
 
             newTriangle = document.createElement('a-triangle');
             newTriangle.setAttribute("color", "#4c9141");
-            newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" 0 "+(z+tiffWindow[1]+xzScale));
-            newTriangle.setAttribute("vertex-b", (x+tiffWindow[0]+xzScale)+" 0 "+(z+tiffWindow[1]+xzScale));
-            newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+xzScale)+" 0 "+(z+tiffWindow[1]));
-            triangleParent.appendChild(newTriangle);
+            newTriangle.setAttribute("vertex-a", (x+tiffWindow[0])+" "+ ((flat) ? 0 : heightMap[x][z+xzScale]) +" "+(z+tiffWindow[1]+resolution));
+            newTriangle.setAttribute("vertex-b", (x+tiffWindow[0]+resolution)+" "+ ((flat) ? 0 : heightMap[x+xzScale][z+xzScale]) +" "+(z+tiffWindow[1]+resolution));
+            newTriangle.setAttribute("vertex-c", (x+tiffWindow[0]+resolution)+" "+ ((flat) ? 0 : heightMap[x+xzScale][z]) +" "+(z+tiffWindow[1]));
+            triangles.push(newTriangle);
         }
     }
+    return triangles;
 }
