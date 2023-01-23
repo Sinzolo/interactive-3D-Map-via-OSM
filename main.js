@@ -17,7 +17,7 @@ var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 280;                                     // Length of one side of bounding box in metres
+const bboxSize = 300;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize/2)*0.6;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
@@ -63,7 +63,6 @@ const rasters = new Promise((resolve, reject) => {
     }
 });
 
-console.log(rasters);
 
 function raster(url) {
     return GeoTIFF.fromUrl(url).then(tiff => {
@@ -116,7 +115,6 @@ function cityMap() {
         console.log(rasters);
         return rasters.cityRaster;
     });
-    console.log(raster);
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
@@ -137,12 +135,13 @@ function showMap() {
 
 
     // TODO #4 Get the camera to face the correct heading.
-    navigator.geolocation.getCurrentPosition(function(position) {
-        var heading = position.coords.heading;
-        console.log(heading);
-        let camera = document.getElementById("rig");
-        camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
-    });
+    // navigator.geolocation.getCurrentPosition(function(position) {
+    //     console.log("Position:", position);
+    //     var heading = position.coords.heading;
+    //     console.log("Heading: ", heading);
+    //     let camera = document.getElementById("rig");
+    //     camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
+    // });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
     mapBeingShown = true;
