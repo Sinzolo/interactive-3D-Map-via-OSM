@@ -49,10 +49,33 @@ var raster;
 const worker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
     worker.postMessage({uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif"});
-    worker.onmessage = function(e) {
+    worker.onmessage = async function(e) {
+        console.log(e);
+        if (e.data.status == "bad") {
+            // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
+            const rasters = await Promise.all([
+                raster("uniTiff/SD45ne_DTM_2m.tif"),
+                raster("cityTiff/SD46se_DTM_2m.tif")
+            ]);
+            resolve({uniRaster: rasters[0], cityRaster: rasters[1]})
+        }
         resolve({uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster});
     }
 });
+
+console.log(rasters);
+
+function raster(url) {
+    return GeoTIFF.fromUrl(url).then(tiff => {
+        return tiff.getImage();
+    }).then(image => {
+        return image.readRasters({pool: new GeoTIFF.Pool()});
+    });
+    // .catch((err) => {
+    //     console.log(err)
+    //     reject(err);
+    // })
+}
 
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
@@ -90,8 +113,10 @@ function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
     raster = rasters.then((rasters) => {
+        console.log(rasters);
         return rasters.cityRaster;
     });
+    console.log(raster);
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
@@ -110,6 +135,14 @@ function showMap() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("mapScreen").style.display = "block";
 
+
+    // TODO #4 Get the camera to face the correct heading.
+    navigator.geolocation.getCurrentPosition(function(position) {
+        var heading = position.coords.heading;
+        console.log(heading);
+        let camera = document.getElementById("rig");
+        camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
+    });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
     mapBeingShown = true;
