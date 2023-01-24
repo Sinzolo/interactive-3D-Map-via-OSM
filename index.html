@@ -55,13 +55,13 @@
 
     <div id="mapScreen" style="display: none">
         <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
-        <button onclick="showNavigationMenu()">Navigate</button>
+        <button id="loadNavigationMenuBtn" onclick="showNavigationMenu()">Navigate</button>
         <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
-            <input id="destinationLat" type="number" class="coords" placeholder="latitude" step="0.00001" min="-90" max="90"> /
-            <input id="destinationLong" type="number" class="coords" placeholder="longitude" step="0.00001" min="-180" max="180"><br>
-            <button onclick="startNavigation()">Go!</button>
-            <button onclick="hideNavigationMenu()">Cancel</button>
+            <input id="destinationLat" type="number" class="coords" placeholder="latitude" step="0.00001" min="-90" max="90" value="54.007551"> /
+            <input id="destinationLong" type="number" class="coords" placeholder="longitude" step="0.00001" min="-180" max="180" value="-2.785295"><br>
+            <button id="startNavigationBtn" onclick="startNavigation()">Go!</button>
+            <button id="hideNavigationMenuBtn" onclick="hideNavigationMenu()">Cancel</button>
         </div>
         <label id="loading" style="display: none">Loading</label>
 

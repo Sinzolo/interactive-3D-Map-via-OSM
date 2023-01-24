@@ -71,6 +71,7 @@ function drawTriangles(triangles) {
     let triangleParent = document.createElement('a-entity');
     triangleParent.setAttribute("id", "terrainParent");
     triangleParent.setAttribute("class", "terrain");
+    // triangleParent.setAttribute("geometry-merger", "preserveOriginal: false");
     sceneElement.appendChild(triangleParent);
     triangles.forEach(triangle => {
         triangleParent.appendChild(triangle);
@@ -83,18 +84,29 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
     if (flat) resolution = bboxSize / 2 - 1;
     for (let z = 0; z < bboxSize / 2 - resolution; z += resolution) {
         for (let x = 0; x < bboxSize / 2 - resolution; x += resolution) {
-            newTriangle = document.createElement('a-triangle');
-            newTriangle.setAttribute("color", groundColour);
-            newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]));
-            newTriangle.setAttribute("vertex-b", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
+            newTriangle = document.createElement('a-entity');
+            newTriangle.setAttribute("geometry", {
+                primitive: "triangle",
+                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]),
+                vertexB: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
+                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]) });
+            newTriangle.setAttribute("material", { color: groundColour } );
+            // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]));
+            // newTriangle.setAttribute("vertex-b", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
+            // newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
             triangles.push(newTriangle);
 
-            newTriangle = document.createElement('a-triangle');
-            newTriangle.setAttribute("color", groundColour);
-            newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            newTriangle.setAttribute("vertex-b", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
+            newTriangle = document.createElement('a-entity');
+            newTriangle.setAttribute("geometry", {
+                primitive: "triangle",
+                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
+                vertexB: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
+                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1])
+            });
+            newTriangle.setAttribute("material", { color: groundColour });
+            // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
+            // newTriangle.setAttribute("vertex-b", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
+            // newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
             triangles.push(newTriangle);
         }
     }

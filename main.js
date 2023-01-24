@@ -7,8 +7,9 @@ var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
 //var tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
-var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };           // Impossible coordinates in pixel coords
-var currentUsersLocation = { x: -1, y: -1, roundedX: -1, roundedY: -1 };                   // Impossible coordinates in pixel coords
+var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         // Impossible coordinates in pixel coords
+var usersCurrentPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 };     // Impossible coordinates in pixel coords
+var usersCurrentLatLong = { lat: 91, long: 181 };                               // Impossible coordinates in lat and long
 var watchID = -1;
 var numberOfPositionChanges = 0;
 var coordsTotal = { lat: 0, long: 0 };
@@ -17,7 +18,7 @@ var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 300;                                     // Length of one side of bounding box in metres
+const bboxSize = 280;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize / 2) * 0.6;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
@@ -161,10 +162,12 @@ function showMainMenu() {
 
 function showNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "block";
+    document.getElementById("loadNavigationMenuBtn").style.visibility = "hidden";
 }
 
 function hideNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "none";
+    document.getElementById("loadNavigationMenuBtn").style.visibility = "";
 }
 
 
@@ -180,7 +183,7 @@ async function locationSuccess(position) {
     console.log(newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
     if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
-    placeCameraAtPixelCoords(newPixelCoords);
+    placeCameraAtPixelCoords(newPixelCoords, newLatLong);
 }
 
 /**
@@ -239,15 +242,15 @@ function movedFarEnough(newPixelCoords) {
  * It takes a pixel coordinate and places the camera at that pixel coordinate
  * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
  */
-function placeCameraAtPixelCoords(pixelCoords) {
+function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     camera = document.getElementById("rig");
     camera.setAttribute("position", pixelCoords.x + " 1.6 " + pixelCoords.y);
-    currentUsersLocation = pixelCoords;
+    usersCurrentPixelCoords = pixelCoords;
+    usersCurrentLatLong = newLatLong;
 
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             camera.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6) + " " + pixelCoords.y);
-            currentUsersLocation = pixelCoords;
         });
     }).catch((err) => {
         console.log(err);

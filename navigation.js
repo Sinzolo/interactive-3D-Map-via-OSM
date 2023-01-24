@@ -1,7 +1,9 @@
 function startNavigation() {
-    destinationLatLong = [document.getElementById("destinationLat").value, document.getElementById("destinationLong").value];
-    if (!areCoordsValid({ lat: destinationLatLong[0], long: destinationLatLong[1] })) return;
-    findClosestPathNode(destinationLatLong);
+    destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
+    if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
+    findClosestPathNode(usersCurrentLatLong, "#00FF00");
+    findClosestPathNode(destinationLatLong, "#FF0000");
+    console.log(usersCurrentLatLong);
     console.log(destinationLatLong);
 }
 
@@ -16,19 +18,14 @@ function areCoordsValid(coords) {
 }
 
 
-function findClosestPathNode(coords) {
-    target = [coords[1], coords[0]];    // Swap to make it long, lat
+function findClosestPathNode(coords, colour) {
+    target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
     const distances = pathNodes.map((coord) => getDistance(coord, target));     // TODO Will be an issue if this runs before paths are made
     const closestIndex = distances.indexOf(Math.min(...distances));
-    console.log(distances[closestIndex]);
-    console.log(closestIndex);
-    console.log({ lat: pathNodes[closestIndex][1], long: pathNodes[closestIndex][0] });
-    let pixelCoords = convertLatLongToPixelCoords({ lat: pathNodes[closestIndex][1], long: pathNodes[closestIndex][0] });
-    console.log(pixelCoords);
-
-    let sceneElement = document.querySelector('a-scene');
+    const pixelCoords = convertLatLongToPixelCoords({ lat: pathNodes[closestIndex][1], long: pathNodes[closestIndex][0] });
+    const sceneElement = document.querySelector('a-scene');
     let newSphere = document.createElement('a-sphere');
-    newSphere.setAttribute("color", "#FF0000");
+    newSphere.setAttribute("color", colour);
     newSphere.setAttribute("position", pixelCoords.x + " 0 " + pixelCoords.y);
     sceneElement.appendChild(newSphere);
 
