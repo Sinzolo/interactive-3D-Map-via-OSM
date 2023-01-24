@@ -11,14 +11,14 @@ var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         
 var currentUsersLocation = { x: -1, y: -1, roundedX: -1, roundedY: -1 };                   // Impossible coordinates in pixel coords
 var watchID = -1;
 var numberOfPositionChanges = 0;
-var coordsTotal = {lat: 0, long: 0};
+var coordsTotal = { lat: 0, long: 0 };
 var mapBeingShown = false;
 var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const bboxSize = 300;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize/2)*0.6;            // Used to check if the user has moved far enough
+const distanceNeededToMove = (bboxSize / 2) * 0.6;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 0,    // Will only update every 600ms
@@ -48,18 +48,17 @@ var tiffImage;
 var raster;
 const worker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
-    worker.postMessage({uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif"});
-    worker.onmessage = async function(e) {
-        console.log(e);
+    worker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
+    worker.onmessage = async function (e) {
         if (e.data.status == "bad") {
             // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
             const rasters = await Promise.all([
                 raster("uniTiff/SD45ne_DTM_2m.tif"),
                 raster("cityTiff/SD46se_DTM_2m.tif")
             ]);
-            resolve({uniRaster: rasters[0], cityRaster: rasters[1]})
+            resolve({ uniRaster: rasters[0], cityRaster: rasters[1] })
         }
-        resolve({uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster});
+        resolve({ uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster });
     }
 });
 
@@ -68,7 +67,7 @@ function raster(url) {
     return GeoTIFF.fromUrl(url).then(tiff => {
         return tiff.getImage();
     }).then(image => {
-        return image.readRasters({pool: new GeoTIFF.Pool()});
+        return image.readRasters({ pool: new GeoTIFF.Pool() });
     });
     // .catch((err) => {
     //     console.log(err)
@@ -90,20 +89,20 @@ async function deleteAndReOpenCache() {
     osmCache = caches.open(osmCacheName);
 }
 /* Delete the cache when the page is unloaded. */
-window.addEventListener("unload", async function() {
+window.addEventListener("unload", async function () {
     await caches.delete(osmCacheName);
 });
 /* Clearing the interval when the window is not in focus. */
-window.onblur = function() {
+window.onblur = function () {
     if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
         cacheDeletionInterval = clearInterval(cacheDeletionInterval);
         console.log("Interval Cleared");
     }
 };
 /* Restarting the cache deletion interval when the window is in focus. */
-window.onfocus = function() {
+window.onfocus = function () {
     if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
-        cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+        cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000 * 60);   // Once a minute clear the caches.
         console.log("Interval Restarted");
     }
 };
@@ -112,7 +111,6 @@ function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
     raster = rasters.then((rasters) => {
-        console.log(rasters);
         return rasters.cityRaster;
     });
 }
@@ -143,7 +141,7 @@ function showMap() {
     //     camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
     // });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
-    cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000*60);   // Once a minute clear the caches.
+    cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000 * 60);   // Once a minute clear the caches.
     mapBeingShown = true;
 }
 
@@ -151,10 +149,8 @@ function showMap() {
  * Hides the map and shows the welcome screen
  */
 function showMainMenu() {
-    mapDivElements = document.getElementById("mapScreen")
-    mapDivElements.style.display = "none";
-    welcomeDivElements = document.getElementById("welcomeScreen");
-    welcomeDivElements.style.display = "block";
+    document.getElementById("mapScreen").style.display = "none";
+    document.getElementById("welcomeScreen").style.display = "block";
 
     navigator.geolocation.clearWatch(watchID);
     watchID = -1;
@@ -164,21 +160,11 @@ function showMainMenu() {
 }
 
 function showNavigationMenu() {
-    //mapDivElements = document.getElementById("mapScreen")
-    //mapDivElements.style.display = "block";
-    welcomeDivElements = document.getElementById("welcomeScreen");
-    welcomeDivElements.style.display = "none";
-    welcomeDivElements = document.getElementById("navigationScreen");
-    welcomeDivElements.style.display = "block";
+    document.getElementById("navigationScreen").style.display = "block";
 }
 
-
-function startNavigation() {
-    destinationTextBox = document.getElementById("destinationTextBox")
-    destination = destinationTextBox.value;
-    if (!destination) return;
-    console.log(destination);
-    destinationTextBox.value = "";
+function hideNavigationMenu() {
+    document.getElementById("navigationScreen").style.display = "none";
 }
 
 
@@ -189,7 +175,7 @@ function startNavigation() {
  */
 async function locationSuccess(position) {
     console.log("\n\n===== NEW LOCATION ======");
-    let newLatLong = {lat: position.coords.latitude, long: position.coords.longitude};
+    let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     console.log(newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
@@ -228,21 +214,21 @@ function movedFarEnough(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
     if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
         console.log("First time moving");
-        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY};
+        currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
         return true;
     }
 
     // Storing how many metres the user has moved in the x and y directions.
     let xDistance = currentCentreOfBBox.x - newPixelCoords.x;
-    xDistance = Math.abs(xDistance)*2;
+    xDistance = Math.abs(xDistance) * 2;
     let yDistance = currentCentreOfBBox.y - newPixelCoords.y;
-    yDistance = Math.abs(yDistance)*2;
+    yDistance = Math.abs(yDistance) * 2;
     console.log(xDistance);
     console.log(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
     if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
-        currentCentreOfBBox = {x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY};
+        currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
         return true;
     }
     return false;

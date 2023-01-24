@@ -1,7 +1,8 @@
 const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
-const buildingHeightScale = 2.2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const buildingHeightScale = 2.3;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const buildingHeight = 2;                                 // Building height if height is unknown
 const buildingHeightUnderGround = 100;                    // How far to extend the buildings under the ground
+const defaultBuildingColour = "#7AA4C1";
 var numberOfBuildings = 0;
 
 async function loadBuildings(coordinate, bboxSize) {
@@ -23,27 +24,27 @@ async function loadBuildings(coordinate, bboxSize) {
     var stringBBox = convertBBoxToString(bbox);
     //console.log(stringBBox);
     var overpassQuery = overpassURL + encodeURIComponent(
-        "(way[building]("+stringBBox+");" +
-        "rel[building]("+stringBBox+"););" +
+        "(way[building](" + stringBBox + ");" +
+        "rel[building](" + stringBBox + "););" +
         "out geom;>;out skel qt;"
     );
 
     if ('caches' in window) {
         var response = caches.match(overpassQuery)
-        .then((response) => {
-            if (response) {     // If found in cache return response
-                console.log("Found it in cache");
-                return response;
-            }
-            console.log("NOT found in cache... Fetching URL");
-            return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
-                osmCache.then((cache) => {
-                    cache.put(overpassQuery, response);        //  Once fetched cache the response
-                    console.log("Storing in cache");
+            .then((response) => {
+                if (response) {     // If found in cache return response
+                    console.log("Found it in cache");
+                    return response;
+                }
+                console.log("NOT found in cache... Fetching URL");
+                return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
+                    osmCache.then((cache) => {
+                        cache.put(overpassQuery, response);        //  Once fetched cache the response
+                        console.log("Storing in cache");
+                    });
+                    return response.clone();        // Return fetched resource
                 });
-                return response.clone();        // Return fetched resource
             });
-        });
     }
     else {
         var response = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
@@ -53,13 +54,13 @@ async function loadBuildings(coordinate, bboxSize) {
 
     /* Converting the response from the overpass API into a JSON object. */
     let geoJSON = await response
-    .then((response) => {return response.text();})
-    .then((response) => {
-        let parser = new DOMParser();
-        let itemData = parser.parseFromString(response, "application/xml");
-        let itemJSON = osmtogeojson(itemData);
-        return itemJSON
-    });
+        .then((response) => { return response.text(); })
+        .then((response) => {
+            let parser = new DOMParser();
+            let itemData = parser.parseFromString(response, "application/xml");
+            let itemJSON = osmtogeojson(itemData);
+            return itemJSON
+        });
 
     let sceneElement = document.querySelector('a-scene');
     let buildingParent = document.createElement('a-entity');
@@ -83,13 +84,13 @@ async function loadBuildings(coordinate, bboxSize) {
 async function addBuilding(feature, parentElement) {
     let tags = feature.properties;
     let height = tags.height ? tags.height : tags["building:levels"];
-    if(tags.amenity == "shelter" && !height) height = 1;
-    else if(!height) height = buildingHeight;
+    if (tags.amenity == "shelter" && !height) height = 1;
+    else if (!height) height = buildingHeight;
     height = parseInt(height)
 
-    let color = "#85c8d0";
+    let colour = defaultBuildingColour;
     if (tags["building:colour"]) {
-      color = tags["building:colour"];
+        colour = tags["building:colour"];
     }
 
     let outerPoints = [];
@@ -100,8 +101,8 @@ async function addBuilding(feature, parentElement) {
         sumOfLatCoords += coordinatesPair[1];
         sumOfLongCoords += coordinatesPair[0];
         count++;
-        let pixelCoords = convertLatLongToPixelCoords({lat: coordinatesPair[1], long: coordinatesPair[0]})
-        outerPoints.push(new THREE.Vector2(pixelCoords.x*coordsScale, pixelCoords.y*coordsScale));
+        let pixelCoords = convertLatLongToPixelCoords({ lat: coordinatesPair[1], long: coordinatesPair[0] })
+        outerPoints.push(new THREE.Vector2(pixelCoords.x * coordsScale, pixelCoords.y * coordsScale));
     });
 
     //console.log(outerPoints);
@@ -121,19 +122,19 @@ async function addBuilding(feature, parentElement) {
     // }
 
     let newBuilding = document.createElement('a-entity');
-    let buildingProperties = {primitive: "building", outerPoints: outerPoints, height: height};
+    let buildingProperties = { primitive: "building", outerPoints: outerPoints, height: height };
     newBuilding.setAttribute("geometry", buildingProperties);
-    newBuilding.setAttribute("material", {color: color});
-    newBuilding.setAttribute("scale", buildingScale+" "+buildingHeightScale+" "+buildingScale);
+    newBuilding.setAttribute("material", { color: colour });
+    newBuilding.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
 
-    let pixelCoords = convertLatLongToPixelCoords({lat: sumOfLatCoords/count, long: sumOfLongCoords/count})
-    newBuilding.object3D.position.set((pixelCoords.x*coordsScale), 0, (pixelCoords.y*coordsScale));
+    let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
+    newBuilding.object3D.position.set((pixelCoords.x * coordsScale), 0, (pixelCoords.y * coordsScale));
     parentElement.appendChild(newBuilding);
 
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
-            newBuilding.object3D.position.set((pixelCoords.x*coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y*coordsScale));
+            newBuilding.object3D.position.set((pixelCoords.x * coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * coordsScale));
         });
     });
 }
@@ -148,14 +149,14 @@ AFRAME.registerGeometry('building', {
     },
     init: function (data) {
         var shape = new THREE.Shape(data.outerPoints);
-        var geometry = new THREE.ExtrudeGeometry(shape, {depth: data.height+buildingHeightUnderGround, bevelEnabled: false});
+        var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + buildingHeightUnderGround, bevelEnabled: false });
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);
         // Rotate around Y and Z as well to make it show up correctly.
         geometry.rotateY(Math.PI);
         geometry.rotateZ(Math.PI);
         // Now we would point under ground, move up the height, and any above-ground space as well.
-        geometry.translate (0, data.height, 0);
+        geometry.translate(0, data.height, 0);
         geometry.center;
         this.geometry = geometry;
     }

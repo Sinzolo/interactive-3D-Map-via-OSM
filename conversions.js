@@ -1,3 +1,5 @@
+const earthRadius = 6371e3;     // Earth's radius in metres
+
 /**
  * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
  * with sides of length metres
@@ -8,20 +10,15 @@
  */
 function getBoundingBox(lat, long, metres) {
     metres /= 2;
-    const earthRadius = 6371e3; // metres
-    const latRadians = lat * Math.PI / 180; // convert latitude to radians
-    const lngRadians = long * Math.PI / 180; // convert longitude to radians
-    const latDelta = metres / earthRadius; // calculate change in latitude
-    const lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
-  
-    // calculate coordinates of bounding box
-    const minLat = lat - latDelta * 180 / Math.PI;
-    const maxLat = lat + latDelta * 180 / Math.PI;
-    const minLng = long - lngDelta * 180 / Math.PI;
-    const maxLng = long + lngDelta * 180 / Math.PI;
-  
-    //return { minLat, maxLat, minLng, maxLng };
-    return {minLat, minLng, maxLat, maxLng };
+    let latRadians = lat * Math.PI / 180; // convert latitude to radians
+    let latDelta = metres / earthRadius;  // calculate change in latitude
+    let lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
+
+    return { minLat: lat - latDelta * 180 / Math.PI,
+        minLng: long - lngDelta * 180 / Math.PI,
+        maxLat: lat + latDelta * 180 / Math.PI,
+        maxLng: long + lngDelta * 180 / Math.PI
+    };
 }
 
 
@@ -36,7 +33,6 @@ function convertUTMToLatAndLong(easting, northing) {
     var source = new proj4.Proj('EPSG:27700');
     var dest = new proj4.Proj('EPSG:4326');     //WGS84
     var testPt = new proj4.toPoint([easting, northing]);
-    //var testPt = new proj4.Point(easting, northing);
     return proj4.transform(source, dest, testPt);
 }
 
@@ -80,9 +76,9 @@ function convertLatLongToUTM(lat, long) {
  * @returns A promise that resolves to an object containing the x and y pixel coordinates.
  */
 function convertUTMToPixelCoords(easting, northing) {
-    let x = (twfData[3]*easting-twfData[2]*northing+twfData[2]*twfData[5]-twfData[3]*twfData[4])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
-    let y = (-twfData[1]*easting+twfData[0]*northing+twfData[1]*twfData[4]-twfData[0]*twfData[5])/(twfData[0]*twfData[3]-twfData[1]*twfData[2]);
-    return {x: x, y: y};
+    let x = (twfData[3] * easting - twfData[2] * northing + twfData[2] * twfData[5] - twfData[3] * twfData[4]) / (twfData[0] * twfData[3] - twfData[1] * twfData[2]);
+    let y = (-twfData[1] * easting + twfData[0] * northing + twfData[1] * twfData[4] - twfData[0] * twfData[5]) / (twfData[0] * twfData[3] - twfData[1] * twfData[2]);
+    return { x: x, y: y };
 }
 
 
@@ -95,34 +91,7 @@ function convertUTMToPixelCoords(easting, northing) {
 function convertLatLongToPixelCoords(coordinate) {
     let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
     let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-    return { x: pixelCoords.x, y: pixelCoords.y, roundedX: Math.round(pixelCoords.x), roundedY: Math.round(pixelCoords.y)};
-}
-
-
-// /**
-//  * Convert a latitude/longitude coordinate to a pixel coordinate of the '.tiff' file.
-//  * 
-//  * @param coordinate - a coordinate object with a lat and long property
-//  * @returns An object with the x and y coordinates of the pixel.
-//  */
-// function convertLatLongToPixelCoordsNotRounded(coordinate) {
-//     let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
-//     let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
-//     return { x: pixelCoords.x, y: pixelCoords.y };
-// }
-
-
-/**
- * Converts pixel coord from old image to the new image.
- * @param {double} x x coordinate of the pixel
- * @param {double} y y coordinate of the pixel
- * @returns The updated position
- */
-function convertToNewPixelCoords(x, y) {
-    //x -= (xPixel);
-    //y -= (yPixel);
-    //console.log({x: x, y: y});
-    return {x: x, y: y};
+    return { x: pixelCoords.x, y: pixelCoords.y, roundedX: Math.round(pixelCoords.x), roundedY: Math.round(pixelCoords.y) };
 }
 
 
@@ -133,10 +102,9 @@ function convertToNewPixelCoords(x, y) {
  * @returns A string of the bounding box coordinates.
  */
 function convertBBoxToString(bbox) {
-    let string = bbox.minLat+","+bbox.minLng+","+bbox.maxLat+","+bbox.maxLng;
+    let string = bbox.minLat + "," + bbox.minLng + "," + bbox.maxLat + "," + bbox.maxLng;
     return string;
 }
-
 
 
 /**
@@ -146,13 +114,11 @@ function convertBBoxToString(bbox) {
  * @returns A 2D array
  */
 function convert1DArrayTo2DArray(oneDArray) {
-    let height = oneDArray.height;
-    let width = oneDArray.width;
     let twoDArray = [];
-    for (let i = 0; i < width; i++) {
+    for (let i = 0; i < oneDArray.width; i++) {
         twoDArray[i] = [];
-        for (let j = 0; j < height; j++) {
-            let index = i + j * width;
+        for (let j = 0; j < oneDArray.height; j++) {
+            let index = i + j * oneDArray.width;
             twoDArray[i][j] = oneDArray[0][index];
         }
     }

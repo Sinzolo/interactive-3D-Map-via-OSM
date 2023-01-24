@@ -1,16 +1,16 @@
 try {
     importScripts("https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js");
 } catch (error) {
-    self.postMessage({status: "bad"});
+    self.postMessage({ status: "bad" });
     self.close();
 }
 
-self.onmessage = async function(e) {
+self.onmessage = async function (e) {
     const [uniRaster, cityRaster] = await Promise.all([
         raster(e.data.uniURL),
         raster(e.data.cityURL)
     ]);
-    self.postMessage({status: "ok", uniRaster, cityRaster});
+    self.postMessage({ status: "ok", uniRaster, cityRaster });
     self.close();
 }
 
@@ -18,7 +18,7 @@ function raster(url) {
     return GeoTIFF.fromUrl(url).then((tiff) => {
         return tiff.getImage();
     }).then((image) => {
-        return image.readRasters({pool: new GeoTIFF.Pool()});
+        return image.readRasters({ pool: new GeoTIFF.Pool() });
     });
 
     // return fetch(url)

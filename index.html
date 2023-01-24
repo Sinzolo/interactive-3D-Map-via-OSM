@@ -1,87 +1,97 @@
 <!DOCTYPE html>
 <html lang="en">
 
-    <head>
-        <!-- <meta charset="UTF-8"> -->
-        <!-- <meta http-equiv="X-UA-Compatible" content="IE=edge"> -->
-        <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
-        <link rel="stylesheet" href="style.css">
-        <title>Interactive 3D Map via OSM</title>
-        <link rel="shortcut icon" type="image/png" href="favicon.png"/>
-        
-        <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>  <!-- A-Frame -->
-        <!-- <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script> -->  <!-- Convert from OSM to GeoJSON -->
-        <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
-        <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
+<head>
+    <!-- <meta charset="UTF-8"> -->
+    <!-- <meta http-equiv="X-UA-Compatible" content="IE=edge"> -->
+    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <link rel="stylesheet" href="style.css">
+    <title>Interactive 3D Map via OSM</title>
+    <link rel="shortcut icon" type="image/png" href="favicon.png" />
 
-        <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- GeoTiff converter -->
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script> <!-- A-Frame -->
+    <!-- <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script> --> <!-- Convert from OSM to GeoJSON -->
+    <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
+    <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
 
-        <!-- <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
+    <!-- GeoTiff converter -->
+
+    <!-- <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="cityTiff/SD46se_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="lydiateTiff/SD51nw_DTM_2m.tif" class="hidden"> -->
 
-        <!-- <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>                                           GeoTiff data file -->
+    <!-- <script src="uniTiff/SD45ne_DTM_2m.tfw"></script>                                           GeoTiff data file -->
 
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script> <!-- Coord converter -->
 
-        <!-- <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></> -->    <!-- might be helpful ive not decided yet-->
+    <!-- <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></> --> <!-- might be helpful ive not decided yet-->
 
-        <script src="interpreter.xml"></script>
-        <script src="squareUni.xml"></script>
-        <script src="paths.xml"></script>
-        <!-- <script src="./node_modules/geotiff/dist-browser/geotiff.js"></script> -->
-        <!-- <script src="rasterWorker.mjs" type="module"></script> -->
-        <script src="utilities.js"></script>
-        <script src="osmtogeojson.js"></script>
-        <script src="conversions.js"></script>
-        <script src="terrain.js"></script>
-        <script src="buildings.js"></script>
-        <script src="paths.js"></script>
-        <script src="main.js"></script>
+    <script src="interpreter.xml"></script>
+    <script src="squareUni.xml"></script>
+    <script src="paths.xml"></script>
+    <!-- <script src="./node_modules/geotiff/dist-browser/geotiff.js"></script> -->
+    <!-- <script src="rasterWorker.mjs" type="module"></script> -->
+    <script src="utilities.js"></script>
+    <script src="osmtogeojson.js"></script>
+    <script src="conversions.js"></script>
+    <script src="terrain.js"></script>
+    <script src="buildings.js"></script>
+    <script src="paths.js"></script>
+    <script src="navigation.js"></script>
+    <script src="main.js"></script>
 
-    </head>
-    <body>
+</head>
 
-        <div id="welcomeScreen">
-            <h2>Welcome to my Third Year Project for Lancaster University.</h2>
-            <br>This website automatically generates a 3D map of the specified place using OSM's large database.
-            <br><button id="loadMapBtn" onclick="uniMap(), showMap()">Load Uni Map</button>
-            <br><button id="loadMapBtn" onclick="cityMap(), showMap()">Load City Map</button>
-        </div>
+<body>
 
-        <div id="mapScreen" style="display: none">
-            <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
-            <label id="loading" style="display: none">Loading</label>
-            <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
-            
-            <a-scene vr-mode-ui="enabled: true" stats background="color: lightblue">
-                <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
-                    <a-camera id="player"></a-camera>
-                    <!-- <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
-                    <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
-                <!-- </a-entity> -->
-                <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
-                    <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
-                    <a-entity id="debugCamera" camera="active: false" look-controls wasd-controls="acceleration: 200; fly: true"></a-entity>
-                </a-entity>
-                
-                <!-- TODO Cant get flight control to work -->
-                <!-- <a-entity flight-controls> -->
-                    <!-- or you could use universal-controls instead of both look- and wasd-controls. -->
-                    <!-- <a-entity primitive= "flight-controls" universal-controls="movementControls: flight-controls, hmd"></a-entity>
-                </a-entity> -->
+    <div id="welcomeScreen">
+        <h2>Welcome to my Third Year Project for Lancaster University.</h2>
+        <br>This website automatically generates a 3D map of the specified place using OSM's large database.
+        <br><button id="loadMapBtn" onclick="uniMap(), showMap()">Load Uni Map</button>
+        <br><button id="loadMapBtn" onclick="cityMap(), showMap()">Load City Map</button>
+    </div>
 
-                <!-- <a-entity buffer-geometry-merger material="vertexColors: vertex">
-                    <a-entity geometry="primitive: sphere; radius: 3" vertex-colors-buffer="baseColor: red" position="200 2 0"></a-entity>
-                </a-entity> -->
-            </a-scene>
-        </div>
-
+    <div id="mapScreen" style="display: none">
+        <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
+        <button onclick="showNavigationMenu()">Navigate</button>
         <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
-            <input type="text" id="destinationTextBox" required name="destination">
+            <input id="destinationLat" type="number" class="coords" placeholder="latitude" step="0.00001" min="-90" max="90"> /
+            <input id="destinationLong" type="number" class="coords" placeholder="longitude" step="0.00001" min="-180" max="180"><br>
             <button onclick="startNavigation()">Go!</button>
+            <button onclick="hideNavigationMenu()">Cancel</button>
         </div>
-    </body>
+        <label id="loading" style="display: none">Loading</label>
+
+        <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
+
+        <a-scene vr-mode-ui="enabled: true" background="color: lightblue">
+            <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
+                    <a-camera id="player"></a-camera>
+                    <!-- <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
+            <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
+            <!-- </a-entity> -->
+            <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
+                <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
+                <a-entity id="debugCamera" camera="active: false" look-controls
+                    wasd-controls="acceleration: 200; fly: true"></a-entity>
+            </a-entity>
+
+            <!-- TODO Cant get flight control to work -->
+            <!-- <a-entity flight-controls> -->
+            <!-- or you could use universal-controls instead of both look- and wasd-controls. -->
+            <!-- <a-entity primitive= "flight-controls" universal-controls="movementControls: flight-controls, hmd"></a-entity>
+                </a-entity> -->
+
+            <!-- <a-entity buffer-geometry-merger material="vertexColors: vertex">
+                    <a-entity geometry="primitive: sphere; radius: 3" vertex-colors-buffer="baseColor: red" position="200 2 0"></a-entity>
+                </a-entity> -->
+        </a-scene>
+    </div>
+
+    
+</body>
+
 </html>
