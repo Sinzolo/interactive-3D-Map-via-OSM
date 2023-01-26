@@ -6,19 +6,23 @@ try {
 }
 
 self.onmessage = async function (e) {
+    pools = [new GeoTIFF.Pool(), new GeoTIFF.Pool()];
     const [uniRaster, cityRaster] = await Promise.all([
-        raster(e.data.uniURL),
-        raster(e.data.cityURL)
+        raster(e.data.uniURL, pools[0]),
+        raster(e.data.cityURL, pools[1])
     ]);
     self.postMessage({ status: "ok", uniRaster, cityRaster });
+    pools.forEach(pool => {
+        pool.destroy();
+    });
     self.close();
 }
 
-function raster(url) {
+function raster(url, pool) {
     return GeoTIFF.fromUrl(url).then((tiff) => {
         return tiff.getImage();
     }).then((image) => {
-        return image.readRasters({ pool: new GeoTIFF.Pool() });
+        return image.readRasters({ pool });
     });
 
     // return fetch(url)

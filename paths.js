@@ -19,9 +19,10 @@ const highwayStyles = {
     path: { color: "#C6C6C6", pathWidth: 0.3 },
     steps: { color: "#FFFFFF", pathWidth: 0.3 },
 };
-var paths;
-var pathNodes;
-var rectangles;
+var nodes;              // E.g., [[long,lat], [long,lat], ...]   Each node only once.
+var connectedNodes;     // E.g., [[], [0,2,3,8], [45,12,0], ...]  Each index of the outer array is the node and each number in the inner array is what that node is connected to
+var paths;              // E.g., [[0,1,2,3], [4,1,5,6,7,8], [9,10,11,3], ...]    Each index is a path and each number is a node that makes up that path
+var rectangles;         // E.g., [[rectangle1, rectangle2], [rectangle3], ...]   Each index is a path and each rectangle makes up that path
 
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
@@ -93,28 +94,22 @@ async function loadPaths(coordinate, bboxSize) {
     sceneElement.appendChild(pathParent);
 
     numberOfPaths = 0;
-    //var paths = [[]];
     paths = [];
-    pathNodes = [];
+    nodes = [];
     rectangles = [];
+    connectedNodes = [];
     geoJSON.features.forEach((feature, index) => {
-        //pathNodes = [];
         if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-            //numberOfPaths++;
-            //addPath(feature, pathParent);
         }
         else if (feature.geometry.type == "LineString") {   // Path
-            // feature.geometry.coordinates.forEach((element, index) => {
-            //     paths[numberOfPaths].push(element[index]);
-            // });
             addPath(feature, pathParent);
             numberOfPaths++;
-            //paths.push(pathNodes);
         }
     });
-    console.log(pathNodes);
-    console.log(paths);
-    console.log(rectangles);
+    console.log("Nodes: ", nodes);
+    console.log("ConnectedNodes", connectedNodes);
+    console.log("paths", paths);
+    console.log("rectangles", rectangles);
 
     console.log("Number of paths: ", numberOfPaths);
 }
@@ -128,24 +123,12 @@ async function addPath(feature, parentElement) {
     paths[numberOfPaths] = [];
     rectangles[numberOfPaths] = [];
     let firstPoint = feature.geometry.coordinates[0];
-    if (nodeExists(firstPoint)) {
-        paths[numberOfPaths].push(pathNodes.findIndex(elem => JSON.stringify(elem) === JSON.stringify(firstPoint)));
-    }
-    else {
-        pathNodes.push(firstPoint);
-        paths[numberOfPaths].push(pathNodes.length - 1);
-    }
+    addNodeToArrays(firstPoint);
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i - 1];
         let point2 = feature.geometry.coordinates[i];
-        if (nodeExists(point2)) {
-            paths[numberOfPaths].push(pathNodes.findIndex(elem => JSON.stringify(elem) === JSON.stringify(point2)));
-        }
-        else {
-            pathNodes.push(point2);
-            paths[numberOfPaths].push(pathNodes.length - 1);
-        }
+        addNodeToArrays(point2);
 
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
@@ -158,10 +141,13 @@ async function addPath(feature, parentElement) {
         newPath.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
 
         let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
+
+        /* Place every path at ground level in case height map takes a while */
         newPath.object3D.position.set((pixelCoords.x * coordsScale), 0, (pixelCoords.y * coordsScale));
         parentElement.appendChild(newPath);
         rectangles[numberOfPaths].push(newPath);
 
+        /* Waiting for the height map */
         heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
             Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
                 if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
@@ -177,7 +163,18 @@ async function addPath(feature, parentElement) {
  * @returns A boolean value
  */
 function nodeExists(node) {
-    return pathNodes.some(item => item.length === node.length && item.every((v, j) => v === node[j]));
+    return nodes.some(item => item.node.length === node.length && item.node.every((v, j) => v === node[j]));
+}
+
+
+function addNodeToArrays(node) {
+    if (nodeExists(node)) {
+        paths[numberOfPaths].push(nodes.findIndex(elem => JSON.stringify(elem.node) === JSON.stringify(node)));
+    }
+    else {
+        nodes.push({node, unseen: true});
+        paths[numberOfPaths].push(nodes.length - 1);
+    }
 }
 
 
@@ -202,33 +199,38 @@ function findAngleBetweenTwoCoords({ x: x1, y: y1 }, { x: x2, y: y2 }) {
     // TODO
 }
 
+/**
+ * Returns the four corners of a rectangle that is around the line between the two points.
+ * @param width - The width of the rectangle
+ * @returns An array of four THREE.Vector2 objects.
+ */
 function getRectangleCorners({ x: x1, y: y1 }, { x: x2, y: y2 }, width) {
-    // Find the center point between the two given points
     const centerX = (x1 + x2) / 2;
     const centerY = (y1 + y2) / 2;
     const length = Math.hypot((x1 - x2), (y1 - y2));    // Distance between the two points
     const angle = Math.atan2(y2 - y1, x2 - x1);         // The angle of the line between the two points
-    const halfWidth = width / 2;                          // Half the width
-    const halfLength = length * 0.63;                     // A little bit more than half to ensure overlapping
+    const halfWidth = width / 2;                        // Half the width
+    const halfLength = length * 0.63;                   // A little bit more than half to ensure overlapping
 
-    // Calculate the four rectangle coordinates
-    const topLeftX = centerX + halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2);
-    const topLeftY = centerY + halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2);
-    const topRightX = centerX + halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2);
-    const topRightY = centerY + halfWidth * Math.sin(angle - Math.PI / 2) + halfLength * Math.cos(angle - Math.PI / 2);
-    const bottomLeftX = centerX - halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2);
-    const bottomLeftY = centerY - halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2);
-    const bottomRightX = centerX - halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2);
-    const bottomRightY = centerY - halfWidth * Math.sin(angle - Math.PI / 2) + halfLength * Math.cos(angle - Math.PI / 2);
-
-    let rectangle = {
-        topLeft: { x: topLeftX, y: topLeftY },
-        topRight: { x: topRightX, y: topRightY },
-        bottomLeft: { x: bottomLeftX, y: bottomLeftY },
-        bottomRight: { x: bottomRightX, y: bottomRightY },
+    // Calculating the four corners of the rectnagle
+    const topLeft = {
+        x: centerX + halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2),
+        y: centerY + halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2)
+    };
+    const topRight = {
+        x: centerX + halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2),
+        y: centerY + halfWidth * Math.sin(angle - Math.PI / 2) + halfLength * Math.cos(angle - Math.PI / 2)
+    };
+    const bottomLeft = {
+        x: centerX - halfWidth * Math.cos(angle + Math.PI / 2) - halfLength * Math.sin(angle + Math.PI / 2),
+        y: centerY - halfWidth * Math.sin(angle + Math.PI / 2) + halfLength * Math.cos(angle + Math.PI / 2)
+    };
+    const bottomRight = {
+        x: centerX - halfWidth * Math.cos(angle - Math.PI / 2) - halfLength * Math.sin(angle - Math.PI / 2),
+        y: centerY - halfWidth * Math.sin(angle - Math.PI / 2) + halfLength * Math.cos(angle - Math.PI / 2)
     };
 
-    return [new THREE.Vector2(rectangle.bottomLeft.x, rectangle.bottomLeft.y), new THREE.Vector2(rectangle.topRight.x, rectangle.topRight.y), new THREE.Vector2(rectangle.bottomRight.x, rectangle.bottomRight.y), new THREE.Vector2(rectangle.topLeft.x, rectangle.topLeft.y)];
+    return [new THREE.Vector2(bottomLeft.x, bottomLeft.y), new THREE.Vector2(topRight.x, topRight.y), new THREE.Vector2(bottomRight.x, bottomRight.y), new THREE.Vector2(topLeft.x, topLeft.y)];
 }
 
 

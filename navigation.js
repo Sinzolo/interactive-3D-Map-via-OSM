@@ -20,9 +20,9 @@ function areCoordsValid(coords) {
 
 function findClosestPathNode(coords, colour) {
     target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
-    const distances = pathNodes.map((coord) => getDistance(coord, target));     // TODO Will be an issue if this runs before paths are made
+    const distances = nodes.map((coord) => getDistance(coord, target));     // TODO Will be an issue if this runs before paths are made
     const closestIndex = distances.indexOf(Math.min(...distances));
-    const pixelCoords = convertLatLongToPixelCoords({ lat: pathNodes[closestIndex][1], long: pathNodes[closestIndex][0] });
+    const pixelCoords = convertLatLongToPixelCoords({ lat: nodes[closestIndex][1], long: nodes[closestIndex][0] });
     const sceneElement = document.querySelector('a-scene');
     let newSphere = document.createElement('a-sphere');
     newSphere.setAttribute("color", colour);
@@ -43,5 +43,5 @@ function findClosestPathNode(coords, colour) {
  * @returns A boolean value
  */
 function nodeExists(node) {
-    return pathNodes.some(item => item.length === node.length && item.every((v, j) => v === node[j]));
+    return nodes.some(item => item.length === node.length && item.every((v, j) => v === node[j]));
 }

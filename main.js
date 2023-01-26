@@ -52,11 +52,16 @@ const rasters = new Promise((resolve, reject) => {
     worker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
     worker.onmessage = async function (e) {
         if (e.data.status == "bad") {
+            console.log("Worker failed. Reverting to UI thread.");
             // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
+            var pools = [new GeoTIFF.Pool(), new GeoTIFF.Pool()];
             const rasters = await Promise.all([
-                raster("uniTiff/SD45ne_DTM_2m.tif"),
-                raster("cityTiff/SD46se_DTM_2m.tif")
+                raster("uniTiff/SD45ne_DTM_2m.tif", pools[0]),
+                raster("cityTiff/SD46se_DTM_2m.tif", pools[1])
             ]);
+            pools.forEach(pool => {
+                pool.destroy();
+            });
             resolve({ uniRaster: rasters[0], cityRaster: rasters[1] })
         }
         resolve({ uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster });
@@ -64,12 +69,13 @@ const rasters = new Promise((resolve, reject) => {
 });
 
 
-function raster(url) {
+function raster(url, pool) {
     return GeoTIFF.fromUrl(url).then(tiff => {
         return tiff.getImage();
     }).then(image => {
-        return image.readRasters({ pool: new GeoTIFF.Pool() });
+        return image.readRasters({ pool });
     });
+
     // .catch((err) => {
     //     console.log(err)
     //     reject(err);
