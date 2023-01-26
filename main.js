@@ -15,11 +15,13 @@ var numberOfPositionChanges = 0;
 var coordsTotal = { lat: 0, long: 0 };
 var mapBeingShown = false;
 var heightMaps;
+var lowQuality = false;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
-const coordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 280;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize / 2) * 0.6;            // Used to check if the user has moved far enough
+const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
+const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
+const bboxSize = 260;                                     // Length of one side of bounding box in metres
+const distanceNeededToMove = (bboxSize / 2) * 0.75;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 0,    // Will only update every 600ms
@@ -48,7 +50,8 @@ var tiffImage;
 
 var raster;
 const worker = new Worker('rasterWorker.js');
-const rasters = new Promise((resolve, reject) => {
+var tempRasters;
+var rasters = new Promise((resolve, reject) => {
     worker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
     worker.onmessage = async function (e) {
         if (e.data.status == "bad") {
@@ -244,9 +247,12 @@ function movedFarEnough(newPixelCoords) {
 }
 
 
+
 /**
- * It takes a pixel coordinate and places the camera at that pixel coordinate
- * @param pixelCoords - The pixel coordinates of where the camera is to be placed.
+ * Places the camera at the pixel coords and sets the users current location variables.
+ * @param pixelCoords - The new pixel coordinates of the user.
+ * @param newLatLong - The new latitude and longitude of the user.
+ * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     camera = document.getElementById("rig");
@@ -254,6 +260,7 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
 
+    if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             camera.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6) + " " + pixelCoords.y);
@@ -347,6 +354,28 @@ function setCurrentMapForRemoval() {
     changeElementID("terrainParent", "terrainToRemove");
     changeElementID("buildingParent", "buildingsToRemove");
     changeElementID("pathParent", "pathsToRemove");
+}
+
+async function setLowQuality(tempLoqQuality) {
+    await sleep(1.4);
+    if (lowQuality == tempLoqQuality) return
+    lowQuality = tempLoqQuality;
+    if (tempLoqQuality) {
+        removeElement("sun");
+    }
+    else {
+        let newSun = document.createElement('a-simple-sun-sky');
+        newSun.setAttribute("id", "sun");
+        newSun.setAttribute("sun-position", "0.7 1 -1");
+        newSun.setAttribute("light-color", "#87cefa");
+        newSun.setAttribute("dark-color", "#00bfff");
+        newSun.setAttribute("fog-color", "#74d2fa");
+        document.querySelector('a-scene').appendChild(newSun);
+    }
+    await Promise.all([
+        placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong),
+        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize)
+    ]);
 }
 
 

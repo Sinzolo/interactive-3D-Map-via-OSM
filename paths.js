@@ -1,9 +1,9 @@
-var numberOfPaths = 0;
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
-const pathHeightAboveGround = 0.15; // How far it should stick above ground
-const pathHeightUnderGround = 100;  // How far it should stick below ground
+const pathHeightAboveGround = 0.16; // How far it should stick above ground
+const pathHeightUnderGround = 30;  // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
+const pathScale = 4.8;                                // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
 const highwayStyles = {
     motorway: { color: "#404040", pathWidth: 1.6 },
@@ -19,6 +19,7 @@ const highwayStyles = {
     path: { color: "#C6C6C6", pathWidth: 0.3 },
     steps: { color: "#FFFFFF", pathWidth: 0.3 },
 };
+var numberOfPaths = 0;
 var nodes;              // E.g., [[long,lat], [long,lat], ...]   Each node only once.
 var connectedNodes;     // E.g., [[], [0,2,3,8], [45,12,0], ...]  Each index of the outer array is the node and each number in the inner array is what that node is connected to
 var paths;              // E.g., [[0,1,2,3], [4,1,5,6,7,8], [9,10,11,3], ...]    Each index is a path and each number is a node that makes up that path
@@ -135,23 +136,24 @@ async function addPath(feature, parentElement) {
         //let segmentedPath = segmentPath({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale});
 
         let newPath = document.createElement('a-entity');
-        let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * coordsScale, y: pixelCoords1.y * coordsScale }, { x: pixelCoords2.x * coordsScale, y: pixelCoords2.y * coordsScale }, pathWidth) };
+        let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth) };
         newPath.setAttribute("geometry", pathProperties);
-        newPath.setAttribute("material", { color: color });
-        newPath.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
+        newPath.setAttribute("material", { roughness: "0.6", color: color });
+        newPath.setAttribute("scale", pathScale + " 1 " + pathScale);
 
         let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
 
         /* Place every path at ground level in case height map takes a while */
-        newPath.object3D.position.set((pixelCoords.x * coordsScale), 0, (pixelCoords.y * coordsScale));
+        newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), 0, (pixelCoords.y * pathCoordsScale));
         parentElement.appendChild(newPath);
         rectangles[numberOfPaths].push(newPath);
 
         /* Waiting for the height map */
+        if (lowQuality) continue;
         heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
             Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
                 if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
-                newPath.object3D.position.set((pixelCoords.x * coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * coordsScale));
+                newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pathCoordsScale));
             });
         });
     }

@@ -24,15 +24,4 @@ function raster(url, pool) {
     }).then((image) => {
         return image.readRasters({ pool });
     });
-
-    // return fetch(url)
-    // .then((response) => {
-    //     return response.arrayBuffer();
-    // }).then((response) => {
-    //     return GeoTIFF.fromArrayBuffer(response);
-    // }).then((response) => {
-    //     return response.getImage()
-    // }).then((response) => {
-    //     return response.readRasters();
-    // })
 }

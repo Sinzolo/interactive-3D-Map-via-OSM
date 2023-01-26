@@ -1,7 +1,7 @@
-const buildingScale = 4.3;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
-const buildingHeightScale = 2.3;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
-const buildingHeight = 2;                                 // Building height if height is unknown
-const buildingHeightUnderGround = 100;                    // How far to extend the buildings under the ground
+const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
+const buildingHeightScale = 2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const buildingHeight = 2.1;                                 // Building height if height is unknown
+const buildingHeightUnderGround = 30;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
 var numberOfBuildings = 0;
 
@@ -102,7 +102,7 @@ async function addBuilding(feature, parentElement) {
         sumOfLongCoords += coordinatesPair[0];
         count++;
         let pixelCoords = convertLatLongToPixelCoords({ lat: coordinatesPair[1], long: coordinatesPair[0] })
-        outerPoints.push(new THREE.Vector2(pixelCoords.x * coordsScale, pixelCoords.y * coordsScale));
+        outerPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
     });
 
     //console.log(outerPoints);
@@ -124,17 +124,18 @@ async function addBuilding(feature, parentElement) {
     let newBuilding = document.createElement('a-entity');
     let buildingProperties = { primitive: "building", outerPoints: outerPoints, height: height };
     newBuilding.setAttribute("geometry", buildingProperties);
-    newBuilding.setAttribute("material", { color: colour });
+    newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
     newBuilding.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
 
     let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
-    newBuilding.object3D.position.set((pixelCoords.x * coordsScale), 0, (pixelCoords.y * coordsScale));
+    newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
     parentElement.appendChild(newBuilding);
 
+    if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
-            newBuilding.object3D.position.set((pixelCoords.x * coordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * coordsScale));
+            newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * buildingCoordsScale));
         });
     });
 }
