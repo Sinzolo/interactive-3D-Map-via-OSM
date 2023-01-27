@@ -10,8 +10,6 @@
 }
 
 #navigationScreen {
-    width: auto;
-    height: auto;
     border: 13px dashed forestgreen;
     border-radius: 55px;
     padding: 50px;
@@ -20,7 +18,7 @@
 
 body {
     font-size: large;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
     background-color: white;
     color: black;
     z-index: 100;
@@ -75,10 +73,10 @@ input {
 }
 
 a-scene {
-    z-index: -1;
+    z-index: 0;
     position: relative;
 }
 
 .hidden {
-    display : none;
+    display: none;
 }

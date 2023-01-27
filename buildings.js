@@ -94,36 +94,33 @@ async function addBuilding(feature, parentElement) {
     }
 
     let outerPoints = [];
+    let innerPoints = [];
     let sumOfLatCoords = 0;
     let sumOfLongCoords = 0;
     let count = 0;
-    feature.geometry.coordinates[0].forEach(coordinatesPair => {
-        sumOfLatCoords += coordinatesPair[1];
-        sumOfLongCoords += coordinatesPair[0];
-        count++;
-        let pixelCoords = convertLatLongToPixelCoords({ lat: coordinatesPair[1], long: coordinatesPair[0] })
-        outerPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
+    /* Loops through every coordinate of the building.
+    The first set of coordinates are for the outside points of the building,
+    the rest are for the inner part of the building that is missing */
+    feature.geometry.coordinates.forEach(points => {
+        let currentPoints = [];
+        points.forEach(point => {
+            sumOfLatCoords += point[1];
+            sumOfLongCoords += point[0];
+            count++;
+            let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
+            currentPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
+        });
+        if (!outerPoints.length) {
+            outerPoints = currentPoints;
+        }
+        else {
+            innerPoints.push(currentPoints);
+        }
     });
 
-    //console.log(outerPoints);
-    // for (let way of feature.geometry.coordinates) {
-    //   let wayPoints = [];
-    //   for (let point of way) {
-    //     let tpos = tileposFromLatlon(latlonFromJSON(point));
-    //     let ppos = getRelativePositionFromTilepos(tpos, itemPos);
-    //     wayPoints.push({x: ppos.x, y: ppos.z});
-    //   }
-    //   if (!outerPoints.length) {
-    //     outerPoints = wayPoints;
-    //   }
-    //   else {
-    //     innerWays.push(wayPoints);
-    //   }
-    // }
 
     let newBuilding = document.createElement('a-entity');
-    let buildingProperties = { primitive: "building", outerPoints: outerPoints, height: height };
-    newBuilding.setAttribute("geometry", buildingProperties);
+    newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: outerPoints, innerPoints: innerPoints, height: height });
     newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
     newBuilding.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
 
@@ -141,15 +138,28 @@ async function addBuilding(feature, parentElement) {
 }
 
 
+/**
+ * Removes all the buildings from the scene
+ */
+function removeCurrentBuildings() {
+    console.log("=== Deleting Buildings ===");
+    while (removeElement("buildingParent")) { }
+}
+
+
 AFRAME.registerGeometry('building', {
     schema: {
         outerPoints: {
             default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
         },
+        innerPoints: {
+            default: [],
+        },
         height: { type: 'number', default: buildingHeight },
     },
     init: function (data) {
         var shape = new THREE.Shape(data.outerPoints);
+        for (point of data.innerPoints) shape.holes.push(new THREE.Path(point));
         var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + buildingHeightUnderGround, bevelEnabled: false });
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);

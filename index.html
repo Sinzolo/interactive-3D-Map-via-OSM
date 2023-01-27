@@ -9,14 +9,13 @@
     <title>Interactive 3D Map via OSM</title>
     <link rel="shortcut icon" type="image/png" href="favicon.png" />
 
-    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script> <!-- A-Frame -->
-    <!-- <script src="https://unpkg.com/osmtogeojson/osmtogeojson.js"></script> --> <!-- Convert from OSM to GeoJSON -->
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>                      <!-- A-Frame -->
+    <script src="https://unpkg.com/aframe-simple-sun-sky@^1.2.2/simple-sun-sky.js"></script>    <!-- Adds a sun -->
+    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- Tiff manipulator -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
     <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
     <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
 
-    <script src="https://unpkg.com/aframe-simple-sun-sky@^1.2.2/simple-sun-sky.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script> <!-- Coord converter -->
 
     <!-- <img id = "geotiff" src="uniTiff/SD45ne_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="cityTiff/SD46se_DTM_2m.tif" class="hidden">
@@ -52,8 +51,10 @@
     <div id="mapScreen" style="display: none">
         <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
         <button id="loadNavigationMenuBtn" onclick="showNavigationMenu()">Navigate</button>
-        <br><button id="lowPerformanceBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High Quality</button>
-        <button id="highPerformanceBtn" title="Better performance but worse quality" onclick="setLowQuality(true)">Low Quality</button>
+
+        <br><button id="highQualityBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High Quality</button>
+        <button id="lowQualityBtn" title="Better performance but worse quality" onclick="setLowQuality(true)">Low Quality</button>
+
         <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
             <input id="destinationLat" type="number" class="coords" placeholder="latitude" step="0.00001" min="-90"
@@ -68,7 +69,8 @@
         <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
 
         <a-scene vr-mode-ui="enabled: true" stats background="color: lightblue">
-            <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff" fog-color="#74d2fa"></a-simple-sun-sky>
+            <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff"
+                fog-color="#74d2fa"></a-simple-sun-sky>
             <a-entity light="type: ambient; color: #BBB"></a-entity>
             <a-entity light="type: directional; color: #FFF; intensity: 0.8" position="0.7 1 -1"></a-entity>
             <!-- <a-entity id="rig" movement-controls="fly: true; speed: 50" position-limit="ymin: 200; ymax: 200" rotation="0 -90 0">
@@ -76,7 +78,7 @@
                     <a-camera id="debugCamera" active="false" movement-controls="fly: true; speed: 50"></a-camera> -->
             <!-- <a-entity id="camera" camera position="0 251.6 0" look-controls></a-entity> -->
             <!-- </a-entity> -->
-            <a-entity id="rig" position="25 10 0" rotation="0 -90 0">
+            <a-entity id="rig" rotation="0 -90 0">
                 <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
                 <a-entity id="debugCamera" camera="active: false" look-controls
                     wasd-controls="acceleration: 200; fly: true"></a-entity>

@@ -31,7 +31,7 @@ function findClosestPathNode(coords, colour) {
 
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            newSphere.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY])+" "+pixelCoords.y);
+            newSphere.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) + " " + pixelCoords.y);
         });
     });
 }

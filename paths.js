@@ -174,7 +174,7 @@ function addNodeToArrays(node) {
         paths[numberOfPaths].push(nodes.findIndex(elem => JSON.stringify(elem.node) === JSON.stringify(node)));
     }
     else {
-        nodes.push({node, unseen: true});
+        nodes.push({ node, unseen: true });
         paths[numberOfPaths].push(nodes.length - 1);
     }
 }
@@ -233,6 +233,15 @@ function getRectangleCorners({ x: x1, y: y1 }, { x: x2, y: y2 }, width) {
     };
 
     return [new THREE.Vector2(bottomLeft.x, bottomLeft.y), new THREE.Vector2(topRight.x, topRight.y), new THREE.Vector2(bottomRight.x, bottomRight.y), new THREE.Vector2(topLeft.x, topLeft.y)];
+}
+
+
+/**
+ * Removes all the paths from the scene
+ */
+function removeCurrentPaths() {
+    console.log("=== Deleting Buildings ===");
+    while (removeElement("pathParent")) { }
 }
 
 

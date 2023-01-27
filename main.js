@@ -14,13 +14,13 @@ var watchID = -1;
 var numberOfPositionChanges = 0;
 var coordsTotal = { lat: 0, long: 0 };
 var mapBeingShown = false;
-var heightMaps;
 var lowQuality = false;
+var heightMaps;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 260;                                     // Length of one side of bounding box in metres
+const bboxSize = 270;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize / 2) * 0.75;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
@@ -255,15 +255,15 @@ function movedFarEnough(newPixelCoords) {
  * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
-    camera = document.getElementById("rig");
-    camera.setAttribute("position", pixelCoords.x + " 1.6 " + pixelCoords.y);
+    camera = document.querySelector("#rig");
+    camera.object3D.position.set(pixelCoords.x, 1.6, pixelCoords.y);
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
 
     if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            camera.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6) + " " + pixelCoords.y);
+            camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6), pixelCoords.y);
         });
     }).catch((err) => {
         console.log(err);
@@ -284,7 +284,6 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     // heightMaps = new Promise((resolve, reject) => {
     //     reject(new Error("Test error"));
     // });
-    setCurrentMapForRemoval();
     removeCurrentMap();
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
@@ -300,30 +299,7 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
 function removeElement(id) {
     let parentElement = document.getElementById(id);
     if (parentElement) parentElement.remove();
-}
-
-/**
- * Removes the terrain from the scene
- */
-function removeCurrentTerrain() {
-    console.log("=== Deleting Terrain ===");
-    removeElement("terrainToRemove")
-}
-
-/**
- * Removes all the buildings from the scene
- */
-function removeCurrentBuildings() {
-    console.log("=== Deleting Buildings ===");
-    removeElement("buildingsToRemove")
-}
-
-/**
- * Removes all the paths from the scene
- */
-function removeCurrentPaths() {
-    console.log("=== Deleting Buildings ===");
-    removeElement("pathsToRemove")
+    return document.getElementById(id);
 }
 
 
@@ -344,6 +320,7 @@ function removeCurrentMap() {
 function changeElementID(elementID, newElementID) {
     let element = document.getElementById(elementID);
     if (element) element.setAttribute("id", newElementID);
+    return document.getElementById(elementID);
 }
 
 /**
@@ -351,13 +328,13 @@ function changeElementID(elementID, newElementID) {
  * respectively.
  */
 function setCurrentMapForRemoval() {
-    changeElementID("terrainParent", "terrainToRemove");
-    changeElementID("buildingParent", "buildingsToRemove");
-    changeElementID("pathParent", "pathsToRemove");
+    while (changeElementID("terrainParent", "terrainToRemove")) { }
+    while (changeElementID("buildingParent", "buildingsToRemove")) { }
+    while (changeElementID("pathParent", "pathsToRemove")) { }
 }
 
+
 async function setLowQuality(tempLoqQuality) {
-    await sleep(1.4);
     if (lowQuality == tempLoqQuality) return
     lowQuality = tempLoqQuality;
     if (tempLoqQuality) {
