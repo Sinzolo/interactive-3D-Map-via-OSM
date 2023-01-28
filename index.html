@@ -22,17 +22,12 @@
         <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="lydiateTiff/SD51nw_DTM_2m.tif" class="hidden"> -->
 
-
-    <script src="interpreter.xml"></script>
-    <script src="squareUni.xml"></script>
-    <script src="paths.xml"></script>
-    <!-- <script src="./node_modules/geotiff/dist-browser/geotiff.js"></script> -->
-    <!-- <script src="rasterWorker.mjs" type="module"></script> -->
     <script src="utilities.js"></script>
     <script src="osmtogeojson.js"></script>
     <script src="conversions.js"></script>
     <script src="terrain.js"></script>
     <script src="buildings.js"></script>
+    <script src="DijkstrasAlgo.js"></script>
     <script src="paths.js"></script>
     <script src="navigation.js"></script>
     <script src="main.js"></script>
@@ -68,7 +63,7 @@
 
         <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
 
-        <a-scene vr-mode-ui="enabled: true" stats background="color: lightblue">
+        <a-scene vr-mode-ui="enabled: true" background="color: lightblue">
             <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff"
                 fog-color="#74d2fa"></a-simple-sun-sky>
             <a-entity light="type: ambient; color: #BBB"></a-entity>

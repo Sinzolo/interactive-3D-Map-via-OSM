@@ -28,30 +28,12 @@ const locationOptions = {
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
-// const tiff = GeoTIFF.fromUrl(tiffURL);
-// const image = tiff.then((tiff) => { return tiff.getImage() });
+const cacheTTL = 1000*60*3;     // How often the cache should be deleted and reopened
 var tiffImage;
-
-// var uniTiffImage = fetch("uniTiff/SD45ne_DTM_2m.tif").then((response) => {
-//     return response.arrayBuffer();
-// }).then((response) => {
-//     return GeoTIFF.fromArrayBuffer(response);
-// }).then((response) => {
-//     return response.getImage()
-// });
-
-// var cityTiffImage = fetch("cityTiff/SD46se_DTM_2m.tif").then((response) => {
-//     return response.arrayBuffer();
-// }).then((response) => {
-//     return GeoTIFF.fromArrayBuffer(response);
-// }).then((response) => {
-//     return response.getImage()
-// });
 
 var raster;
 const worker = new Worker('rasterWorker.js');
-var tempRasters;
-var rasters = new Promise((resolve, reject) => {
+const rasters = new Promise((resolve, reject) => {
     worker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
     worker.onmessage = async function (e) {
         if (e.data.status == "bad") {
@@ -112,7 +94,7 @@ window.onblur = function () {
 /* Restarting the cache deletion interval when the window is in focus. */
 window.onfocus = function () {
     if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
-        cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000 * 60);   // Once a minute clear the caches.
+        cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
         console.log("Interval Restarted");
     }
 };
@@ -151,7 +133,7 @@ function showMap() {
     //     camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
     // });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
-    cacheDeletionInterval = setInterval(deleteAndReOpenCache, 1000 * 60);   // Once a minute clear the caches.
+    cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
     mapBeingShown = true;
 }
 
@@ -288,6 +270,7 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
     loadPaths(coordinate, bboxSize);
+    if (navigationInProgress) startNavigation();
 }
 
 
@@ -351,8 +334,9 @@ async function setLowQuality(tempLoqQuality) {
     }
     await Promise.all([
         placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong),
-        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize)
+        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize),
     ]);
+    if (navigationInProgress) startNavigation();
 }
 
 

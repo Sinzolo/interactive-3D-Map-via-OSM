@@ -19,100 +19,104 @@ const highwayStyles = {
     path: { color: "#C6C6C6", pathWidth: 0.3 },
     steps: { color: "#FFFFFF", pathWidth: 0.3 },
 };
-var numberOfPaths = 0;
+var numberOfPaths;
 var nodes;              // E.g., [[long,lat], [long,lat], ...]   Each node only once.
 var connectedNodes;     // E.g., [[], [0,2,3,8], [45,12,0], ...]  Each index of the outer array is the node and each number in the inner array is what that node is connected to
 var paths;              // E.g., [[0,1,2,3], [4,1,5,6,7,8], [9,10,11,3], ...]    Each index is a path and each number is a node that makes up that path
 var rectangles;         // E.g., [[rectangle1, rectangle2], [rectangle3], ...]   Each index is a path and each rectangle makes up that path
+var dijkstrasAlgorithm;
+var pathPromise;
 
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
-    bboxSize *= 0.9;
-    var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
-    var stringBBox = convertBBoxToString(bbox);
-    var overpassQuery = overpassURL + encodeURIComponent(
-        "[timeout:40];" +
-        "(way[highway=path](" + stringBBox + ");" +
-        "way[highway=pedestrian](" + stringBBox + ");" +
-        "way[highway=footway](" + stringBBox + ");" +
-        "way[highway=steps](" + stringBBox + ");" +
-        "way[highway=motorway](" + stringBBox + ");" +
-        "way[highway=trunk](" + stringBBox + ");" +
-        "way[highway=primary](" + stringBBox + ");" +
-        "way[highway=secondary](" + stringBBox + ");" +
-        "way[highway=tertiary](" + stringBBox + ");" +
-        "way[highway=residential](" + stringBBox + ");" +
-        "way[highway=unclassified](" + stringBBox + ");" +
-        "way[highway=service](" + stringBBox + "););" +
-        "out geom;>;out skel qt;"
-    );
+    pathPromise = new Promise(async (resolve, reject) => {
+        bboxSize *= 0.9;
+        var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
+        var stringBBox = convertBBoxToString(bbox);
+        var overpassQuery = overpassURL + encodeURIComponent(
+            "[timeout:40];" +
+            "(way[highway=path](" + stringBBox + ");" +
+            "way[highway=pedestrian](" + stringBBox + ");" +
+            "way[highway=footway](" + stringBBox + ");" +
+            "way[highway=steps](" + stringBBox + ");" +
+            "way[highway=motorway](" + stringBBox + ");" +
+            "way[highway=trunk](" + stringBBox + ");" +
+            "way[highway=primary](" + stringBBox + ");" +
+            "way[highway=secondary](" + stringBBox + ");" +
+            "way[highway=tertiary](" + stringBBox + ");" +
+            "way[highway=residential](" + stringBBox + ");" +
+            "way[highway=unclassified](" + stringBBox + ");" +
+            "way[highway=service](" + stringBBox + "););" +
+            "out geom;>;out skel qt;"
+        );
 
-    //let response = fetch("paths.xml");
-
-    if ('caches' in window) {
-        var response = caches.match(overpassQuery)
-            .then((response) => {
-                if (response) {     // If found in cache return response
-                    console.log("Found it in cache");
-                    return response;
-                }
-                console.log("NOT found in cache... Fetching URL");
-                return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
-                    osmCache.then((cache) => {
-                        cache.put(overpassQuery, response);        //  Once fetched cache the response
-                        console.log("Storing in cache");
+        if ('caches' in window) {
+            var response = caches.match(overpassQuery)
+                .then((response) => {
+                    if (response) {     // If found in cache return response
+                        console.log("Found it in cache");
+                        return response;
+                    }
+                    console.log("NOT found in cache... Fetching URL");
+                    return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
+                        osmCache.then((cache) => {
+                            cache.put(overpassQuery, response);        //  Once fetched cache the response
+                            console.log("Storing in cache");
+                        });
+                        return response.clone();        // Return fetched resource
                     });
-                    return response.clone();        // Return fetched resource
                 });
+        }
+        else {
+            var response = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
+        }
+
+        /* Converting the response from the overpass API into a JSON object. */
+        let geoJSON = await response
+            .then((response) => { return response.text(); })
+            .then((response) => {
+                let parser = new DOMParser();
+                let itemData = parser.parseFromString(response, "application/xml");
+                let itemJSON = osmtogeojson(itemData);
+                return itemJSON
             });
-    }
-    else {
-        var response = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
-        //let response = await fetch("interpreter.xml");     // Uses the preloaded uni area of buildings
-        //let response = await fetch("squareUni.xml");       // Uses the preloaded square area of the uni buildings
-    }
 
-    /* Converting the response from the overpass API into a JSON object. */
-    let geoJSON = await response
-        .then((response) => { return response.text(); })
-        .then((response) => {
-            let parser = new DOMParser();
-            let itemData = parser.parseFromString(response, "application/xml");
-            let itemJSON = osmtogeojson(itemData);
-            return itemJSON
+        // currently working on this^ 11th jan 1:49pm
+
+        console.log(geoJSON);
+
+
+        let sceneElement = document.querySelector('a-scene');
+        let pathParent = document.createElement('a-entity');
+        pathParent.setAttribute("id", "pathParent");
+        pathParent.setAttribute("class", "path");
+        sceneElement.appendChild(pathParent);
+
+        numberOfPaths = 0;
+        paths = [];
+        nodes = [];
+        rectangles = [];
+        connectedNodes = [];
+        dijkstrasAlgorithm = new DijkstrasAlgo();
+        geoJSON.features.forEach((feature) => {
+            if (feature.geometry.type == "Polygon") {   // Pedestrian Area
+            }
+            else if (feature.geometry.type == "LineString") {   // Path
+                addPath(feature, pathParent);
+                numberOfPaths++;
+            }
         });
+        console.log("paths", paths);
+        console.log("rectangles", rectangles);
 
-    // currently working on this^ 11th jan 1:49pm
+        dijkstrasAlgorithm.printNodes();
+        dijkstrasAlgorithm.printConnectedNodes();
 
-    console.log(geoJSON);
-
-
-    let sceneElement = document.querySelector('a-scene');
-    let pathParent = document.createElement('a-entity');
-    pathParent.setAttribute("id", "pathParent");
-    pathParent.setAttribute("class", "path");
-    sceneElement.appendChild(pathParent);
-
-    numberOfPaths = 0;
-    paths = [];
-    nodes = [];
-    rectangles = [];
-    connectedNodes = [];
-    geoJSON.features.forEach((feature, index) => {
-        if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-        }
-        else if (feature.geometry.type == "LineString") {   // Path
-            addPath(feature, pathParent);
-            numberOfPaths++;
-        }
+        console.log("Number of paths: ", numberOfPaths);
+        rectangles[0][0].setAttribute("material", { roughness: "0.6", color: "#FF00FF" })
+        resolve("Finished Adding Paths");
     });
-    console.log("Nodes: ", nodes);
-    console.log("ConnectedNodes", connectedNodes);
-    console.log("paths", paths);
-    console.log("rectangles", rectangles);
-
-    console.log("Number of paths: ", numberOfPaths);
 }
 
 
@@ -123,13 +127,11 @@ async function addPath(feature, parentElement) {
 
     paths[numberOfPaths] = [];
     rectangles[numberOfPaths] = [];
-    let firstPoint = feature.geometry.coordinates[0];
-    addNodeToArrays(firstPoint);
 
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i - 1];
         let point2 = feature.geometry.coordinates[i];
-        addNodeToArrays(point2);
+        dijkstrasAlgorithm.addPair(point1, point2)
 
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
@@ -159,24 +161,9 @@ async function addPath(feature, parentElement) {
     }
 }
 
-/**
- * If the node exists, return true, otherwise return false.
- * @param node - The node to check
- * @returns A boolean value
- */
-function nodeExists(node) {
-    return nodes.some(item => item.node.length === node.length && item.node.every((v, j) => v === node[j]));
-}
-
 
 function addNodeToArrays(node) {
-    if (nodeExists(node)) {
-        paths[numberOfPaths].push(nodes.findIndex(elem => JSON.stringify(elem.node) === JSON.stringify(node)));
-    }
-    else {
-        nodes.push({ node, unseen: true });
-        paths[numberOfPaths].push(nodes.length - 1);
-    }
+    
 }
 
 

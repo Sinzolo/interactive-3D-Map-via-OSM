@@ -40,7 +40,8 @@ function debugLog(log) {
 }
 
 /**
- * Sleep() returns a promise that resolves after a given number of seconds.
+ * A function that can be used to wait a set time.
+ * To use this function type "await sleep(s)" with 's' being seconds.
  * @param seconds - The number of seconds to sleep.
  * @returns A promise that will resolve after the specified number of seconds.
  */
@@ -54,7 +55,7 @@ function sleep(seconds) {
  * coordinates, calculates the distance between the two coordinates, and returns the distance
  * @param coord1 - The first coordinate.
  * @param coord2 - The second coordinate.
- * @returns The distance between two coordinates in kilometers.
+ * @returns The distance between two coordinates in metres.
  */
 function getDistance(coord1, coord2) {
     const [lat1, lng1] = coord1;
