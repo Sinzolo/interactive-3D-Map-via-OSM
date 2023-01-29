@@ -12,8 +12,33 @@ function startNavigation() {
         findClosestPathNode(destinationLatLong, "#FF0000");
         console.log(usersCurrentLatLong);
         console.log(destinationLatLong);
-        dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
+        let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
+        console.log(pathToDest);
+        // paths.forEach(path => {
+        //     for(let i = 1; i < path.length+1; i+=2) {
+        //         console.log(path[i-1]);
+        //         console.log(path[i]);
+
+        //     }
+        // });
+        let rectanglesToColour = [];
+        for (let i = 1; i < pathToDest.length + 1; i++) {
+            paths.forEach((path, pathsIndex) => {
+                for (let j = 1; j < path.length + 1; j += 2) {
+                    if (path[j - 1] == pathToDest[i - 1] && path[j] == pathToDest[i]) rectanglesToColour.push([pathsIndex, j-1]);
+                };
+            });
+        }
+        console.log(rectanglesToColour);
+        rectanglesToColour.forEach((rectangleIndex, index) => {
+            rectangles[rectangleIndex[0]][rectangleIndex[1]/2].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
+            console.log(index);
+        });
     });
+}
+
+function carryOnNavigating() {
+    if (navigationInProgress) startNavigation();
 }
 
 
@@ -29,10 +54,10 @@ function areCoordsValid(coords) {
 
 function findClosestPathNode(coords, colour) {
     target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
-    const distances = dijkstrasAlgorithm.getNodes().map((node) => getDistance(node.coords, target));     // TODO Will be an issue if this runs before paths are made
+    const distances = dijkstrasAlgorithm.getNodes().map((node) => getDistance(node, target));     // TODO Will be an issue if this runs before paths are made
     const closestIndex = distances.indexOf(Math.min(...distances));
 
-    const pixelCoords = convertLatLongToPixelCoords({ lat: dijkstrasAlgorithm.getNodes()[closestIndex].coords[1], long: dijkstrasAlgorithm.getNodes()[closestIndex].coords[0] });
+    const pixelCoords = convertLatLongToPixelCoords({ lat: dijkstrasAlgorithm.getNodes()[closestIndex][1], long: dijkstrasAlgorithm.getNodes()[closestIndex][0] });
     const sceneElement = document.querySelector('a-scene');
     let newSphere = document.createElement('a-sphere');
     newSphere.setAttribute("color", colour);

@@ -1,3 +1,9 @@
+const nodeStatus = {
+    unseen: 'unseen',
+    infringe: 'infringe',
+    intree: 'intree',
+};
+
 class DijkstrasAlgo {
     constructor(nodes = [], connectedNodes = []) {
         this.nodes = nodes;
@@ -38,7 +44,7 @@ class DijkstrasAlgo {
             paths[numberOfPaths].push(this.getNodesIndex(node));
         }
         else {
-            this.nodes.push({ coords: node, unseen: true });
+            this.nodes.push(node);
             paths[numberOfPaths].push(this.nodes.length - 1);
             this.connectedNodes[this.nodes.length - 1] = []
         }
@@ -54,12 +60,12 @@ class DijkstrasAlgo {
         this.connectedNodes[node2Index].push({ index: node1Index, distance });
     }
 
-    getNodesIndex(node) {
-        return this.nodes.findIndex(elem => JSON.stringify(elem.coords) === JSON.stringify(node));
+    getNodesIndex(nodeToFind) {
+        return this.nodes.findIndex(node => JSON.stringify(node) === JSON.stringify(nodeToFind));
     }
 
     findClosestPathNodeIndex(coords) {
-        const distances = this.getNodes().map((node) => getDistance(node.coords, coords));     // TODO Will be an issue if this runs before paths are made
+        const distances = this.getNodes().map((node) => getDistance(node, coords));
         return distances.indexOf(Math.min(...distances));
     }
 
@@ -68,6 +74,7 @@ class DijkstrasAlgo {
         destinationCoords = [destinationCoords.long, destinationCoords.lat];
         let sourceNodeIndex = this.findClosestPathNodeIndex(sourceCoords);
         let destinationNodeIndex = this.findClosestPathNodeIndex(destinationCoords);
+
         console.log("Source:");
         console.log(sourceNodeIndex);
         console.log(this.connectedNodes[sourceNodeIndex]);
@@ -75,32 +82,56 @@ class DijkstrasAlgo {
         console.log(destinationNodeIndex);
         console.log(this.connectedNodes[destinationNodeIndex]);
 
-        let shortestDistances = new Array(this.nodes.length);
+        let shortestDistances = new Array(this.connectedNodes.length);
         shortestDistances.fill(Infinity);
         shortestDistances[sourceNodeIndex] = 0;
 
-        let currentNode = sourceNodeIndex;
-        this.setNodeToSeen(sourceNodeIndex);
-        while (currentNode != destinationNodeIndex) {
-            let closest = this.connectedNodes[currentNode][0];
-            this.connectedNodes[currentNode].forEach(element => {
-                this.setNodeToSeen(element.index);
-                if (element.distance < shortestDistances[element.index]) {
-                    shortestDistances[element.index] = element.distance;
-                }
-                if (element.distance < closest.distance) {
-                    closest = element;
+        let previous = new Array(this.connectedNodes.length);
+        previous.fill(null);
+
+        let status = new Array(this.connectedNodes.length);
+        status.fill(nodeStatus.unseen);
+        status[sourceNodeIndex] = nodeStatus.intree;
+
+        this.connectedNodes[sourceNodeIndex].forEach(adjacentNode => {
+            if (previous[adjacentNode.index] == sourceNodeIndex) return;
+            status[adjacentNode.index] = nodeStatus.infringe;
+            if (adjacentNode.distance < shortestDistances[adjacentNode.index]) {
+                shortestDistances[adjacentNode.index] = adjacentNode.distance;
+                previous[adjacentNode.index] = sourceNodeIndex;
+            }
+        });
+
+        while (status.some((status) => status == nodeStatus.infringe)) {
+            let currentNode;
+            let currentShortestDist = Infinity;
+            status.forEach((node, index) => {
+                if (node != nodeStatus.infringe) return;
+                if (shortestDistances[index] < currentShortestDist) {
+                    currentShortestDist = shortestDistances[index];
+                    currentNode = index;
                 }
             });
-            console.log(closest);
-            currentNode = closest;
-            break;
-        }
-        console.log(shortestDistances);
-    }
+            status[currentNode] = nodeStatus.intree;
 
-    setNodeToSeen(nodeIndex) {
-        this.nodes[nodeIndex].unseen = false;
+            this.connectedNodes[currentNode].forEach(adjacentNode => {
+                if (status[adjacentNode.index] == nodeStatus.intree) return;
+                status[adjacentNode.index] = nodeStatus.infringe;
+                if (adjacentNode.distance < shortestDistances[adjacentNode.index]) {
+                    shortestDistances[adjacentNode.index] = adjacentNode.distance + shortestDistances[currentNode];
+                    previous[adjacentNode.index] = currentNode;
+                }
+            });
+        }
+        let currentNode = destinationNodeIndex;
+        let path = [];
+        while (previous[currentNode] != null) {
+            path.push(currentNode)
+            currentNode = previous[currentNode]
+        }
+        path.push(sourceNodeIndex);
+
+        return path.reverse();
     }
 
     /**
@@ -109,6 +140,6 @@ class DijkstrasAlgo {
      * @returns A boolean value
      */
     nodeExists(nodeToCheck) {
-        return this.nodes.some(node => node.coords.length === nodeToCheck.length && node.coords.every((v, j) => v === nodeToCheck[j]));
+        return this.nodes.some(node => node.length === nodeToCheck.length && node.every((v, j) => v === nodeToCheck[j]));
     }
 }

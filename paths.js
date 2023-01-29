@@ -82,7 +82,6 @@ async function loadPaths(coordinate, bboxSize) {
                 return itemJSON
             });
 
-        // currently working on this^ 11th jan 1:49pm
 
         console.log(geoJSON);
 
@@ -110,11 +109,7 @@ async function loadPaths(coordinate, bboxSize) {
         console.log("paths", paths);
         console.log("rectangles", rectangles);
 
-        dijkstrasAlgorithm.printNodes();
-        dijkstrasAlgorithm.printConnectedNodes();
-
         console.log("Number of paths: ", numberOfPaths);
-        rectangles[0][0].setAttribute("material", { roughness: "0.6", color: "#FF00FF" })
         resolve("Finished Adding Paths");
     });
 }

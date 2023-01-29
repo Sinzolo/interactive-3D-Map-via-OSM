@@ -270,7 +270,7 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
     loadPaths(coordinate, bboxSize);
-    if (navigationInProgress) startNavigation();
+    carryOnNavigating();
 }
 
 
