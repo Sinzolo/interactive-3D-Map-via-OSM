@@ -20,7 +20,7 @@ var heightMaps;
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 270;                                     // Length of one side of bounding box in metres
+const bboxSize = 300;                                     // Length of one side of bounding box in metres
 const distanceNeededToMove = (bboxSize / 2) * 0.75;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,

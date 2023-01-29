@@ -21,14 +21,43 @@ function startNavigation() {
 
         //     }
         // });
+
+
         let rectanglesToColour = [];
-        for (let i = 1; i < pathToDest.length + 1; i++) {
-            paths.forEach((path, pathsIndex) => {
-                for (let j = 1; j < path.length + 1; j += 2) {
-                    if (path[j - 1] == pathToDest[i - 1] && path[j] == pathToDest[i]) rectanglesToColour.push([pathsIndex, j-1]);
-                };
-            });
+
+        for (let pathToDestIndex = 0; pathToDestIndex < pathToDest.length - 1; pathToDestIndex++) {
+            console.log("Next two path to dest indices");
+            console.log(pathToDest[pathToDestIndex]);
+            console.log(pathToDest[pathToDestIndex+1]);
+            for (let pathsOuterIndex = 0; pathsOuterIndex < paths.length; pathsOuterIndex++) {
+                for (let pathsInnerIndex = 0; pathsInnerIndex < paths[pathsOuterIndex].length-1; pathsInnerIndex+=2) {
+                    if (pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex + 1] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
+                        console.log("Found!");
+                        console.log([pathsOuterIndex, pathsInnerIndex]);
+                        console.log([pathsOuterIndex, pathsInnerIndex+1]);
+                        rectanglesToColour.push([pathsOuterIndex, pathsInnerIndex]);
+                        break;
+                    }
+                    else if (pathToDest[pathToDestIndex+1] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
+                        console.log("Found!");
+                        console.log([pathsOuterIndex, pathsInnerIndex]);
+                        console.log([pathsOuterIndex, pathsInnerIndex + 1]);
+                        rectanglesToColour.push([pathsOuterIndex, pathsInnerIndex]);
+                        break;
+                    }
+                }
+            }
         }
+        // paths.forEach((path, pathsIndex) => {
+        //     for (let j = 0; j < path.length-1; j += 2) {
+        //         if (path[j] == pathToDest[i] && path[j-1] == pathToDest[i-1]) {
+        //             console.log("Found rectangle");
+        //             console.log([pathsIndex, j - 1]);
+
+        //             rectanglesToColour.push([pathsIndex, j-1]);
+        //         }
+        //     };
+        // });
         console.log(rectanglesToColour);
         rectanglesToColour.forEach((rectangleIndex, index) => {
             rectangles[rectangleIndex[0]][rectangleIndex[1]/2].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
