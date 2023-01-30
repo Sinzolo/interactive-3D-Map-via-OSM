@@ -20,13 +20,15 @@ self.onmessage = async function (e) {
     pools.forEach(pool => {
         pool.destroy();
     });
-    self.close();
+    // self.close();
 }
 
 function raster(url, pool) {
     return GeoTIFF.fromUrl(url).then((tiff) => {
+        console.log(tiff.getImage());
         return tiff.getImage();
     }).then((image) => {
+        console.log(image.readRasters({ pool }));
         return image.readRasters({ pool });
     });
 }

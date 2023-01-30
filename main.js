@@ -1,7 +1,8 @@
 'use strict';
-
+const uniURL = "uniTiff/SD45ne_DTM_2m_Compressed.tif"
+const cityURL = "cityTiff/SD46se_DTM_2m_Compressed.tif"
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
-var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+var tiffURL = uniURL;    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
 //var tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 424999.0000000000]       // Leyland .twf Data
@@ -23,7 +24,7 @@ const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?dat
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const bboxSize = 300;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize / 2) * 0.75;            // Used to check if the user has moved far enough
+const distanceNeededToMove = (bboxSize / 2) * 0.70;            // Used to check if the user has moved far enough
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 0,    // Will only update every 600ms
@@ -38,7 +39,7 @@ var tiffImage;
 const fetchWorker = new Worker('fetchWorker.js');
 const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
-    rasterWorker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
+    rasterWorker.postMessage({ uniURL: uniURL, cityURL: cityURL });
     rasterWorker.onmessage = async function (e) {
         if (e.data.status == "bad") {
             console.log("Worker failed. Reverting to UI thread.");
@@ -46,8 +47,8 @@ const rasters = new Promise((resolve, reject) => {
             let cpuCores = navigator.hardwareConcurrency;
             var pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
             const rasters = await Promise.all([
-                rasterFromURL("uniTiff/SD45ne_DTM_2m.tif", pools[0]),
-                rasterFromURL("cityTiff/SD46se_DTM_2m.tif", pools[1])
+                rasterFromURL(uniURL, pools[0]),
+                rasterFromURL(cityURL, pools[1])
             ]);
             pools.forEach(pool => {
                 pool.destroy();
@@ -109,14 +110,14 @@ window.onfocus = function () {
 
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
-    tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
+    tiffURL = cityURL;    // City .tiff data
     currentRaster = rasters.then((rasters) => {
         return rasters.cityRaster;
     });
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
-    tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
+    tiffURL = uniURL;    // Uni .tiff data
     currentRaster = rasters.then((rasters) => {
         return rasters.uniRaster;
     });

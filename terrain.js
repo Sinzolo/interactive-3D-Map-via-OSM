@@ -1,5 +1,6 @@
 'use strict';
 
+const yScale = 1;
 const xzScale = 6;      // Smaller number = more triangles that make up the terrain = worse performance
 const groundColour = "#4A9342";
 var tiffWindow;
@@ -106,9 +107,9 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
             newTriangle = document.createElement('a-entity');
             newTriangle.setAttribute("geometry", {
                 primitive: "triangle",
-                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]),
-                vertexB: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
-                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1])
+                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z] * yScale) + " " + (z + tiffWindow[1]),
+                vertexB: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale] * yScale) + " " + (z + tiffWindow[1] + resolution),
+                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
             // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]));
@@ -119,9 +120,9 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
             newTriangle = document.createElement('a-entity');
             newTriangle.setAttribute("geometry", {
                 primitive: "triangle",
-                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
-                vertexB: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale]) + " " + (z + tiffWindow[1] + resolution),
-                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1])
+                vertexA: (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale] * yScale) + " " + (z + tiffWindow[1] + resolution),
+                vertexB: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale] * yScale) + " " + (z + tiffWindow[1] + resolution),
+                vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
             // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
