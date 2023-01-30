@@ -32,7 +32,7 @@ var pathPromise;
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
-    bboxSize += 0;
+    bboxSize += 400;
 
     pathPromise = new Promise(async (resolve, reject) => {
         bboxSize *= 0.9;
