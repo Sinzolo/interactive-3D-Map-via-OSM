@@ -1,3 +1,5 @@
+'use strict';
+
 const xzScale = 6;      // Smaller number = more triangles that make up the terrain = worse performance
 const groundColour = "#4A9342";
 var tiffWindow;
@@ -17,7 +19,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
     let offset = Math.round(bboxSize / (2 * twfData[0])); // Converts bbox size into an offset
     tiffWindow = [xPixel - offset, yPixel - offset, xPixel + offset, yPixel + offset];
 
-    let heightMaps = raster.then((raster) => {
+    let heightMaps = currentRaster.then((raster) => {
         let twoDHeightMapArray = convert1DArrayTo2DArray(raster);
         let windowedTwoDHeightMapArray = getAreaOf2DArray(twoDHeightMapArray, tiffWindow[0], tiffWindow[1], tiffWindow[2], tiffWindow[3]);
         return { windowedTwoDHeightMapArray, twoDHeightMapArray }

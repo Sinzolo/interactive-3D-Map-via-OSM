@@ -1,6 +1,8 @@
+'use strict';
+
 const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
 const buildingHeightScale = 2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
-const buildingHeight = 2.1;                                 // Building height if height is unknown
+const buildingHeight = 3;                                 // Building height if height is unknown
 const buildingHeightUnderGround = 30;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
 var numberOfBuildings = 0;
@@ -131,8 +133,11 @@ async function addBuilding(feature, parentElement) {
     if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
-            newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * buildingCoordsScale));
+            try {
+                newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * buildingCoordsScale));
+            } catch {
+                throw new Error("Specfic location on height map not found! (My own error)");
+            }
         });
     });
 }
@@ -159,7 +164,7 @@ AFRAME.registerGeometry('building', {
     },
     init: function (data) {
         var shape = new THREE.Shape(data.outerPoints);
-        for (point of data.innerPoints) shape.holes.push(new THREE.Path(point));
+        for (let point of data.innerPoints) shape.holes.push(new THREE.Path(point));
         var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + buildingHeightUnderGround, bevelEnabled: false });
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);

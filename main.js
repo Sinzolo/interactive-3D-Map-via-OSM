@@ -1,3 +1,5 @@
+'use strict';
+
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
 var tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
@@ -28,21 +30,24 @@ const locationOptions = {
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
-const cacheTTL = 1000*60*3;     // How often the cache should be deleted and reopened
+const humanHeight = 1.2;    // Height of the user in metres
+const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
 var tiffImage;
 
-var raster;
-const worker = new Worker('rasterWorker.js');
+
+const fetchWorker = new Worker('fetchWorker.js');
+const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
-    worker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
-    worker.onmessage = async function (e) {
+    rasterWorker.postMessage({ uniURL: "uniTiff/SD45ne_DTM_2m.tif", cityURL: "cityTiff/SD46se_DTM_2m.tif" });
+    rasterWorker.onmessage = async function (e) {
         if (e.data.status == "bad") {
             console.log("Worker failed. Reverting to UI thread.");
             // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
-            var pools = [new GeoTIFF.Pool(), new GeoTIFF.Pool()];
+            let cpuCores = navigator.hardwareConcurrency;
+            var pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
             const rasters = await Promise.all([
-                raster("uniTiff/SD45ne_DTM_2m.tif", pools[0]),
-                raster("cityTiff/SD46se_DTM_2m.tif", pools[1])
+                rasterFromURL("uniTiff/SD45ne_DTM_2m.tif", pools[0]),
+                rasterFromURL("cityTiff/SD46se_DTM_2m.tif", pools[1])
             ]);
             pools.forEach(pool => {
                 pool.destroy();
@@ -52,9 +57,12 @@ const rasters = new Promise((resolve, reject) => {
         resolve({ uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster });
     }
 });
+var currentRaster = rasters.then((rasters) => {
+    return rasters.uniRaster;
+});
 
 
-function raster(url, pool) {
+function rasterFromURL(url, pool) {
     return GeoTIFF.fromUrl(url).then(tiff => {
         return tiff.getImage();
     }).then(image => {
@@ -102,14 +110,14 @@ window.onfocus = function () {
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = "cityTiff/SD46se_DTM_2m.tif";    // City .tiff data
-    raster = rasters.then((rasters) => {
+    currentRaster = rasters.then((rasters) => {
         return rasters.cityRaster;
     });
 }
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
     tiffURL = "uniTiff/SD45ne_DTM_2m.tif";    // Uni .tiff data
-    raster = rasters.then((rasters) => {
+    currentRaster = rasters.then((rasters) => {
         return rasters.uniRaster;
     });
 }
@@ -237,15 +245,15 @@ function movedFarEnough(newPixelCoords) {
  * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
-    camera = document.querySelector("#rig");
-    camera.object3D.position.set(pixelCoords.x, 1.6, pixelCoords.y);
+    let camera = document.querySelector("#rig");
+    camera.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
 
     if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + 1.6), pixelCoords.y);
+            camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
         });
     }).catch((err) => {
         console.log(err);
@@ -382,15 +390,57 @@ AFRAME.registerComponent('flight-controls', {
 then it will switch the active camera. */
 document.addEventListener("keydown", function (event) {
     if (event.code === "KeyC") {
-        var playerCamera = document.getElementById("playerCamera");
-        if (playerCamera.getAttribute('camera').active == true) {
-            var debugCamera = document.getElementById("debugCamera");
-            debugCamera.setAttribute('camera', 'active', true);
-            console.log("Debug camera now active");
-        }
-        else {
-            playerCamera.setAttribute('camera', 'active', true)
-            console.log("Player camera now active");
-        }
+        toggleCameraView();
+    }
+    else if (event.code === "KeyV") {
+        toggleStats();
     }
 });
+
+
+var touchstartX = 0;
+var touchendX = 0;
+
+// var gestureZone = document.getElementById("gestureZone");
+
+document.addEventListener("touchstart", function (event) {
+    if (event.touches.length === 2) {
+        touchstartX = event.changedTouches[0].screenX;
+    }
+}, false);
+
+document.addEventListener("touchend", function (event) {
+    if (event.touches.length === 2) {
+        touchendX = event.changedTouches[0].screenX;
+        handleGesture();
+    }
+}, false);
+
+function handleGesture() {
+    if (touchendX <= touchstartX) {
+        toggleCameraView();
+    }
+    if (touchendX >= touchstartX) {
+        toggleStats();
+    }
+}
+
+function toggleCameraView() {
+    var playerCamera = document.getElementById("playerCamera");
+    if (playerCamera.getAttribute('camera').active == true) {
+        var debugCamera = document.getElementById("debugCamera");
+        debugCamera.setAttribute('camera', 'active', true);
+        console.log("Debug camera now active");
+    }
+    else {
+        playerCamera.setAttribute('camera', 'active', true)
+        console.log("Player camera now active");
+    }
+}
+
+function toggleStats() {
+    console.log("Toggling stats");
+    let sceneElement = document.querySelector('a-scene');
+    console.log(sceneElement.getAttribute('stats'));
+    sceneElement.setAttribute('stats', !sceneElement.getAttribute('stats'));
+}

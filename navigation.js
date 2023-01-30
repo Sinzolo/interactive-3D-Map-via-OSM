@@ -1,30 +1,20 @@
+'use strict';
+
 const sphereHeightAboveGround = 4.6;
 var navigationInProgress = false;
 
 function startNavigation() {
     pathPromise.then(function () {
         navigationInProgress = true;
-        destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
+        let destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
         hideNavigationMenu();
         removeSpheres();
         findClosestPathNode(usersCurrentLatLong, "#00FF00");
         findClosestPathNode(destinationLatLong, "#FF0000");
-        console.log(usersCurrentLatLong);
-        console.log(destinationLatLong);
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
-        console.log(pathToDest);
-        // paths.forEach(path => {
-        //     for(let i = 1; i < path.length+1; i+=2) {
-        //         console.log(path[i-1]);
-        //         console.log(path[i]);
-
-        //     }
-        // });
-
 
         let rectanglesToColour = [];
-
         for (let pathToDestIndex = 0; pathToDestIndex < pathToDest.length - 1; pathToDestIndex++) {
             console.log("Next two path to dest indices");
             console.log(pathToDest[pathToDestIndex]);
@@ -34,11 +24,11 @@ function startNavigation() {
                     if (pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex + 1] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
                         console.log("Found!");
                         console.log([pathsOuterIndex, pathsInnerIndex]);
-                        console.log([pathsOuterIndex, pathsInnerIndex+1]);
+                        console.log([pathsOuterIndex, pathsInnerIndex + 1]);
                         rectanglesToColour.push([pathsOuterIndex, pathsInnerIndex]);
                         break;
                     }
-                    else if (pathToDest[pathToDestIndex+1] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
+                    else if (pathToDest[pathToDestIndex + 1] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
                         console.log("Found!");
                         console.log([pathsOuterIndex, pathsInnerIndex]);
                         console.log([pathsOuterIndex, pathsInnerIndex + 1]);
@@ -60,8 +50,13 @@ function startNavigation() {
         // });
         console.log(rectanglesToColour);
         rectanglesToColour.forEach((rectangleIndex, index) => {
+            try {
             rectangles[rectangleIndex[0]][rectangleIndex[1]/2].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
-            console.log(index);
+            } catch (e) {
+                console.log("Error");
+                console.log(rectangleIndex);
+                console.log(index);
+            }
         });
     });
 }
@@ -82,7 +77,7 @@ function areCoordsValid(coords) {
 
 
 function findClosestPathNode(coords, colour) {
-    target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
+    let target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
     const distances = dijkstrasAlgorithm.getNodes().map((node) => getDistance(node, target));     // TODO Will be an issue if this runs before paths are made
     const closestIndex = distances.indexOf(Math.min(...distances));
 

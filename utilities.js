@@ -1,3 +1,5 @@
+'use strict';
+
 /**
  * "Try to fetch the URL, and if it fails, wait a bit and try again, doubling the wait time each time,
  * until it succeeds or we run out of retries."
@@ -12,9 +14,9 @@ async function fetchWithRetry(url, retries = 10) {
     let seconds = 1;
     var response;
     while (retries > 0) {
-        document.getElementById("loading").style.display = "block";
-        currentLabel = document.getElementById("loading").innerHTML;
-        document.getElementById("loading").innerHTML = currentLabel+".";
+        // document.getElementById("loading").style.display = "block";
+        // currentLabel = document.getElementById("loading").innerHTML;
+        // document.getElementById("loading").innerHTML = currentLabel+".";
         response = await fetch(url).then((response) => {
             if (!response.ok) {
                 throw new Error("Fetch failed with status "+response.status);
@@ -29,8 +31,8 @@ async function fetchWithRetry(url, retries = 10) {
         await sleep(seconds);
         seconds *= 2;
     }
-    document.getElementById("loading").style.display = "none";
-    document.getElementById("loading").innerHTML = "Loading";
+    // document.getElementById("loading").style.display = "none";
+    // document.getElementById("loading").innerHTML = "Loading";
     if (typeof response === 'undefined') throw new Error("All retries failed.");
     return response;
 }

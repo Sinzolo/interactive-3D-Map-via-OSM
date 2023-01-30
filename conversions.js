@@ -1,3 +1,5 @@
+'use strict';
+
 const earthRadius = 6371e3;     // Earth's radius in metres
 
 /**

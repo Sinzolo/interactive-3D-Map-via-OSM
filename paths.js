@@ -1,3 +1,5 @@
+'use strict';
+
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
 const pathHeightAboveGround = 0.16; // How far it should stick above ground
@@ -30,6 +32,8 @@ var pathPromise;
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
+    bboxSize += 0;
+
     pathPromise = new Promise(async (resolve, reject) => {
         bboxSize *= 0.9;
         var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
@@ -52,39 +56,13 @@ async function loadPaths(coordinate, bboxSize) {
         );
 
         if ('caches' in window) {
-            var response = caches.match(overpassQuery)
-                .then((response) => {
-                    if (response) {     // If found in cache return response
-                        console.log("Found it in cache");
-                        return response;
-                    }
-                    console.log("NOT found in cache... Fetching URL");
-                    return fetchWithRetry(overpassQuery).then((response) => {    // If not found in cache fetch resource
-                        osmCache.then((cache) => {
-                            cache.put(overpassQuery, response);        //  Once fetched cache the response
-                            console.log("Storing in cache");
-                        });
-                        return response.clone();        // Return fetched resource
-                    });
-                });
+            console.log("Caches");
+            fetchWorker.postMessage({ overpassQuery, osmCacheName });
         }
         else {
-            var response = fetchWithRetry(overpassQuery);        // Fetches the OSM data needed for the specific bbox
+            console.log("Yo better fucking not");
+            fetchWorker.postMessage({ overpassQuery, osmCacheName: "IM GONNA KILL" });
         }
-
-        /* Converting the response from the overpass API into a JSON object. */
-        let geoJSON = await response
-            .then((response) => { return response.text(); })
-            .then((response) => {
-                let parser = new DOMParser();
-                let itemData = parser.parseFromString(response, "application/xml");
-                let itemJSON = osmtogeojson(itemData);
-                return itemJSON
-            });
-
-
-        console.log(geoJSON);
-
 
         let sceneElement = document.querySelector('a-scene');
         let pathParent = document.createElement('a-entity');
@@ -92,26 +70,40 @@ async function loadPaths(coordinate, bboxSize) {
         pathParent.setAttribute("class", "path");
         sceneElement.appendChild(pathParent);
 
-        numberOfPaths = 0;
-        paths = [];
-        nodes = [];
-        rectangles = [];
-        connectedNodes = [];
-        dijkstrasAlgorithm = new DijkstrasAlgo();
-        geoJSON.features.forEach((feature) => {
-            if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-            }
-            else if (feature.geometry.type == "LineString") {   // Path
-                addPath(feature, pathParent);
-                numberOfPaths++;
-            }
-        });
-        console.log("paths", paths);
-        console.log("rectangles", rectangles);
+        fetchWorker.onmessage = async function (e) {
+            let response = e.data;
 
-        console.log("Number of paths: ", numberOfPaths);
-        resolve("Finished Adding Paths");
+            let geoJSON = convertOSMResponseToGeoJSON(response);
+
+            numberOfPaths = 0;
+            paths = [];
+            nodes = [];
+            rectangles = [];
+            connectedNodes = [];
+            dijkstrasAlgorithm = new DijkstrasAlgo();
+            geoJSON.features.forEach((feature) => {
+                if (feature.geometry.type == "Polygon") {   // Pedestrian Area
+                }
+                else if (feature.geometry.type == "LineString") {   // Path
+                    addPath(feature, pathParent);
+                    numberOfPaths++;
+                }
+            });
+            console.log("paths", paths);
+            console.log("rectangles", rectangles);
+            console.log("Number of paths: ", numberOfPaths);
+            resolve("Finished Adding Paths");
+        }
+
     });
+}
+
+
+function convertOSMResponseToGeoJSON(response) {
+    let parser = new DOMParser();
+    let itemData = parser.parseFromString(response, "application/xml");
+    let itemJSON = osmtogeojson(itemData);
+    return itemJSON;
 }
 
 
@@ -126,11 +118,17 @@ async function addPath(feature, parentElement) {
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i - 1];
         let point2 = feature.geometry.coordinates[i];
-        dijkstrasAlgorithm.addPair(point1, point2)
+        if (tags.highway != 'motorway') dijkstrasAlgorithm.addPair(point1, point2);  // Doesn't add motorways to the navigation graph
 
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
-        //let segmentedPath = segmentPath({x: pixelCoords1.x*coordsScale, y: pixelCoords1.y*coordsScale}, {x: pixelCoords2.x*coordsScale, y: pixelCoords2.y*coordsScale});
+
+        /* Checks if the path is off the edge of the map */
+        let outsideWindow1 = (pixelCoords1.roundedX < tiffWindow[0] || pixelCoords1.roundedX > tiffWindow[2] ||
+            pixelCoords1.roundedY < tiffWindow[1] || pixelCoords1.roundedY > tiffWindow[3]);
+        let outsideWindow2 = (pixelCoords2.roundedX < tiffWindow[0] || pixelCoords2.roundedX > tiffWindow[2] ||
+            pixelCoords2.roundedY < tiffWindow[1] || pixelCoords2.roundedY > tiffWindow[3]);
+        if (outsideWindow1 || outsideWindow2) continue;
 
         let newPath = document.createElement('a-entity');
         let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth) };
@@ -149,8 +147,11 @@ async function addPath(feature, parentElement) {
         if (lowQuality) continue;
         heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
             Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-                if ((heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) == null) throw new Error("Specfic location on height map not found! (My own error)");
-                newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pathCoordsScale));
+                try {
+                    newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pathCoordsScale));
+                } catch {
+                    throw new Error("Specfic location on height map not found! (My own error)");
+                }
             });
         });
     }
@@ -158,7 +159,7 @@ async function addPath(feature, parentElement) {
 
 
 function addNodeToArrays(node) {
-    
+
 }
 
 

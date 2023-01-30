@@ -2,17 +2,21 @@
 <html lang="en">
 
 <head>
-    <!-- <meta charset="UTF-8"> -->
-    <!-- <meta http-equiv="X-UA-Compatible" content="IE=edge"> -->
-    <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0"> -->
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
     <title>Interactive 3D Map via OSM</title>
-    <link rel="shortcut icon" type="image/png" href="favicon.png" />
+    <link rel="icon" href="favicon.png">
+    <link rel="preload" href="rasterWorker.js">
+    <link rel="preload" href="geotiff.js.map">
 
-    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>                      <!-- A-Frame -->
-    <script src="https://unpkg.com/aframe-simple-sun-sky@^1.2.2/simple-sun-sky.js"></script>    <!-- Adds a sun -->
-    <script src="https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js"></script>  <!-- Tiff manipulator -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.0/proj4.js"></script>       <!-- Coord converter -->
+    <!-- <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>                      A-Frame -->
+    <script src="aframe.min.js"></script>
+    <script src="simple-sun-sky.min.js"></script>
+    <script defer src="geotiff.min.js"></script> <!-- Tiff manipulator -->
+    <script defer src="proj4.min.js"></script> <!-- Coord converter -->
+    <script defer src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/instanced-mesh@v0.6.0/src/instanced-mesh.min.js"></script>
     <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
     <!-- <script src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script>  Not sure what this is for-->
 
@@ -22,15 +26,15 @@
         <img id = "geotiff" src="leylandTiff/SD52sw_DTM_2m.tif" class="hidden">
         <img id = "geotiff" src="lydiateTiff/SD51nw_DTM_2m.tif" class="hidden"> -->
 
-    <script src="utilities.js"></script>
-    <script src="osmtogeojson.js"></script>
-    <script src="conversions.js"></script>
-    <script src="terrain.js"></script>
-    <script src="buildings.js"></script>
-    <script src="DijkstrasAlgo.js"></script>
-    <script src="paths.js"></script>
-    <script src="navigation.js"></script>
-    <script src="main.js"></script>
+    <script defer src="utilities.js"></script>
+    <script defer src="osmtogeojson.min.js"></script>
+    <script defer src="conversions.js"></script>
+    <script defer src="terrain.js"></script>
+    <script defer src="buildings.js"></script>
+    <script defer src="DijkstrasAlgo.js"></script>
+    <script defer src="paths.js"></script>
+    <script defer src="navigation.js"></script>
+    <script defer src="main.js"></script>
 
 </head>
 
@@ -47,8 +51,10 @@
         <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
         <button id="loadNavigationMenuBtn" onclick="showNavigationMenu()">Navigate</button>
 
-        <br><button id="highQualityBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High Quality</button>
-        <button id="lowQualityBtn" title="Better performance but worse quality" onclick="setLowQuality(true)">Low Quality</button>
+        <br><button id="highQualityBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High
+            Quality</button>
+        <button id="lowQualityBtn" title="Better performance but worse quality" onclick="setLowQuality(true)">Low
+            Quality</button>
 
         <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
@@ -63,7 +69,7 @@
 
         <!-- <button id="navigationButton" onclick="showNavigationMenu()">Navigate</button> -->
 
-        <a-scene vr-mode-ui="enabled: true" background="color: lightblue">
+        <a-scene id="scene" vr-mode-ui="enabled: true" stats background="color: lightblue">
             <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff"
                 fog-color="#74d2fa"></a-simple-sun-sky>
             <a-entity light="type: ambient; color: #BBB"></a-entity>

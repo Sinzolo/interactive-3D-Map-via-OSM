@@ -1,3 +1,5 @@
+'use strict';
+
 const nodeStatus = {
     unseen: 'unseen',
     infringe: 'infringe',
