@@ -1,29 +1,5 @@
 'use strict';
 
-const earthRadius = 6371e3;     // Earth's radius in metres
-
-/**
- * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
- * with sides of length metres
- * @param metres - the length of one side of the square
- * @param lat - latitude of the center of the bounding box
- * @param long - longitude of the center of the bounding box
- * @returns An object with the minLat, minLng, maxLat, and maxLng properties.
- */
-function getBoundingBox(lat, long, metres) {
-    metres /= 2;
-    let latRadians = lat * Math.PI / 180; // convert latitude to radians
-    let latDelta = metres / earthRadius;  // calculate change in latitude
-    let lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
-
-    return { minLat: lat - latDelta * 180 / Math.PI,
-        minLng: long - lngDelta * 180 / Math.PI,
-        maxLat: lat + latDelta * 180 / Math.PI,
-        maxLng: long + lngDelta * 180 / Math.PI
-    };
-}
-
-
 /**
  * Converts from UTM coords to lat and long coords.
  * @param {double} easting 
@@ -120,9 +96,9 @@ function convert1DArrayTo2DArray(oneDArray) {
     for (let i = 0; i < oneDArray.width; i++) {
         twoDArray[i] = [];
         for (let j = 0; j < oneDArray.height; j++) {
-            let index = i + j * oneDArray.width;
-            twoDArray[i][j] = oneDArray[0][index];
+            twoDArray[i][j] = oneDArray[0][i + j * oneDArray.width];
         }
     }
+    oneDArray = undefined;
     return twoDArray;
 }

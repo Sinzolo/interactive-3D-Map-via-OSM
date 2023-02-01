@@ -3,6 +3,12 @@
 const sphereHeightAboveGround = 4.6;
 var navigationInProgress = false;
 
+/**
+ * The function starts navigation by finding the closest path node to the user's current location and
+ * the destination, then it finds the shortest path between the two nodes using Dijkstra's algorithm,
+ * and finally it highlights the path to the destination by changing the color of the rectangles that
+ * make up the path.
+ */
 function startNavigation() {
     pathPromise.then(function () {
         navigationInProgress = true;
@@ -13,56 +19,43 @@ function startNavigation() {
         findClosestPathNode(usersCurrentLatLong, "#00FF00");
         findClosestPathNode(destinationLatLong, "#FF0000");
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
+        console.log(pathToDest);
 
-        let rectanglesToColour = [];
-        for (let pathToDestIndex = 0; pathToDestIndex < pathToDest.length - 1; pathToDestIndex++) {
-            console.log("Next two path to dest indices");
-            console.log(pathToDest[pathToDestIndex]);
-            console.log(pathToDest[pathToDestIndex+1]);
-            for (let pathsOuterIndex = 0; pathsOuterIndex < paths.length; pathsOuterIndex++) {
-                for (let pathsInnerIndex = 0; pathsInnerIndex < paths[pathsOuterIndex].length-1; pathsInnerIndex+=2) {
-                    if (pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex + 1] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
-                        console.log("Found!");
-                        console.log([pathsOuterIndex, pathsInnerIndex]);
-                        console.log([pathsOuterIndex, pathsInnerIndex + 1]);
-                        rectanglesToColour.push([pathsOuterIndex, pathsInnerIndex]);
-                        break;
-                    }
-                    else if (pathToDest[pathToDestIndex + 1] == paths[pathsOuterIndex][pathsInnerIndex] && pathToDest[pathToDestIndex] == paths[pathsOuterIndex][pathsInnerIndex + 1]) {
-                        console.log("Found!");
-                        console.log([pathsOuterIndex, pathsInnerIndex]);
-                        console.log([pathsOuterIndex, pathsInnerIndex + 1]);
-                        rectanglesToColour.push([pathsOuterIndex, pathsInnerIndex]);
-                        break;
-                    }
-                }
-            }
-        }
-        // paths.forEach((path, pathsIndex) => {
-        //     for (let j = 0; j < path.length-1; j += 2) {
-        //         if (path[j] == pathToDest[i] && path[j-1] == pathToDest[i-1]) {
-        //             console.log("Found rectangle");
-        //             console.log([pathsIndex, j - 1]);
-
-        //             rectanglesToColour.push([pathsIndex, j-1]);
-        //         }
-        //     };
-        // });
-        console.log(rectanglesToColour);
-        rectanglesToColour.forEach((rectangleIndex, index) => {
+        for (let pathToDestIndex = 1; pathToDestIndex < pathToDest.length; pathToDestIndex++) {
+            const node1 = pathToDest[pathToDestIndex - 1];
+            const node2 = pathToDest[pathToDestIndex];
+            let index = find2DIndex([node1, node2])
             try {
-            rectangles[rectangleIndex[0]][rectangleIndex[1]/2].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
+                rectangles[index[0]][Math.round(index[1] / 2)].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
             } catch (e) {
                 console.log("Error");
-                console.log(rectangleIndex);
-                console.log(index);
             }
-        });
+        }
     });
 }
 
+/**
+ * If the navigation is in progress, start the navigation
+ */
 function carryOnNavigating() {
     if (navigationInProgress) startNavigation();
+}
+
+/**
+ * It takes a path to a destination and returns the index of the path in the paths array
+ * @param pathToDest - The path to the destination.
+ * @returns The index of the path that contains the destination.
+ */
+function find2DIndex(pathToDest) {
+    for (let i = 0; i < paths.length; i++) {
+        for (let j = 0; j < paths[i].length - 1; j++) {
+            if ((paths[i][j] === pathToDest[0] && paths[i][j + 1] === pathToDest[1]) ||
+                (paths[i][j] === pathToDest[1] && paths[i][j + 1] === pathToDest[0])) {
+                return [i,j];
+            }
+        }
+    }
+    return -1;
 }
 
 
@@ -76,10 +69,17 @@ function areCoordsValid(coords) {
 }
 
 
+/**
+ * It takes a latitude and longitude and finds the closest node in the path network to that point
+ * @param coords - The coordinates of the point you want to find the closest path node to.
+ * @param colour - The colour of the sphere
+ * @returns The closest node to the given coords.
+ */
 function findClosestPathNode(coords, colour) {
     let target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
-    const distances = dijkstrasAlgorithm.getNodes().map((node) => getDistance(node, target));     // TODO Will be an issue if this runs before paths are made
-    const closestIndex = distances.indexOf(Math.min(...distances));
+    const closestIndex = dijkstrasAlgorithm.findClosestPathNodeIndex([coords.lat, coords.long]);
+    console.log(closestIndex);
+    console.log(dijkstrasAlgorithm.getNodes()[closestIndex]);
 
     const pixelCoords = convertLatLongToPixelCoords({ lat: dijkstrasAlgorithm.getNodes()[closestIndex][1], long: dijkstrasAlgorithm.getNodes()[closestIndex][0] });
     const sceneElement = document.querySelector('a-scene');

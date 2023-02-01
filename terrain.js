@@ -1,9 +1,13 @@
 'use strict';
 
 const yScale = 1;
-const xzScale = 6;      // Smaller number = more triangles that make up the terrain = worse performance
+const xzScale = 12;      // Smaller number = more triangles that make up the terrain = worse performance
 const groundColour = "#4A9342";
 var tiffWindow;
+var triangleParent = document.createElement('a-entity');
+triangleParent.setAttribute("id", "terrainParent");
+triangleParent.setAttribute("class", "terrain");
+document.querySelector('a-scene').appendChild(triangleParent);
 
 
 /**
@@ -23,7 +27,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
     let heightMaps = currentRaster.then((raster) => {
         let twoDHeightMapArray = convert1DArrayTo2DArray(raster);
         let windowedTwoDHeightMapArray = getAreaOf2DArray(twoDHeightMapArray, tiffWindow[0], tiffWindow[1], tiffWindow[2], tiffWindow[3]);
-        return { windowedTwoDHeightMapArray, twoDHeightMapArray }
+        return { windowedTwoDHeightMapArray: windowedTwoDHeightMapArray, twoDHeightMapArray: twoDHeightMapArray }
     });
     return heightMaps;
 }
@@ -46,6 +50,7 @@ function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
             windowedTwoDArray[x].push(twoDArray[x + minX][y + minY]);
         }
     }
+    twoDArray = null;
     return windowedTwoDArray;
 }
 
@@ -78,12 +83,12 @@ function loadTerrain() {
  * @param triangles - an array of triangle entities
  */
 function drawTriangles(triangles) {
-    let sceneElement = document.querySelector('a-scene');
-    let triangleParent = document.createElement('a-entity');
-    triangleParent.setAttribute("id", "terrainParent");
-    triangleParent.setAttribute("class", "terrain");
+    
+    // triangleParent.setAttribute("geometry-merger", { preserveOriginal: "false" });
     // triangleParent.setAttribute("geometry-merger", "preserveOriginal: false");
-    sceneElement.appendChild(triangleParent);
+    // <a-entity geometry-merger="preserveOriginal: true" material="vertexColors: face">
+    //   
+    // </a-entity>
     triangles.forEach(triangle => {
         triangleParent.appendChild(triangle);
     });
@@ -112,10 +117,20 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
                 vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
+            // newTriangle.setAttribute("face-colors", { color: groundColour });
             // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]));
             // newTriangle.setAttribute("vertex-b", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
             // newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
             triangles.push(newTriangle);
+
+            // <a-entity geometry="primitive: triangle; buffer: false; vertex-a: 4 10 2" material="visible: false" face-colors="color: red"
+    //         position="-2 0.75 -3"></a-entity>
+    //     <a-entity geometry="primitive: triangle; buffer: false; vertex-a: 2 10 4" material="visible: false"
+    //         face-colors="color: red" position="-2 0.75 -3"></a-entity>
+    //     <a-entity geometry="primitive: sphere; buffer: false" material="visible: false" face-colors="color: blue"
+    //         position="0 0.75 -3"></a-entity>
+    //     <a-entity geometry="primitive: cylinder; buffer: false" material="visible: false" face-colors="color: green"
+    //         position="2 0.75 -3" scale="0.5 0.5 0.5"></a-entity>
 
             newTriangle = document.createElement('a-entity');
             newTriangle.setAttribute("geometry", {
@@ -140,5 +155,5 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
  */
 function removeCurrentTerrain() {
     console.log("=== Deleting Terrain ===");
-    while (removeElement("terrainParent")) { }
+    removeAllChildren(triangleParent);
 }

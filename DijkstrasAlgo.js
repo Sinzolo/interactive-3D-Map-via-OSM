@@ -42,38 +42,47 @@ class DijkstrasAlgo {
     }
 
     addToNodes(node) {
-        if (this.nodeExists(node)) {
-            paths[numberOfPaths].push(this.getNodesIndex(node));
-        }
-        else {
+        var nodeIndex = this.getNodesIndex(node);
+        if (nodeIndex === -1) {
+            nodeIndex = this.nodes.length;
             this.nodes.push(node);
-            paths[numberOfPaths].push(this.nodes.length - 1);
-            this.connectedNodes[this.nodes.length - 1] = []
+            this.connectedNodes[nodeIndex] = [];
         }
+        paths[numberOfPaths].push(nodeIndex)
+        return nodeIndex;
     }
 
     addPair(node1, node2) {
-        this.addToNodes(node1);
-        this.addToNodes(node2);
+        let node1Index = this.addToNodes(node1);
+        let node2Index = this.addToNodes(node2);
         let distance = getDistance([node1[1], node1[0]], [node2[1], node2[0]]);
-        let node1Index = this.getNodesIndex(node1);
-        let node2Index = this.getNodesIndex(node2);
         this.connectedNodes[node1Index].push({ index: node2Index, distance });
         this.connectedNodes[node2Index].push({ index: node1Index, distance });
+        // TODO - Only need to store one connection as its a waste of time and storage to do both
     }
 
+    /**
+     * It returns the index of the node in the nodes array
+     * @param nodeToFind - The node to look for
+     * @returns The index of the node in the nodes array
+    */
     getNodesIndex(nodeToFind) {
-        return this.nodes.findIndex(node => JSON.stringify(node) === JSON.stringify(nodeToFind));
+        return this.nodes.findIndex(node => node[0] === nodeToFind[0] && node[1] === nodeToFind[1]);
     }
 
+    /**
+     * It finds the closest node to the given coordinates
+     * @param coords - The coordinates of the point you want to find the closest path node to
+     * @returns The index of the closest node to the given coordinates
+     */
     findClosestPathNodeIndex(coords) {
-        const distances = this.getNodes().map((node) => getDistance(node, coords));
+        const distances = this.nodes.map((node) => getDistance([node[1],node[0]], coords));
         return distances.indexOf(Math.min(...distances));
     }
 
     findShortestPathBetween(sourceCoords, destinationCoords) {
-        sourceCoords = [sourceCoords.long, sourceCoords.lat];
-        destinationCoords = [destinationCoords.long, destinationCoords.lat];
+        sourceCoords = [sourceCoords.lat, sourceCoords.long];
+        destinationCoords = [destinationCoords.lat, destinationCoords.long];
         let sourceNodeIndex = this.findClosestPathNodeIndex(sourceCoords);
         let destinationNodeIndex = this.findClosestPathNodeIndex(destinationCoords);
 
@@ -135,14 +144,5 @@ class DijkstrasAlgo {
         path.push(sourceNodeIndex);
 
         return path.reverse();
-    }
-
-    /**
-     * If the node exists, return true, otherwise return false.
-     * @param nodeToCheck - The node to check
-     * @returns A boolean value
-     */
-    nodeExists(nodeToCheck) {
-        return this.nodes.some(node => node.length === nodeToCheck.length && node.every((v, j) => v === nodeToCheck[j]));
     }
 }

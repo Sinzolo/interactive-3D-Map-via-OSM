@@ -1,15 +1,20 @@
 'use strict';
-
+const pathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
 const pathHeightAboveGround = 0.16; // How far it should stick above ground
-const pathHeightUnderGround = 30;  // How far it should stick below ground
+const pathHeightUnderGround = 30;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;                                // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
+const pathLookAhead = 1500;         // How much bigger the bbox is for the paths to see ahead for navigation
+const pathParent = document.createElement('a-entity');
+pathParent.setAttribute("id", "pathParent");
+pathParent.setAttribute("class", "path");
+document.querySelector('a-scene').appendChild(pathParent);
 const highwayStyles = {
     motorway: { color: "#404040", pathWidth: 1.6 },
-    trunk: { color: "#505050", pathWidth: 1.45 },
+    trunk: { color: "#0000FF", pathWidth: 1.45 },
     primary: { color: "#606060", pathWidth: 1.3 },
     secondary: { color: "#707070", pathWidth: 1.2 },
     tertiary: { color: "#808080", pathWidth: 1.05 },
@@ -21,6 +26,7 @@ const highwayStyles = {
     path: { color: "#C6C6C6", pathWidth: 0.3 },
     steps: { color: "#FFFFFF", pathWidth: 0.3 },
 };
+
 var numberOfPaths;
 var nodes;              // E.g., [[long,lat], [long,lat], ...]   Each node only once.
 var connectedNodes;     // E.g., [[], [0,2,3,8], [45,12,0], ...]  Each index of the outer array is the node and each number in the inner array is what that node is connected to
@@ -32,60 +38,46 @@ var pathPromise;
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
-    bboxSize += 400;
+    var pathBboxConstraint = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
+    var stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, (bboxSize + pathLookAhead)));
+    var overpassQuery = overpassURL + encodeURIComponent(
+        "[timeout:40];" +
+        "(way[highway=path](" + stringBBox + ");" +
+        "way[highway=pedestrian](" + stringBBox + ");" +
+        "way[highway=footway](" + stringBBox + ");" +
+        "way[highway=steps](" + stringBBox + ");" +
+        "way[highway=motorway](" + stringBBox + ");" +
+        "way[highway=trunk](" + stringBBox + ");" +
+        "way[highway=primary](" + stringBBox + ");" +
+        "way[highway=secondary](" + stringBBox + ");" +
+        "way[highway=tertiary](" + stringBBox + ");" +
+        "way[highway=residential](" + stringBBox + ");" +
+        "way[highway=unclassified](" + stringBBox + ");" +
+        "way[highway=service](" + stringBBox + "););" +
+        "out geom;>;out skel qt;"
+    );
+
+    if ('caches' in window) {
+        pathFetchWorker.postMessage({ overpassQuery, osmCacheName });
+    }
+    else {
+        pathFetchWorker.postMessage({ overpassQuery });
+    }
 
     pathPromise = new Promise(async (resolve, reject) => {
-        bboxSize *= 0.9;
-        var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
-        var stringBBox = convertBBoxToString(bbox);
-        var overpassQuery = overpassURL + encodeURIComponent(
-            "[timeout:40];" +
-            "(way[highway=path](" + stringBBox + ");" +
-            "way[highway=pedestrian](" + stringBBox + ");" +
-            "way[highway=footway](" + stringBBox + ");" +
-            "way[highway=steps](" + stringBBox + ");" +
-            "way[highway=motorway](" + stringBBox + ");" +
-            "way[highway=trunk](" + stringBBox + ");" +
-            "way[highway=primary](" + stringBBox + ");" +
-            "way[highway=secondary](" + stringBBox + ");" +
-            "way[highway=tertiary](" + stringBBox + ");" +
-            "way[highway=residential](" + stringBBox + ");" +
-            "way[highway=unclassified](" + stringBBox + ");" +
-            "way[highway=service](" + stringBBox + "););" +
-            "out geom;>;out skel qt;"
-        );
-
-        if ('caches' in window) {
-            console.log("Caches");
-            fetchWorker.postMessage({ overpassQuery, osmCacheName });
-        }
-        else {
-            console.log("Yo better fucking not");
-            fetchWorker.postMessage({ overpassQuery, osmCacheName: "IM GONNA KILL" });
-        }
-
-        let sceneElement = document.querySelector('a-scene');
-        let pathParent = document.createElement('a-entity');
-        pathParent.setAttribute("id", "pathParent");
-        pathParent.setAttribute("class", "path");
-        sceneElement.appendChild(pathParent);
-
-        fetchWorker.onmessage = async function (e) {
-            let response = e.data;
-
-            let geoJSON = convertOSMResponseToGeoJSON(response);
-
+        pathFetchWorker.onmessage = async function (e) {
             numberOfPaths = 0;
             paths = [];
             nodes = [];
             rectangles = [];
             connectedNodes = [];
             dijkstrasAlgorithm = new DijkstrasAlgo();
-            geoJSON.features.forEach((feature) => {
+            const features = convertOSMResponseToGeoJSON(e.data).features;
+            features.forEach((feature) => {
                 if (feature.geometry.type == "Polygon") {   // Pedestrian Area
                 }
                 else if (feature.geometry.type == "LineString") {   // Path
-                    addPath(feature, pathParent);
+                    addPath(feature, pathParent, pathBboxConstraint);
                     numberOfPaths++;
                 }
             });
@@ -94,20 +86,21 @@ async function loadPaths(coordinate, bboxSize) {
             console.log("Number of paths: ", numberOfPaths);
             resolve("Finished Adding Paths");
         }
-
     });
 }
 
 
+/**
+ * Takes an XML response from the OSM API and converts it to GeoJSON
+ * @param response - The response from the OSM API.
+ * @returns A GeoJSON object.
+ */
 function convertOSMResponseToGeoJSON(response) {
-    let parser = new DOMParser();
-    let itemData = parser.parseFromString(response, "application/xml");
-    let itemJSON = osmtogeojson(itemData);
-    return itemJSON;
+    return osmtogeojson(new DOMParser().parseFromString(response, "application/xml"));
 }
 
 
-async function addPath(feature, parentElement) {
+async function addPath(feature, parentElement, pathBboxConstraint) {
     let tags = feature.properties;
     let { color, pathWidth } = highwayStyles[tags.highway] || { color: defaultPathColour, pathWidth: defaultPathWidth };
     if (tags.service == "alley") { color = "#967A72"; pathWidth = 0.2; }
@@ -120,17 +113,18 @@ async function addPath(feature, parentElement) {
         let point2 = feature.geometry.coordinates[i];
         if (tags.highway != 'motorway') dijkstrasAlgorithm.addPair(point1, point2);  // Doesn't add motorways to the navigation graph
 
-        let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
-        let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
-
-        /* Checks if the path is off the edge of the map */
-        let outsideWindow1 = (pixelCoords1.roundedX < tiffWindow[0] || pixelCoords1.roundedX > tiffWindow[2] ||
-            pixelCoords1.roundedY < tiffWindow[1] || pixelCoords1.roundedY > tiffWindow[3]);
-        let outsideWindow2 = (pixelCoords2.roundedX < tiffWindow[0] || pixelCoords2.roundedX > tiffWindow[2] ||
-            pixelCoords2.roundedY < tiffWindow[1] || pixelCoords2.roundedY > tiffWindow[3]);
-        if (outsideWindow1 || outsideWindow2) continue;
+        let outsideWindow1 = point1[0] < pathBboxConstraint.minLng || point1[1] < pathBboxConstraint.minLat || point1[0] > pathBboxConstraint.maxLng || point1[1] > pathBboxConstraint.maxLat;
+        let outsideWindow2 = point2[0] < pathBboxConstraint.minLng || point2[1] < pathBboxConstraint.minLat || point2[0] > pathBboxConstraint.maxLng || point2[1] > pathBboxConstraint.maxLat;
 
         let newPath = document.createElement('a-entity');
+        rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
+        /* Checks if the path is off the edge of the map */
+        if (outsideWindow1 || outsideWindow2) {
+            newPath.setAttribute("visible", false);     // Sets it invisible
+            continue;
+        }
+        let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
+        let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
         let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth) };
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", { roughness: "0.6", color: color });
@@ -141,7 +135,6 @@ async function addPath(feature, parentElement) {
         /* Place every path at ground level in case height map takes a while */
         newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), 0, (pixelCoords.y * pathCoordsScale));
         parentElement.appendChild(newPath);
-        rectangles[numberOfPaths].push(newPath);
 
         /* Waiting for the height map */
         if (lowQuality) continue;
@@ -155,11 +148,6 @@ async function addPath(feature, parentElement) {
             });
         });
     }
-}
-
-
-function addNodeToArrays(node) {
-
 }
 
 
@@ -223,8 +211,8 @@ function getRectangleCorners({ x: x1, y: y1 }, { x: x2, y: y2 }, width) {
  * Removes all the paths from the scene
  */
 function removeCurrentPaths() {
-    console.log("=== Deleting Buildings ===");
-    while (removeElement("pathParent")) { }
+    console.log("=== Deleting Paths ===");
+    removeAllChildren(pathParent);
 }
 
 

@@ -1,28 +1,34 @@
 'use strict';
-
 importScripts("utilities.js");
 
 self.onmessage = async function (e) {
-    console.log("THIS SHOULDNT BE UNDIFEINED: " + e.data.osmCacheName);
     var overpassQuery = e.data.overpassQuery;
-    if (e.data.osmCacheName != null) {
+    var osmCacheName = e.data.osmCacheName;
+    if (osmCacheName != null) {
         caches.match(overpassQuery)
             .then(async (response) => {
                 if (response) {     // If found in cache return response
                     console.log("Found it in cache! Fetch worker");
                     self.postMessage(await response.clone().text());
                 }
+                else {
+                    this.postWithFetch(overpassQuery, osmCacheName, caches.open(osmCacheName));
+                }
             });
-        var osmCache = caches.open(e.data.osmCacheName);   // Opens a new cache with the given name
     }
-    let test = await fetchWithRetry(overpassQuery).then(async (response) => {
-        if (e.data.osmCacheName != null) {
+    else {
+        this.postWithFetch(overpassQuery);
+    }
+}
+
+async function postWithFetch(overpassQuery, osmCacheName = null, osmCache) {
+    self.postMessage(await fetchWithRetry(overpassQuery).then(async (response) => {
+        if (osmCacheName != null) {
             osmCache.then((cache) => {
                 cache.put(overpassQuery, response);        //  Once fetched cache the response
                 console.log("Storing in cache Fetch worker");
             });
         }
         return await response.clone().text();
-    });
-    self.postMessage(test);
+    }));
 }

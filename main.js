@@ -1,4 +1,5 @@
 'use strict';
+
 const uniURL = "uniTiff/SD45ne_DTM_2m_Compressed.tif"
 const cityURL = "cityTiff/SD46se_DTM_2m_Compressed.tif"
 var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
@@ -33,10 +34,6 @@ const locationOptions = {
 const debug = true;
 const humanHeight = 1.2;    // Height of the user in metres
 const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
-var tiffImage;
-
-
-const fetchWorker = new Worker('fetchWorker.js');
 const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
     rasterWorker.postMessage({ uniURL: uniURL, cityURL: cityURL });
@@ -50,7 +47,8 @@ const rasters = new Promise((resolve, reject) => {
                 rasterFromURL(uniURL, pools[0]),
                 rasterFromURL(cityURL, pools[1])
             ]);
-            pools.forEach(pool => {
+            pools.forEach((pool, index) => {
+                pools[index] = undefined;
                 pool.destroy();
             });
             resolve({ uniRaster: rasters[0], cityRaster: rasters[1] })
@@ -79,34 +77,34 @@ function rasterFromURL(url, pool) {
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
 var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
-var cacheDeletionInterval;
+// var cacheDeletionInterval;
 /**
  * Deletes the cache and then opens a new cache.
  */
-async function deleteAndReOpenCache() {
-    await caches.delete(osmCacheName);
-    console.log("Cache Storage Deleted");
-    console.log("Opening New Cache Storage");
-    osmCache = caches.open(osmCacheName);
-}
+// async function deleteAndReOpenCache() {
+//     await caches.delete(osmCacheName);
+//     console.log("Cache Storage Deleted");
+//     console.log("Opening New Cache Storage");
+//     osmCache = caches.open(osmCacheName);
+// }
 /* Delete the cache when the page is unloaded. */
 window.addEventListener("unload", async function () {
     await caches.delete(osmCacheName);
 });
-/* Clearing the interval when the window is not in focus. */
-window.onblur = function () {
-    if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
-        cacheDeletionInterval = clearInterval(cacheDeletionInterval);
-        console.log("Interval Cleared");
-    }
-};
-/* Restarting the cache deletion interval when the window is in focus. */
-window.onfocus = function () {
-    if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
-        cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
-        console.log("Interval Restarted");
-    }
-};
+// /* Clearing the interval when the window is not in focus. */
+// window.onblur = function () {
+//     if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
+//         cacheDeletionInterval = clearInterval(cacheDeletionInterval);
+//         console.log("Interval Cleared");
+//     }
+// };
+// /* Restarting the cache deletion interval when the window is in focus. */
+// window.onfocus = function () {
+//     if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
+//         cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
+//         console.log("Interval Restarted");
+//     }
+// };
 
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
@@ -142,7 +140,7 @@ function showMap() {
     //     camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
     // });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
-    cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
+    // cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
     mapBeingShown = true;
 }
 
@@ -283,17 +281,27 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
 }
 
 
-/**
- * Remove the element with the given id from the document.
- * Does nothing if element does not exist.
- * @param id - The id of the element to remove.
- */
-function removeElement(id) {
-    let parentElement = document.getElementById(id);
-    if (parentElement) parentElement.remove();
-    return document.getElementById(id);
-}
+// /**
+//  * Remove the element with the given id from the document.
+//  * Does nothing if element does not exist.
+//  * @param id - The id of the element to remove.
+//  */
+// function removeElement(id) {
+//     let parentElement = document.getElementById(id);
+//     if (parentElement) parentElement.remove();
+//     return document.getElementById(id);
+// }
 
+
+/**
+ * While the element has a first child, remove that child.
+ * @param element - The element whose children you want to remove.
+ */
+function removeAllChildren(element) {
+    while (element.firstChild) {
+        element.removeChild(element.firstChild);
+    }
+}
 
 /**
  * Removes the current terrain and buildings
@@ -305,32 +313,17 @@ function removeCurrentMap() {
 }
 
 /**
- * If the element with the given ID exists, change its ID to the new ID.
- * @param elementID - The ID of the element you want to change.
- * @param newElementID - The new ID you want to give the element.
+ * It removes the sun from the scene if low quality is enabled, and adds it back in if low quality is
+ * disabled. Also, it sets the lowQuality variable to the given value.
+ * @param tempLowQuality - a boolean, true if low quality is to be set,
+ * false if high quality is to be set.
  */
-function changeElementID(elementID, newElementID) {
-    let element = document.getElementById(elementID);
-    if (element) element.setAttribute("id", newElementID);
-    return document.getElementById(elementID);
-}
-
-/**
- * It changes the ID of the terrain and building parents to "terrainToRemove" and "buildingsToRemove"
- * respectively.
- */
-function setCurrentMapForRemoval() {
-    while (changeElementID("terrainParent", "terrainToRemove")) { }
-    while (changeElementID("buildingParent", "buildingsToRemove")) { }
-    while (changeElementID("pathParent", "pathsToRemove")) { }
-}
-
-
-async function setLowQuality(tempLoqQuality) {
-    if (lowQuality == tempLoqQuality) return
-    lowQuality = tempLoqQuality;
-    if (tempLoqQuality) {
-        removeElement("sun");
+async function setLowQuality(tempLowQuality) {
+    if (lowQuality == tempLowQuality) return
+    lowQuality = tempLowQuality;
+    if (tempLowQuality) {
+        // removeElement("sun");
+        document.getElementById("sun").remove();
     }
     else {
         let newSun = document.createElement('a-simple-sun-sky');
@@ -343,47 +336,10 @@ async function setLowQuality(tempLoqQuality) {
     }
     await Promise.all([
         placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong),
-        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize),
+        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize)
     ]);
-    if (navigationInProgress) startNavigation();
+    carryOnNavigating();
 }
-
-
-
-
-// window.addEventListener("keydown", (event) => {
-//     if (event.defaultPrevented) {
-//       return; // Do nothing if the event was already processed
-//     }
-
-//     switch (event.key) {
-//       case "Shift":
-//         console.log("shift");
-//         this.dVelocity.y -= 1;
-//         break;
-//       case "Space":
-//         console.log("Space");
-//         this.dVelocity.y += 1;
-//         break;
-//     }
-// });
-AFRAME.registerComponent('flight-controls', {
-    getVelocityDelta: function () {
-        var data = this.data,
-            keys = this.getKeys();
-
-        this.dVelocity.set(0, 0, 0);
-        if (data.enabled) {
-            // NEW STUFF HERE
-            if (keys.KeySpaceBar) { console.log("Space"); this.dVelocity.y += 1; }
-            if (keys.KeyShift) { console.log("Shift"); this.dVelocity.y -= 1; }
-        }
-
-        return this.dVelocity.clone();
-    },
-});
-
-
 
 
 
@@ -398,11 +354,8 @@ document.addEventListener("keydown", function (event) {
     }
 });
 
-
 var touchstartX = 0;
 var touchendX = 0;
-
-// var gestureZone = document.getElementById("gestureZone");
 
 document.addEventListener("touchstart", function (event) {
     if (event.touches.length === 2) {
@@ -442,6 +395,5 @@ function toggleCameraView() {
 function toggleStats() {
     console.log("Toggling stats");
     let sceneElement = document.querySelector('a-scene');
-    console.log(sceneElement.getAttribute('stats'));
     sceneElement.setAttribute('stats', !sceneElement.getAttribute('stats'));
 }

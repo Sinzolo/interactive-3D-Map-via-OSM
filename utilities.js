@@ -1,5 +1,9 @@
 'use strict';
 
+const earthRadius = 6371e3;     // Earth's radius in metres
+const radianFactor = Math.PI / 180;
+const degreeFactor = 180 / Math.PI;
+
 /**
  * "Try to fetch the URL, and if it fails, wait a bit and try again, doubling the wait time each time,
  * until it succeeds or we run out of retries."
@@ -37,9 +41,11 @@ async function fetchWithRetry(url, retries = 10) {
     return response;
 }
 
+
 function debugLog(log) {
     if (debug == true) console.log(log);
 }
+
 
 /**
  * A function that can be used to wait a set time.
@@ -62,12 +68,34 @@ function sleep(seconds) {
 function getDistance(coord1, coord2) {
     const [lat1, lng1] = coord1;
     const [lat2, lng2] = coord2;
-    const lat1Rad = lat1 * Math.PI / 180;
-    const lat2Rad = lat2 * Math.PI / 180;
-    const latDelta = (lat2 - lat1) * Math.PI / 180;
-    const lngDelta = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(latDelta / 2) ** 2 + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(lngDelta / 2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = earthRadius * c;
+    const lat1Rad = lat1 * radianFactor;
+    const lat2Rad = lat2 * radianFactor;
+    const latDelta = (lat2 - lat1) * radianFactor;
+    const lngDelta = (lng2 - lng1) * radianFactor;
+    const intermediate = Math.sin(latDelta / 2) ** 2 + Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(lngDelta / 2) ** 2;
+    const distance = earthRadius * 2 * Math.atan2(Math.sqrt(intermediate), Math.sqrt(1 - intermediate));
     return distance;
+}
+
+
+/**
+ * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
+ * with sides of length metres
+ * @param metres - the length of one side of the square
+ * @param lat - latitude of the center of the bounding box
+ * @param long - longitude of the center of the bounding box
+ * @returns An object with the minLat, minLng, maxLat, and maxLng properties.
+ */
+function getBoundingBox(lat, long, metres) {
+    metres /= 2;
+    let latRadians = lat * radianFactor; // convert latitude to radians
+    let latDelta = metres / earthRadius;  // calculate change in latitude
+    let lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
+
+    return {
+        minLat: lat - latDelta * degreeFactor,
+        minLng: long - lngDelta * degreeFactor,
+        maxLat: lat + latDelta * degreeFactor,
+        maxLng: long + lngDelta * degreeFactor
+    };
 }
