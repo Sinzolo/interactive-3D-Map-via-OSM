@@ -13,6 +13,7 @@ function startNavigation() {
     pathPromise.then(function () {
         navigationInProgress = true;
         let destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
+        console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
         hideNavigationMenu();
         removeSpheres();
@@ -28,7 +29,7 @@ function startNavigation() {
             try {
                 rectangles[index[0]][Math.round(index[1] / 2)].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
             } catch (e) {
-                console.log("Error");
+                console.log("Could not find rectangle to colour (Most likely on purpose)");
             }
         }
     });

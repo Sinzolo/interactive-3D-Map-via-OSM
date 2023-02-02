@@ -2,34 +2,32 @@
 const pathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
-const pathHeightAboveGround = 0.16; // How far it should stick above ground
+const defaultPathHeightAboveGround = 0.16; // How far it should stick above ground
 const pathHeightUnderGround = 30;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
-const pathScale = 4.8;                                // Scaling the paths (bigger number = bigger path in the x and z)
+const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
-const pathLookAhead = 1500;         // How much bigger the bbox is for the paths to see ahead for navigation
+const pathLookAhead = 2500;         // How much bigger the bbox is for the paths to see ahead for navigation
 const pathParent = document.createElement('a-entity');
 pathParent.setAttribute("id", "pathParent");
 pathParent.setAttribute("class", "path");
 document.querySelector('a-scene').appendChild(pathParent);
 const highwayStyles = {
-    motorway: { color: "#404040", pathWidth: 1.6 },
-    trunk: { color: "#0000FF", pathWidth: 1.45 },
-    primary: { color: "#606060", pathWidth: 1.3 },
-    secondary: { color: "#707070", pathWidth: 1.2 },
-    tertiary: { color: "#808080", pathWidth: 1.05 },
-    residential: { color: "#909090", pathWidth: 1 },
-    unclassified: { color: "#9B9B9B", pathWidth: 1 },
-    service: { color: "#b3a994", pathWidth: 0.8 },
-    pedestrian: { color: "#ABABAB", pathWidth: 0.7 },
-    footway: { color: "#C6C6C6", pathWidth: 0.3 },
-    path: { color: "#C6C6C6", pathWidth: 0.3 },
-    steps: { color: "#FFFFFF", pathWidth: 0.3 },
+    motorway: { color: "#404040", pathWidth: 1.6, pathHeightAboveGround: defaultPathHeightAboveGround + 0.012 },    // Varrying heights to try and discourage z-fighting
+    trunk: { color: "#0000FF", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },
+    primary: { color: "#606060", pathWidth: 1.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0073 },
+    secondary: { color: "#707070", pathWidth: 1.2, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0051 },
+    tertiary: { color: "#808080", pathWidth: 1.05, pathHeightAboveGround: defaultPathHeightAboveGround + 0.004 },
+    residential: { color: "#909090", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
+    unclassified: { color: "#9B9B9B", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.002 },
+    service: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
+    pedestrian: { color: "#ABABAB", pathWidth: 0.7, pathHeightAboveGround: defaultPathHeightAboveGround + 0.016 },
+    footway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
+    path: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.018 },
+    steps: { color: "#FFFFFF", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.014 },
 };
 
 var numberOfPaths;
-var nodes;              // E.g., [[long,lat], [long,lat], ...]   Each node only once.
-var connectedNodes;     // E.g., [[], [0,2,3,8], [45,12,0], ...]  Each index of the outer array is the node and each number in the inner array is what that node is connected to
 var paths;              // E.g., [[0,1,2,3], [4,1,5,6,7,8], [9,10,11,3], ...]    Each index is a path and each number is a node that makes up that path
 var rectangles;         // E.g., [[rectangle1, rectangle2], [rectangle3], ...]   Each index is a path and each rectangle makes up that path
 var dijkstrasAlgorithm;
@@ -68,9 +66,7 @@ async function loadPaths(coordinate, bboxSize) {
         pathFetchWorker.onmessage = async function (e) {
             numberOfPaths = 0;
             paths = [];
-            nodes = [];
             rectangles = [];
-            connectedNodes = [];
             dijkstrasAlgorithm = new DijkstrasAlgo();
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
@@ -102,8 +98,8 @@ function convertOSMResponseToGeoJSON(response) {
 
 async function addPath(feature, parentElement, pathBboxConstraint) {
     let tags = feature.properties;
-    let { color, pathWidth } = highwayStyles[tags.highway] || { color: defaultPathColour, pathWidth: defaultPathWidth };
-    if (tags.service == "alley") { color = "#967A72"; pathWidth = 0.2; }
+    let { color, pathWidth, pathHeightAboveGround } = highwayStyles[tags.highway] || { color: defaultPathColour, pathWidth: defaultPathWidth, pathHeightAboveGround: defaultPathHeightAboveGround };
+    if (tags.service == "alley") { color = "#967A72"; pathWidth = 0.2; pathHeightAboveGround = defaultPathHeightAboveGround + 0.0155; }
 
     paths[numberOfPaths] = [];
     rectangles[numberOfPaths] = [];
@@ -116,19 +112,20 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         let outsideWindow1 = point1[0] < pathBboxConstraint.minLng || point1[1] < pathBboxConstraint.minLat || point1[0] > pathBboxConstraint.maxLng || point1[1] > pathBboxConstraint.maxLat;
         let outsideWindow2 = point2[0] < pathBboxConstraint.minLng || point2[1] < pathBboxConstraint.minLat || point2[0] > pathBboxConstraint.maxLng || point2[1] > pathBboxConstraint.maxLat;
 
-        let newPath = document.createElement('a-entity');
-        rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
         /* Checks if the path is off the edge of the map */
         if (outsideWindow1 || outsideWindow2) {
-            newPath.setAttribute("visible", false);     // Sets it invisible
+            rectangles[numberOfPaths].push(null);
+            // newPath.setAttribute("visible", false);     // Sets it invisible
             continue;
         }
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
-        let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth) };
+        let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth), height: pathHeightAboveGround };
+        let newPath = document.createElement('a-entity');
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", { roughness: "0.6", color: color });
         newPath.setAttribute("scale", pathScale + " 1 " + pathScale);
+        rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
 
         let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
 
@@ -149,20 +146,6 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         });
     }
 }
-
-
-// function getRectangleCorners(coord1, coord2) {
-//     let length = Math.hypot((coord1.x - coord2.x), (coord1.y - coord2.y));
-//     console.log("lenght = ", length);
-//     let midpoint = {x: (coord1.x + coord2.x)/2, y: (coord1.y + coord2.y)/2};
-
-//     let corner1 = {x: midpoint.x+length/2+pathWidth/2, y: midpoint.y+length/2-pathWidth/2};
-//     let corner2 = {x: midpoint.x+length/2-pathWidth/2, y: midpoint.y+length/2+pathWidth/2};
-//     let corner3 = {x: midpoint.x-length/2-pathWidth/2, y: midpoint.y-length/2+pathWidth/2};
-//     let corner4 = {x: midpoint.x-length/2+pathWidth/2, y: midpoint.y-length/2-pathWidth/2};
-
-//     return [new THREE.Vector2(corner1.x, corner1.y), new THREE.Vector2(corner2.x, corner2.y), new THREE.Vector2(corner3.x, corner3.y), new THREE.Vector2(corner4.x, corner4.y)];
-// }
 
 function segmentPath({ x: x1, y: y1 }, { x: x2, y: y2 }) {
     // TODO
@@ -221,7 +204,7 @@ AFRAME.registerGeometry('path', {
         fourCorners: {
             default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
         },
-        height: { type: 'number', default: pathHeightAboveGround },
+        height: { type: 'number', default: defaultPathHeightAboveGround },
     },
     init: function (data) {
         var shape = new THREE.Shape(data.fourCorners);
