@@ -20,15 +20,17 @@ var coordsTotal = { lat: 0, long: 0 };
 var mapBeingShown = false;
 var lowQuality = false;
 var heightMaps;
+var pathPromise;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const bboxSize = 300;                                     // Length of one side of bounding box in metres
-const distanceNeededToMove = (bboxSize / 2) * 0.70;            // Used to check if the user has moved far enough
+const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;            // Used to check if the user has moved far enough
+const distanceNeededToUpdateNavigation = 10;
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 0,    // Will only update every 600ms
+    maximumAge: 500,    // Will only update every 600ms
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
@@ -180,7 +182,8 @@ async function locationSuccess(position) {
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     console.log(newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
-    if (movedFarEnough(newPixelCoords)) await loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
+    if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
+    else if (movedFarEnoughForNavigation(newPixelCoords)) carryOnNavigating(pathPromise);
     placeCameraAtPixelCoords(newPixelCoords, newLatLong);
 }
 
@@ -207,11 +210,11 @@ function locationError(error) {
 
 
 /**
- * If the user has moved more than 'distanceNeededToMove' metres, return true
+ * If the user has moved more than 'distanceNeededToLoadNewChunk' metres, return true
  * @param newPixelCoords - The new pixel coordinates of the user.
  * @returns a boolean value.
  */
-function movedFarEnough(newPixelCoords) {
+function movedFarEnoughForMap(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
     if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
         console.log("First time moving");
@@ -228,14 +231,54 @@ function movedFarEnough(newPixelCoords) {
     console.log(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
-    if (xDistance > distanceNeededToMove || yDistance > distanceNeededToMove) {
+    if (xDistance > distanceNeededToLoadNewChunk || yDistance > distanceNeededToLoadNewChunk) {
         currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
         return true;
     }
     return false;
 }
 
+/**
+ * If the user has moved more than 'distanceNeededToUpdateNavigation' metres, return true
+ * @param newPixelCoords - The new pixel coordinates of the user.
+ * @returns a boolean value.
+ */
+function movedFarEnoughForNavigation(newPixelCoords) {
+    if (!navigationInProgress) return false;
 
+    // Storing how many metres the user has moved in the x and y directions.
+    let xDistance = usersCurrentPixelCoords.x - newPixelCoords.x;
+    xDistance = Math.abs(xDistance) * 2;
+    let yDistance = usersCurrentPixelCoords.y - newPixelCoords.y;
+    yDistance = Math.abs(yDistance) * 2;
+    console.log(xDistance);
+    console.log(yDistance);
+
+    if (xDistance > distanceNeededToUpdateNavigation || yDistance > distanceNeededToUpdateNavigation) {
+        return true;
+    }
+}
+
+/**
+ * It loads the map by getting the height map, removing the current map, loading the terrain, and
+ * loading the buildings.
+ * @param coordinate - The coordinate of the center of the map.
+ * @param pixelCoords - The pixel coordinates of the center of the map.
+ * @param bboxSize - The size of the bounding box in metres.
+ */
+async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
+    console.log("=== Loading Map ===");
+    heightMaps = getHeightMap(pixelCoords, bboxSize);
+    // heightMaps = new Promise((resolve, reject) => {
+    //     reject(new Error("Test error"));
+    // });
+    removeCurrentMap();
+    loadTerrain();
+    loadBuildings(coordinate, bboxSize);
+    pathPromise = loadPaths(coordinate, bboxSize);
+    carryOnNavigating(pathPromise);
+    return pathPromise;
+}
 
 /**
  * Places the camera at the pixel coords and sets the users current location variables.
@@ -258,40 +301,6 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
         console.log(err);
     });
 }
-
-
-/**
- * It loads the map by getting the height map, removing the current map, loading the terrain, and
- * loading the buildings.
- * @param coordinate - The coordinate of the center of the map.
- * @param pixelCoords - The pixel coordinates of the center of the map.
- * @param bboxSize - The size of the bounding box in metres.
- */
-async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
-    console.log("=== Loading Map ===");
-    heightMaps = getHeightMap(pixelCoords, bboxSize);
-    // heightMaps = new Promise((resolve, reject) => {
-    //     reject(new Error("Test error"));
-    // });
-    removeCurrentMap();
-    loadTerrain();
-    loadBuildings(coordinate, bboxSize);
-    loadPaths(coordinate, bboxSize);
-    carryOnNavigating();
-}
-
-
-// /**
-//  * Remove the element with the given id from the document.
-//  * Does nothing if element does not exist.
-//  * @param id - The id of the element to remove.
-//  */
-// function removeElement(id) {
-//     let parentElement = document.getElementById(id);
-//     if (parentElement) parentElement.remove();
-//     return document.getElementById(id);
-// }
-
 
 /**
  * While the element has a first child, remove that child.
@@ -334,11 +343,12 @@ async function setLowQuality(tempLowQuality) {
         newSun.setAttribute("fog-color", "#74d2fa");
         document.querySelector('a-scene').appendChild(newSun);
     }
+    let pathPromise;
     await Promise.all([
-        placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong),
-        loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize)
+        pathPromise = loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize),
+        placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong)
     ]);
-    carryOnNavigating();
+    carryOnNavigating(pathPromise);
 }
 
 

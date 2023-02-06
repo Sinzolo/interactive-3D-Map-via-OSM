@@ -54,17 +54,20 @@ async function loadBuildings(coordinate, bboxSize) {
     //         return itemJSON
     //     });
 
-    buildingFetchWorker.onmessage = async function (e) {
-        numberOfBuildings = 0;
-        convertOSMResponseToGeoJSON(e.data).features.forEach(feature => {
-            if (feature.geometry.type == "Polygon") {
-                addBuilding(feature, buildingParent);
-                numberOfBuildings += 1;
-            } else {
-            }
-        });
-        console.log("Number of buidlings: ", numberOfBuildings);
-    }
+    return new Promise(resolve => {
+        buildingFetchWorker.onmessage = async function (e) {
+            numberOfBuildings = 0;
+            convertOSMResponseToGeoJSON(e.data).features.forEach(feature => {
+                if (feature.geometry.type == "Polygon") {
+                    addBuilding(feature, buildingParent);
+                    numberOfBuildings += 1;
+                } else {
+                }
+            });
+            console.log("Number of buidlings: ", numberOfBuildings);
+            resolve("Finished Adding Buildings");
+        }
+    });
 }
 
 

@@ -14,7 +14,7 @@ pathParent.setAttribute("class", "path");
 document.querySelector('a-scene').appendChild(pathParent);
 const highwayStyles = {
     motorway: { color: "#404040", pathWidth: 1.6, pathHeightAboveGround: defaultPathHeightAboveGround + 0.012 },    // Varrying heights to try and discourage z-fighting
-    trunk: { color: "#0000FF", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },
+    trunk: { color: "#505050", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },
     primary: { color: "#606060", pathWidth: 1.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0073 },
     secondary: { color: "#707070", pathWidth: 1.2, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0051 },
     tertiary: { color: "#808080", pathWidth: 1.05, pathHeightAboveGround: defaultPathHeightAboveGround + 0.004 },
@@ -62,7 +62,7 @@ async function loadPaths(coordinate, bboxSize) {
         pathFetchWorker.postMessage({ overpassQuery });
     }
 
-    pathPromise = new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
         pathFetchWorker.onmessage = async function (e) {
             numberOfPaths = 0;
             paths = [];
@@ -118,14 +118,18 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
             // newPath.setAttribute("visible", false);     // Sets it invisible
             continue;
         }
+
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
+
         let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth), height: pathHeightAboveGround };
         let newPath = document.createElement('a-entity');
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", { roughness: "0.6", color: color });
         newPath.setAttribute("scale", pathScale + " 1 " + pathScale);
-        rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
+
+        if (tags.highway != 'motorway') rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
+        else rectangles[numberOfPaths].push(null);
 
         let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
 

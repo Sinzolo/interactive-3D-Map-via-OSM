@@ -62,8 +62,11 @@
                 max="90" value="54.010930" required> /
             <input id="destinationLong" type="number" class="coords" placeholder="longitude" step="0.00001" min="-180"
                 max="180" value="-2.783544" required><br>
-            <button id="startNavigationBtn" onclick="startNavigation()">Go!</button>
+            <button id="startNavigationBtn" onclick="navigate(pathPromise)">Go!</button>
             <button id="hideNavigationMenuBtn" onclick="hideNavigationMenu()">Cancel</button>
+        </div>
+        <div id="destinationFoundMessage" style="display: none">
+            Reached destination! You can now navigate freely.
         </div>
         <label id="loading" style="display: none">Loading</label>
 

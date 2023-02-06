@@ -1,7 +1,10 @@
 'use strict';
 
+const sceneElement = document.querySelector('a-scene');
 const sphereHeightAboveGround = 4.6;
 var navigationInProgress = false;
+var currentRectanglesInPaths = [];
+var destinationLatLong;
 
 /**
  * The function starts navigation by finding the closest path node to the user's current location and
@@ -9,16 +12,17 @@ var navigationInProgress = false;
  * and finally it highlights the path to the destination by changing the color of the rectangles that
  * make up the path.
  */
-function startNavigation() {
+function navigate(pathPromise) {
     pathPromise.then(function () {
         navigationInProgress = true;
-        let destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
+        destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
         console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
         hideNavigationMenu();
         removeSpheres();
-        findClosestPathNode(usersCurrentLatLong, "#00FF00");
-        findClosestPathNode(destinationLatLong, "#FF0000");
+        uncolourRectangles();
+        addFloatingSphere(usersCurrentLatLong, "#00FF00");
+        addFloatingSphere(destinationLatLong, "#FF0000");
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
         console.log(pathToDest);
 
@@ -27,8 +31,12 @@ function startNavigation() {
             const node2 = pathToDest[pathToDestIndex];
             let index = find2DIndex([node1, node2])
             try {
-                rectangles[index[0]][Math.round(index[1] / 2)].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
+                let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
+                currentRectanglesInPaths.push({rectangle, color: rectangle.getAttribute('material').color});
+                currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.setAttribute("material", { color: "#FF00FF" })
+                // rectangles[index[0]][Math.round(index[1] / 2)].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
             } catch (e) {
+                console.log(e);
                 console.log("Could not find rectangle to colour (Most likely on purpose)");
             }
         }
@@ -38,8 +46,27 @@ function startNavigation() {
 /**
  * If the navigation is in progress, start the navigation
  */
-function carryOnNavigating() {
-    if (navigationInProgress) startNavigation();
+function carryOnNavigating(pathPromise) {
+    if (!navigationInProgress) return;
+    if (checkDestinationReached()) stopNavigation();
+    navigate(pathPromise);
+}
+
+function stopNavigation() {
+    navigationInProgress = false;
+    destinationLatLong = null;
+    removeSpheres();
+    uncolourRectangles();
+    showDestinationFoundMessage();
+}
+
+/**
+ * It takes the user's current location and the destination location and calculates the distance
+ * between them. If the distance is less than 8 meters, it returns true. Otherwise, it returns false
+ * @returns A boolean value.
+ */
+function checkDestinationReached() {
+    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < 8;
 }
 
 /**
@@ -69,21 +96,14 @@ function areCoordsValid(coords) {
     return coords.lat !== "" && coords.long !== "" && coords.lat >= -90 && coords.lat <= 90 && coords.long >= -180 && coords.long <= 180;
 }
 
-
 /**
- * It takes a latitude and longitude and finds the closest node in the path network to that point
- * @param coords - The coordinates of the point you want to find the closest path node to.
+ * Places a floating sphere above the node closest to the given coordinates.
+ * @param coords - The coordinates
  * @param colour - The colour of the sphere
- * @returns The closest node to the given coords.
  */
-function findClosestPathNode(coords, colour) {
-    let target = [coords.long, coords.lat];         // Swap to make it long, lat as thats the way the nodes come from OSM
+function addFloatingSphere(coords, colour) {
     const closestIndex = dijkstrasAlgorithm.findClosestPathNodeIndex([coords.lat, coords.long]);
-    console.log(closestIndex);
-    console.log(dijkstrasAlgorithm.getNodes()[closestIndex]);
-
     const pixelCoords = convertLatLongToPixelCoords({ lat: dijkstrasAlgorithm.getNodes()[closestIndex][1], long: dijkstrasAlgorithm.getNodes()[closestIndex][0] });
-    const sceneElement = document.querySelector('a-scene');
     let newSphere = document.createElement('a-sphere');
     newSphere.setAttribute("color", colour);
     newSphere.setAttribute("position", pixelCoords.x + " " + sphereHeightAboveGround + " " + pixelCoords.y);
@@ -107,4 +127,20 @@ function removeSpheres() {
     });
 }
 
+/**
+ * It takes all the rectangles that are currently in the path, and sets their color back to what it was
+ * before.
+ */
+function uncolourRectangles() {
+    currentRectanglesInPaths.forEach(({rectangle, color}) => {
+        rectangle.setAttribute("material", { color });
+    });
+    currentRectanglesInPaths = [];
+}
 
+function showDestinationFoundMessage() {
+    document.getElementById("destinationFoundMessage").style.display = "block";
+    sleep(2).then(() => {
+        document.getElementById("destinationFoundMessage").style.display = "none";
+    });
+}

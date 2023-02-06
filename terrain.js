@@ -24,12 +24,16 @@ async function getHeightMap(pixelCoords, bboxSize) {
     let offset = Math.round(bboxSize / (2 * twfData[0])); // Converts bbox size into an offset
     tiffWindow = [xPixel - offset, yPixel - offset, xPixel + offset, yPixel + offset];
 
-    let heightMaps = currentRaster.then((raster) => {
+    if (lowQuality) {
+        return new Promise(reject => {
+            reject("Low quality mode is on.");
+        });
+    }
+    return currentRaster.then((raster) => {
         let twoDHeightMapArray = convert1DArrayTo2DArray(raster);
         let windowedTwoDHeightMapArray = getAreaOf2DArray(twoDHeightMapArray, tiffWindow[0], tiffWindow[1], tiffWindow[2], tiffWindow[3]);
         return { windowedTwoDHeightMapArray: windowedTwoDHeightMapArray, twoDHeightMapArray: twoDHeightMapArray }
     });
-    return heightMaps;
 }
 
 
@@ -61,19 +65,23 @@ function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
  * @returns void
  */
 function loadTerrain() {
-    console.log("=== Loading Terrain ===");
-    removeCurrentTerrain();
-    drawTriangles(createTrianglesForTerrain(xzScale, true));    // Draws a flat terrain while waiting for the height map
-    if (lowQuality) return;
-    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([heightMap, _unused]) => {  // Waits for both height maps to succeed
-            removeCurrentTerrain();
-            drawTriangles(createTrianglesForTerrain(xzScale, false, heightMap));    // Draws a height map accurate terrain
+    return new Promise((resolve, reject) => {
+        console.log("=== Loading Terrain ===");
+        removeCurrentTerrain();
+        drawTriangles(createTrianglesForTerrain(xzScale, true));    // Draws a flat terrain while waiting for the height map
+        resolve("Flat Terrain Drawn");
+        if (lowQuality) return;
+        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([heightMap, _unused]) => {  // Waits for both height maps to succeed
+                removeCurrentTerrain();
+                drawTriangles(createTrianglesForTerrain(xzScale, false, heightMap));    // Draws a height map accurate terrain
+                resolve("Height-Based Terrain Drawn");
+            }).catch((err) => {
+                console.log(err);
+            });
         }).catch((err) => {
             console.log(err);
         });
-    }).catch((err) => {
-        console.log(err);
     });
 }
 
