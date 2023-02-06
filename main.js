@@ -23,14 +23,16 @@ var heightMaps;
 var pathPromise;
 
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
-const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const pathCoordsScale = 1 / (twfData[0] + pathScale - 1); // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
-const bboxSize = 300;                                     // Length of one side of bounding box in metres
-const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;            // Used to check if the user has moved far enough
-const distanceNeededToUpdateNavigation = 10;
+const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
+const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
+const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
+const grassAreaCoordsScale = 1 / (twfData[0] + grassAreaScale - 1);             // ^^
+const bboxSize = 300;      // Length of one side of bounding box in metres
+const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
+const distanceNeededToUpdateNavigation = 16;
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 500,    // Will only update every 600ms
+    maximumAge: 0,      // How often the location should be updated
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
@@ -69,11 +71,6 @@ function rasterFromURL(url, pool) {
     }).then(image => {
         return image.readRasters({ pool });
     });
-
-    // .catch((err) => {
-    //     console.log(err)
-    //     reject(err);
-    // })
 }
 
 
@@ -183,7 +180,7 @@ async function locationSuccess(position) {
     console.log(newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
     if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
-    else if (movedFarEnoughForNavigation(newPixelCoords)) carryOnNavigating(pathPromise);
+    else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
     placeCameraAtPixelCoords(newPixelCoords, newLatLong);
 }
 
@@ -243,20 +240,15 @@ function movedFarEnoughForMap(newPixelCoords) {
  * @param newPixelCoords - The new pixel coordinates of the user.
  * @returns a boolean value.
  */
-function movedFarEnoughForNavigation(newPixelCoords) {
+function movedFarEnoughForNavigation(newLatLong) {
     if (!navigationInProgress) return false;
-
-    // Storing how many metres the user has moved in the x and y directions.
-    let xDistance = usersCurrentPixelCoords.x - newPixelCoords.x;
-    xDistance = Math.abs(xDistance) * 2;
-    let yDistance = usersCurrentPixelCoords.y - newPixelCoords.y;
-    yDistance = Math.abs(yDistance) * 2;
-    console.log(xDistance);
-    console.log(yDistance);
-
-    if (xDistance > distanceNeededToUpdateNavigation || yDistance > distanceNeededToUpdateNavigation) {
+    let distance = getDistance([sourceLatLong.lat, sourceLatLong.long], [newLatLong.lat, newLatLong.long]);
+    console.log("Distance: " + distance + " metres");
+    if (distance > distanceNeededToUpdateNavigation) {
+        console.log("Moved far enough!");
         return true;
     }
+    return false;
 }
 
 /**
@@ -276,7 +268,8 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
     pathPromise = loadPaths(coordinate, bboxSize);
-    carryOnNavigating(pathPromise);
+    loadGreenery(coordinate, bboxSize);
+    // carryOnNavigating(pathPromise);
     return pathPromise;
 }
 
@@ -319,6 +312,8 @@ function removeCurrentMap() {
     removeCurrentTerrain();
     removeCurrentBuildings();
     removeCurrentPaths();
+    removeCurrentPedestrianAreas();
+    removeCurrentGreenery();
 }
 
 /**

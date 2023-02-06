@@ -31,6 +31,7 @@
     <script defer src="utilities.js"></script>
     <script defer src="osmtogeojson.min.js"></script>
     <script defer src="conversions.js"></script>
+    <script defer src="greenery.js"></script>
     <script defer src="terrain.js"></script>
     <script defer src="buildings.js"></script>
     <script defer src="DijkstrasAlgo.js"></script>
@@ -65,8 +66,11 @@
             <button id="startNavigationBtn" onclick="navigate(pathPromise)">Go!</button>
             <button id="hideNavigationMenuBtn" onclick="hideNavigationMenu()">Cancel</button>
         </div>
-        <div id="destinationFoundMessage" style="display: none">
-            Reached destination! You can now navigate freely.
+        <div id="myModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <p>Destination Reached!</p>
+            </div>
         </div>
         <label id="loading" style="display: none">Loading</label>
 
@@ -79,7 +83,7 @@
             <a-entity id="rig" rotation="0 -90 0">
                 <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
                 <a-entity id="debugCamera" camera="active: false" look-controls
-                    wasd-controls="acceleration: 200; fly: true"></a-entity>
+                    wasd-controls="acceleration: 500; fly: true"></a-entity>
             </a-entity>
         </a-scene>
     </div>

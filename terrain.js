@@ -2,7 +2,7 @@
 
 const yScale = 1;
 const xzScale = 12;      // Smaller number = more triangles that make up the terrain = worse performance
-const groundColour = "#4A9342";
+const groundColour = "#367d3f";
 var tiffWindow;
 var triangleParent = document.createElement('a-entity');
 triangleParent.setAttribute("id", "terrainParent");
@@ -47,6 +47,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
  * @returns A 2D array of the values in the original array between the min and max values.
  */
 function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
+    console.log(maxX - minX, maxY - minY);
     let windowedTwoDArray = [];
     for (let x = 0; x < maxX - minX; x++) {
         windowedTwoDArray[x] = [];

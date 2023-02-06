@@ -2,8 +2,11 @@
 
 const sceneElement = document.querySelector('a-scene');
 const sphereHeightAboveGround = 4.6;
+const modal = document.getElementById("myModal");
+const span = document.getElementsByClassName("close")[0];
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
+var sourceLatLong = {lat: -1, long: -1};
 var destinationLatLong;
 
 /**
@@ -18,6 +21,7 @@ function navigate(pathPromise) {
         destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
         console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
+        sourceLatLong = usersCurrentLatLong;
         hideNavigationMenu();
         removeSpheres();
         uncolourRectangles();
@@ -34,7 +38,6 @@ function navigate(pathPromise) {
                 let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
                 currentRectanglesInPaths.push({rectangle, color: rectangle.getAttribute('material').color});
                 currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.setAttribute("material", { color: "#FF00FF" })
-                // rectangles[index[0]][Math.round(index[1] / 2)].setAttribute("material", { roughness: "0.6", color: "#FF00FF" });
             } catch (e) {
                 console.log(e);
                 console.log("Could not find rectangle to colour (Most likely on purpose)");
@@ -48,11 +51,16 @@ function navigate(pathPromise) {
  */
 function carryOnNavigating(pathPromise) {
     if (!navigationInProgress) return;
-    if (checkDestinationReached()) stopNavigation();
+    console.log("Peen");
+    if (checkDestinationReached()) {
+        stopNavigation();
+        return;
+    }
     navigate(pathPromise);
 }
 
 function stopNavigation() {
+    console.log("Destination reached!");
     navigationInProgress = false;
     destinationLatLong = null;
     removeSpheres();
@@ -66,7 +74,8 @@ function stopNavigation() {
  * @returns A boolean value.
  */
 function checkDestinationReached() {
-    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < 8;
+    console.log("Distance: " + getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) + "m");
+    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < 25;
 }
 
 /**
@@ -139,8 +148,20 @@ function uncolourRectangles() {
 }
 
 function showDestinationFoundMessage() {
-    document.getElementById("destinationFoundMessage").style.display = "block";
-    sleep(2).then(() => {
-        document.getElementById("destinationFoundMessage").style.display = "none";
-    });
+    console.log("Showing destination found message");
+    modal.style.display = "block";
+    modal.style.animationName = "modalSlideUp";
+    setTimeout(() => {
+        console.log("Hiding destination found message");
+        modal.style.animationName = "modalSlideDown";
+        setTimeout(hideModal, 600);
+    }, 3500);
+}
+
+function hideModal() {
+    modal.style.display = "none";
+}
+
+span.onclick = function () {
+    modal.style.display = "none";
 }

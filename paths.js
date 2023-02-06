@@ -7,7 +7,7 @@ const pathHeightUnderGround = 30;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
-const pathLookAhead = 2500;         // How much bigger the bbox is for the paths to see ahead for navigation
+const pathLookAhead = 1500;         // How much bigger the bbox is for the paths to see ahead for navigation
 const pathParent = document.createElement('a-entity');
 pathParent.setAttribute("id", "pathParent");
 pathParent.setAttribute("class", "path");
@@ -26,6 +26,15 @@ const highwayStyles = {
     path: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.018 },
     steps: { color: "#FFFFFF", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.014 },
 };
+
+const defaultPedestrianAreaColour = "#808080";
+const pedestrianAreaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
+const defaultPedestrianAreaHeightAboveGround = defaultPathHeightAboveGround; // How far it should stick above ground
+const areaHeightUnderGround = 30;   // How far it should stick below ground
+const pedestrianAreaParent = document.createElement('a-entity');
+pedestrianAreaParent.setAttribute("id", "pedestrianAreaParent");
+pedestrianAreaParent.setAttribute("class", "pedestrianArea");
+document.querySelector('a-scene').appendChild(pedestrianAreaParent);
 
 var numberOfPaths;
 var paths;              // E.g., [[0,1,2,3], [4,1,5,6,7,8], [9,10,11,3], ...]    Each index is a path and each number is a node that makes up that path
@@ -71,14 +80,13 @@ async function loadPaths(coordinate, bboxSize) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
                 if (feature.geometry.type == "Polygon") {   // Pedestrian Area
+                    addPedestrianArea(feature, pedestrianAreaParent, pathBboxConstraint);
                 }
                 else if (feature.geometry.type == "LineString") {   // Path
                     addPath(feature, pathParent, pathBboxConstraint);
                     numberOfPaths++;
                 }
             });
-            console.log("paths", paths);
-            console.log("rectangles", rectangles);
             console.log("Number of paths: ", numberOfPaths);
             resolve("Finished Adding Paths");
         }
@@ -151,14 +159,6 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
     }
 }
 
-function segmentPath({ x: x1, y: y1 }, { x: x2, y: y2 }) {
-    // TODO
-}
-
-function findAngleBetweenTwoCoords({ x: x1, y: y1 }, { x: x2, y: y2 }) {
-    // TODO
-}
-
 /**
  * Returns the four corners of a rectangle that is around the line between the two points.
  * @param width - The width of the rectangle
@@ -202,6 +202,69 @@ function removeCurrentPaths() {
     removeAllChildren(pathParent);
 }
 
+/**
+ * Removes all the paths from the scene
+ */
+function removeCurrentPedestrianAreas() {
+    console.log("=== Deleting Pedestrian Areas ===");
+    removeAllChildren(pedestrianAreaParent);
+}
+
+function addPedestrianArea(feature, parentElement, pathBboxConstraint) {
+    return new Promise((resolve, reject) => {
+        let tags = feature.properties;
+        let colour = tags.colour || defaultPedestrianAreaColour;
+
+        let outerPoints = [];
+        let innerPoints = [];
+        let sumOfLatCoords = 0;
+        let sumOfLongCoords = 0;
+        let count = 0;
+        /* Loops through every coordinate of the area.
+        The first set of coordinates are for the outside points of the area,
+        the rest are for the inner part of the area that is missing */
+        for (let i = 0; i < feature.geometry.coordinates.length; i++) {
+            let currentPoints = [];
+            for (let j = 0; j < feature.geometry.coordinates[i].length; j++) {
+                let point = feature.geometry.coordinates[i][j];
+                let outsideWindow = point[0] < pathBboxConstraint.minLng || point[1] < pathBboxConstraint.minLat || point[0] > pathBboxConstraint.maxLng || point[1] > pathBboxConstraint.maxLat;
+                if (outsideWindow) return;  // Checks if the area is off the edge of the map
+                sumOfLatCoords += point[1];
+                sumOfLongCoords += point[0];
+                count++;
+                let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
+                currentPoints.push(new THREE.Vector2(pixelCoords.x * pedestrianAreaCoordsScale, pixelCoords.y * pedestrianAreaCoordsScale));
+            }
+            if (!outerPoints.length) {
+                outerPoints = currentPoints;
+            }
+            else {
+                innerPoints.push(currentPoints);
+            }
+        }
+
+        let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
+        let newPedestrianArea = document.createElement('a-entity');
+        newPedestrianArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultPedestrianAreaHeightAboveGround });
+        newPedestrianArea.setAttribute("material", { roughness: "0.6", color: colour });
+        newPedestrianArea.setAttribute("scale", pedestrianAreaScale + " " + 1 + " " + pedestrianAreaScale);
+        newPedestrianArea.object3D.position.set((pixelCoords.x * pedestrianAreaCoordsScale), 0, (pixelCoords.y * pedestrianAreaCoordsScale));
+        parentElement.appendChild(newPedestrianArea);
+
+        if (lowQuality) return;
+        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
+                try {
+                    newPedestrianArea.object3D.position.set((pixelCoords.x * pedestrianAreaCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pedestrianAreaCoordsScale));
+                } catch {
+                    throw new Error("Specfic location on height map not found! (My own error)");
+                }
+            });
+        });
+        resolve();
+    });
+}
+
 
 AFRAME.registerGeometry('path', {
     schema: {
@@ -213,6 +276,33 @@ AFRAME.registerGeometry('path', {
     init: function (data) {
         var shape = new THREE.Shape(data.fourCorners);
         var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + pathHeightUnderGround, bevelEnabled: false });
+        // As Y is the coordinate going up, let's rotate by 90° to point Z up.
+        geometry.rotateX(-Math.PI / 2);
+        // Rotate around Y and Z as well to make it show up correctly.
+        geometry.rotateY(Math.PI);
+        geometry.rotateZ(Math.PI);
+        // Now we would point under ground, move up the height, and any above-ground space as well.
+        geometry.translate(0, data.height, 0);
+        geometry.center;
+        this.geometry = geometry;
+    }
+});
+
+
+AFRAME.registerGeometry('area', {
+    schema: {
+        outerPoints: {
+            default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
+        },
+        innerPoints: {
+            default: [],
+        },
+        height: { type: 'number', default: defaultPedestrianAreaHeightAboveGround },
+    },
+    init: function (data) {
+        var shape = new THREE.Shape(data.outerPoints);
+        for (let point of data.innerPoints) shape.holes.push(new THREE.Path(point));
+        var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + areaHeightUnderGround, bevelEnabled: false });
         // As Y is the coordinate going up, let's rotate by 90° to point Z up.
         geometry.rotateX(-Math.PI / 2);
         // Rotate around Y and Z as well to make it show up correctly.
