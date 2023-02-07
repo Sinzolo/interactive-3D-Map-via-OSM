@@ -36,7 +36,6 @@ async function getHeightMap(pixelCoords, bboxSize) {
     });
 }
 
-
 /**
  * Get the area of the given 2D array and return it as a 2D array.
  * @param twoDArray - the 2D array to get the area from
@@ -47,7 +46,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
  * @returns A 2D array of the values in the original array between the min and max values.
  */
 function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
-    console.log(maxX - minX, maxY - minY);
+    // console.log(maxX - minX, maxY - minY);
     let windowedTwoDArray = [];
     for (let x = 0; x < maxX - minX; x++) {
         windowedTwoDArray[x] = [];
@@ -58,7 +57,6 @@ function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
     twoDArray = null;
     return windowedTwoDArray;
 }
-
 
 /**
  * It draws a flat terrain while waiting for the height map, then draws a height map accurate terrain
@@ -86,23 +84,15 @@ function loadTerrain() {
     });
 }
 
-
 /**
  * It takes an array of triangles and adds them to the scene.
  * @param triangles - an array of triangle entities
  */
 function drawTriangles(triangles) {
-    
-    // triangleParent.setAttribute("geometry-merger", { preserveOriginal: "false" });
-    // triangleParent.setAttribute("geometry-merger", "preserveOriginal: false");
-    // <a-entity geometry-merger="preserveOriginal: true" material="vertexColors: face">
-    //   
-    // </a-entity>
     triangles.forEach(triangle => {
         triangleParent.appendChild(triangle);
     });
 }
-
 
 /**
  * It takes a resolution, a boolean for whether the terrain should be flat, and a height map, and
@@ -126,20 +116,7 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
                 vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
-            // newTriangle.setAttribute("face-colors", { color: groundColour });
-            // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z]) + " " + (z + tiffWindow[1]));
-            // newTriangle.setAttribute("vertex-b", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            // newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
             triangles.push(newTriangle);
-
-            // <a-entity geometry="primitive: triangle; buffer: false; vertex-a: 4 10 2" material="visible: false" face-colors="color: red"
-    //         position="-2 0.75 -3"></a-entity>
-    //     <a-entity geometry="primitive: triangle; buffer: false; vertex-a: 2 10 4" material="visible: false"
-    //         face-colors="color: red" position="-2 0.75 -3"></a-entity>
-    //     <a-entity geometry="primitive: sphere; buffer: false" material="visible: false" face-colors="color: blue"
-    //         position="0 0.75 -3"></a-entity>
-    //     <a-entity geometry="primitive: cylinder; buffer: false" material="visible: false" face-colors="color: green"
-    //         position="2 0.75 -3" scale="0.5 0.5 0.5"></a-entity>
 
             newTriangle = document.createElement('a-entity');
             newTriangle.setAttribute("geometry", {
@@ -149,15 +126,11 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
                 vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
-            // newTriangle.setAttribute("vertex-a", (x + tiffWindow[0]) + " " + ((flat) ? 0 : heightMap[x][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            // newTriangle.setAttribute("vertex-b", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z + xzScale]) + " " + (z + tiffWindow[1] + resolution));
-            // newTriangle.setAttribute("vertex-c", (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z]) + " " + (z + tiffWindow[1]));
             triangles.push(newTriangle);
         }
     }
     return triangles;
 }
-
 
 /**
  * Removes the terrain from the scene

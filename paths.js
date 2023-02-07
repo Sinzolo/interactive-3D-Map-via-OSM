@@ -2,7 +2,7 @@
 const pathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
-const defaultPathHeightAboveGround = 0.16; // How far it should stick above ground
+const defaultPathHeightAboveGround = 0.14; // How far it should stick above ground
 const pathHeightUnderGround = 30;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
@@ -28,8 +28,8 @@ const highwayStyles = {
 };
 
 const defaultPedestrianAreaColour = "#808080";
-const pedestrianAreaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
-const defaultPedestrianAreaHeightAboveGround = defaultPathHeightAboveGround; // How far it should stick above ground
+const pedestrianAreaScale = 5.1;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
+const defaultPedestrianAreaHeightAboveGround = defaultPathHeightAboveGround + 0.001; // How far it should stick above ground
 const areaHeightUnderGround = 30;   // How far it should stick below ground
 const pedestrianAreaParent = document.createElement('a-entity');
 pedestrianAreaParent.setAttribute("id", "pedestrianAreaParent");
@@ -42,6 +42,13 @@ var rectangles;         // E.g., [[rectangle1, rectangle2], [rectangle3], ...]  
 var dijkstrasAlgorithm;
 var pathPromise;
 
+/**
+ * It takes a coordinate and a bounding box size, and then it fetches all the paths within that
+ * bounding box from the Overpass API, and then it adds them to the scene.
+ * @param coordinate - The coordinate of the user's location
+ * @param bboxSize - The size of the bounding box to load paths in
+ * @returns A promise that resolves when the paths have been loaded
+ */
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
@@ -51,6 +58,7 @@ async function loadPaths(coordinate, bboxSize) {
         "[timeout:40];" +
         "(way[highway=path](" + stringBBox + ");" +
         "way[highway=pedestrian](" + stringBBox + ");" +
+        "rel[highway=pedestrian](" + stringBBox + ");" +
         "way[highway=footway](" + stringBBox + ");" +
         "way[highway=steps](" + stringBBox + ");" +
         "way[highway=motorway](" + stringBBox + ");" +
@@ -93,17 +101,6 @@ async function loadPaths(coordinate, bboxSize) {
     });
 }
 
-
-/**
- * Takes an XML response from the OSM API and converts it to GeoJSON
- * @param response - The response from the OSM API.
- * @returns A GeoJSON object.
- */
-function convertOSMResponseToGeoJSON(response) {
-    return osmtogeojson(new DOMParser().parseFromString(response, "application/xml"));
-}
-
-
 async function addPath(feature, parentElement, pathBboxConstraint) {
     let tags = feature.properties;
     let { color, pathWidth, pathHeightAboveGround } = highwayStyles[tags.highway] || { color: defaultPathColour, pathWidth: defaultPathWidth, pathHeightAboveGround: defaultPathHeightAboveGround };
@@ -117,19 +114,19 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         let point2 = feature.geometry.coordinates[i];
         if (tags.highway != 'motorway') dijkstrasAlgorithm.addPair(point1, point2);  // Doesn't add motorways to the navigation graph
 
+        /* Checks if the path is off the edge of the map */
         let outsideWindow1 = point1[0] < pathBboxConstraint.minLng || point1[1] < pathBboxConstraint.minLat || point1[0] > pathBboxConstraint.maxLng || point1[1] > pathBboxConstraint.maxLat;
         let outsideWindow2 = point2[0] < pathBboxConstraint.minLng || point2[1] < pathBboxConstraint.minLat || point2[0] > pathBboxConstraint.maxLng || point2[1] > pathBboxConstraint.maxLat;
-
-        /* Checks if the path is off the edge of the map */
         if (outsideWindow1 || outsideWindow2) {
             rectangles[numberOfPaths].push(null);
-            // newPath.setAttribute("visible", false);     // Sets it invisible
             continue;
         }
 
+        // Converts the lat/long coordinates to pixel coordinates
         let pixelCoords1 = convertLatLongToPixelCoords({ lat: point1[1], long: point1[0] });
         let pixelCoords2 = convertLatLongToPixelCoords({ lat: point2[1], long: point2[0] });
 
+        // Creates a path entity
         let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth), height: pathHeightAboveGround };
         let newPath = document.createElement('a-entity');
         newPath.setAttribute("geometry", pathProperties);
@@ -139,9 +136,8 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         if (tags.highway != 'motorway') rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
         else rectangles[numberOfPaths].push(null);
 
-        let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
-
         /* Place every path at ground level in case height map takes a while */
+        let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
         newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), 0, (pixelCoords.y * pathCoordsScale));
         parentElement.appendChild(newPath);
 
@@ -210,6 +206,13 @@ function removeCurrentPedestrianAreas() {
     removeAllChildren(pedestrianAreaParent);
 }
 
+/**
+ * It takes a pedestrian area feature, and creates a 3D model of it in the scene.
+ * @param feature - The pedestrian area feature that is being added to the scene
+ * @param parentElement - The element that the pedestrian area will be added to
+ * @param pathBboxConstraint - The bounding box of the area that the area is in
+ * @returns A promise that resolves when the pedestrian area has been added to the scene
+ */
 function addPedestrianArea(feature, parentElement, pathBboxConstraint) {
     return new Promise((resolve, reject) => {
         let tags = feature.properties;

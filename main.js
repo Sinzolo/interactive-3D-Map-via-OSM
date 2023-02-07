@@ -26,7 +26,7 @@ const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?dat
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
-const grassAreaCoordsScale = 1 / (twfData[0] + grassAreaScale - 1);             // ^^
+const grassAreaCoordsScale = 1 / (twfData[0] + areaScale - 1);             // ^^
 const bboxSize = 300;      // Length of one side of bounding box in metres
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
 const distanceNeededToUpdateNavigation = 16;
@@ -268,8 +268,8 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
     pathPromise = loadPaths(coordinate, bboxSize);
-    loadGreenery(coordinate, bboxSize);
-    // carryOnNavigating(pathPromise);
+    loadNaturalFeatures(coordinate, bboxSize);
+    carryOnNavigating(pathPromise);
     return pathPromise;
 }
 
@@ -313,7 +313,7 @@ function removeCurrentMap() {
     removeCurrentBuildings();
     removeCurrentPaths();
     removeCurrentPedestrianAreas();
-    removeCurrentGreenery();
+    removeCurrentNaturalAreas();
 }
 
 /**

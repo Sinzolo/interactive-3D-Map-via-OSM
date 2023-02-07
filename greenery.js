@@ -1,43 +1,52 @@
 'use strict';
-const greeneryFetchWorker = new Worker('fetchWorker.js');
+const naturalFeaturesFetchWorker = new Worker('fetchWorker.js');
 
 const defaultGrassAreaColour = "#4A9342";
-const grassAreaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
-const defaultGrassAreaHeightAboveGround = 0.16; // How far it should stick above ground
-const grassAreaHeightUnderGround = 30;   // How far it should stick below ground
-const grassAreaParent = document.createElement('a-entity');
-grassAreaParent.setAttribute("id", "greeneryAreaParent");
-grassAreaParent.setAttribute("class", "greeneryArea");
-document.querySelector('a-scene').appendChild(grassAreaParent);
+const defaultWaterColour = "#0E87CC";
+const areaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
+const defaultAreaHeightAboveGround = 0.14 + 0.0007; // How far it should stick above ground
+const areaParent = document.createElement('a-entity');
+areaParent.setAttribute("id", "areaParent");
+areaParent.setAttribute("class", "area");
+document.querySelector('a-scene').appendChild(areaParent);
 
-async function loadGreenery(coordinate, bboxSize) {
-    console.log("=== Loading Paths ===");
+/**
+ * It takes a coordinate and a bounding box size, and then it queries the Overpass API for all the
+ * grass and water features in that bounding box. It then converts the response to GeoJSON, and then
+ * adds all the grass and water features to the scene.
+ * @param coordinate - The coordinate of the center of the map
+ * @param bboxSize - The size of the bounding box to load
+ * @returns A promise that resolves when the natural features have been loaded
+ */
+async function loadNaturalFeatures(coordinate, bboxSize) {
+    console.log("=== Loading Natural Features ===");
 
     var stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, bboxSize));
     var overpassQuery = overpassURL + encodeURIComponent(
         "[timeout:40];" +
         "(way[landuse=grass](" + stringBBox + ");" +
-        "relation[landuse=grass](" + stringBBox + "););" +
+        "relation[landuse=grass](" + stringBBox + ");" +
+        "way[natural=water](" + stringBBox + "););" +
         "out geom;>;out skel qt;"
     );
 
     if ('caches' in window) {
-        greeneryFetchWorker.postMessage({ overpassQuery, osmCacheName });
+        naturalFeaturesFetchWorker.postMessage({ overpassQuery, osmCacheName });
     }
     else {
-        greeneryFetchWorker.postMessage({ overpassQuery });
+        naturalFeaturesFetchWorker.postMessage({ overpassQuery });
     }
 
     return new Promise(async (resolve) => {
-        greeneryFetchWorker.onmessage = async function (e) {
+        naturalFeaturesFetchWorker.onmessage = async function (e) {
             numberOfPaths = 0;
             paths = [];
             rectangles = [];
             dijkstrasAlgorithm = new DijkstrasAlgo();
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
-                if (feature.geometry.type == "Polygon") {   // Grassy Area
-                    addGrassArea(feature, grassAreaParent);
+                if (feature.geometry.type == "Polygon") {   // Area
+                    addArea(feature, areaParent);
                 }
             });
             resolve("Finished Adding Greenery");
@@ -46,25 +55,17 @@ async function loadGreenery(coordinate, bboxSize) {
 }
 
 /**
- * Takes an XML response from the OSM API and converts it to GeoJSON
- * @param response - The response from the OSM API.
- * @returns A GeoJSON object.
+ * It removes all the natural areas from the scene
  */
-function convertOSMResponseToGeoJSON(response) {
-    return osmtogeojson(new DOMParser().parseFromString(response, "application/xml"));
+function removeCurrentNaturalAreas() {
+    console.log("=== Deleting Natural Area ===");
+    removeAllChildren(areaParent);
 }
 
-/**
- * Removes all the paths from the scene
- */
-function removeCurrentGreenery() {
-    console.log("=== Deleting Greenery Area ===");
-    removeAllChildren(grassAreaParent);
-}
-
-function addGrassArea(feature, parentElement) {
+function addArea(feature, parentElement) {
     return new Promise((resolve, reject) => {
-        let colour = defaultGrassAreaColour;
+        let colour = defaultWaterColour;
+        if (feature.properties.landuse == "grass") colour = defaultGrassAreaColour;
 
         let outerPoints = [];
         let innerPoints = [];
@@ -93,9 +94,9 @@ function addGrassArea(feature, parentElement) {
 
         let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
         let newGrassArea = document.createElement('a-entity');
-        newGrassArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultGrassAreaHeightAboveGround });
+        newGrassArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultAreaHeightAboveGround });
         newGrassArea.setAttribute("material", { roughness: "0.6", color: colour });
-        newGrassArea.setAttribute("scale", grassAreaScale + " " + 1 + " " + grassAreaScale);
+        newGrassArea.setAttribute("scale", areaScale + " " + 1 + " " + areaScale);
         newGrassArea.object3D.position.set((pixelCoords.x * grassAreaCoordsScale), 0, (pixelCoords.y * grassAreaCoordsScale));
         parentElement.appendChild(newGrassArea);
 

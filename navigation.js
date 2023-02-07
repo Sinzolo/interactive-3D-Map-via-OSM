@@ -16,7 +16,8 @@ var destinationLatLong;
  * make up the path.
  */
 function navigate(pathPromise) {
-    pathPromise.then(function () {
+    console.log("Before", pathPromise);
+    pathPromise = pathPromise.then(function () {
         navigationInProgress = true;
         destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
         console.log(destinationLatLong);
@@ -38,12 +39,18 @@ function navigate(pathPromise) {
                 let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
                 currentRectanglesInPaths.push({rectangle, color: rectangle.getAttribute('material').color});
                 currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.setAttribute("material", { color: "#FF00FF" })
+                // TODO - Slightly raise the chosen rectangles to ensure they show up and do not z-fight with the other paths on the map
+                // console.log(currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle);
+                // let pos = currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.getAttribute("position");
+                // console.log(pos);
             } catch (e) {
-                console.log(e);
+                // console.log(e);
                 console.log("Could not find rectangle to colour (Most likely on purpose)");
             }
         }
+        return new Promise(function (resolve, reject) {});
     });
+    console.log("After", pathPromise);
 }
 
 /**
@@ -59,6 +66,11 @@ function carryOnNavigating(pathPromise) {
     navigate(pathPromise);
 }
 
+/**
+ * It stops the navigation process by setting the navigationInProgress variable to false, setting the
+ * destinationLatLong variable to null, removing the spheres, uncolouring the rectangles, and showing a
+ * message to the user.
+ */
 function stopNavigation() {
     console.log("Destination reached!");
     navigationInProgress = false;
@@ -147,6 +159,10 @@ function uncolourRectangles() {
     currentRectanglesInPaths = [];
 }
 
+/**
+ * Shows the modal that tells the user that they have reached their destination.
+ * Shows the modal for 3.5 seconds, then hides it.
+ */
 function showDestinationFoundMessage() {
     console.log("Showing destination found message");
     modal.style.display = "block";
@@ -154,14 +170,11 @@ function showDestinationFoundMessage() {
     setTimeout(() => {
         console.log("Hiding destination found message");
         modal.style.animationName = "modalSlideDown";
-        setTimeout(hideModal, 600);
+        setTimeout(() => {modal.style.display = "none"}, 600);
     }, 3500);
 }
 
-function hideModal() {
-    modal.style.display = "none";
-}
-
+/* Hiding the modal when the user clicks on the X button. */
 span.onclick = function () {
     modal.style.display = "none";
 }

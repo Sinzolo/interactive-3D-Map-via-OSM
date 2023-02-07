@@ -10,27 +10,23 @@ try {
 }
 
 self.onmessage = async function (e) {
-    let cpuCores = navigator.hardwareConcurrency;
-    let pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
+    // let cpuCores = navigator.hardwareConcurrency;
+    //let pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
     let [uniRaster, cityRaster] = await Promise.all([
-        raster(e.data.uniURL, pools[0]),
-        raster(e.data.cityURL, pools[1])
+        raster(e.data.uniURL),
+        raster(e.data.cityURL)
     ]);
     self.postMessage({ status: "ok", uniRaster, cityRaster });
-    pools.forEach((pool, index) => {
-        pools[index] = undefined;
-        pool.destroy();
-    });
     // pools = null;
     // cpuCores = null;
     // [uniRaster, cityRaster] = [null, null];
     self.close();
 }
 
-function raster(url, pool) {
+function raster(url) {
     return GeoTIFF.fromUrl(url).then((tiff) => {
         return tiff.getImage();
     }).then((image) => {
-        return image.readRasters({ pool });
+        return image.readRasters();
     });
 }

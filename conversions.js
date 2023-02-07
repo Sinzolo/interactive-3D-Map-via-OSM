@@ -102,3 +102,12 @@ function convert1DArrayTo2DArray(oneDArray) {
     oneDArray = undefined;
     return twoDArray;
 }
+
+/**
+ * Takes an XML response from the OSM API and converts it to GeoJSON
+ * @param response - The response from the OSM API.
+ * @returns A GeoJSON object.
+ */
+function convertOSMResponseToGeoJSON(response) {
+    return osmtogeojson(new DOMParser().parseFromString(response, "application/xml"));
+}

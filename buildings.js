@@ -2,7 +2,7 @@
 
 const buildingFetchWorker = new Worker('fetchWorker.js');
 const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
-const buildingHeightScale = 2;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
+const buildingHeightScale = 2.1;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const buildingHeight = 3;                                 // Building height if height is unknown
 const buildingHeightUnderGround = 30;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
@@ -30,7 +30,6 @@ async function loadBuildings(coordinate, bboxSize) {
     bboxSize *= 0.9;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
-    //console.log(stringBBox);
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building](" + stringBBox + ");" +
         "rel[building](" + stringBBox + "););" +
@@ -44,20 +43,11 @@ async function loadBuildings(coordinate, bboxSize) {
         buildingFetchWorker.postMessage({ overpassQuery });
     }
 
-    // /* Converting the response from the overpass API into a JSON object. */
-    // let geoJSON = await response
-    //     .then((response) => { return response.text(); })
-    //     .then((response) => {
-    //         let parser = new DOMParser();
-    //         let itemData = parser.parseFromString(response, "application/xml");
-    //         let itemJSON = osmtogeojson(itemData);
-    //         return itemJSON
-    //     });
-
     return new Promise(resolve => {
         buildingFetchWorker.onmessage = async function (e) {
             numberOfBuildings = 0;
-            convertOSMResponseToGeoJSON(e.data).features.forEach(feature => {
+            const features = convertOSMResponseToGeoJSON(e.data).features;
+            features.forEach(feature => {
                 if (feature.geometry.type == "Polygon") {
                     addBuilding(feature, buildingParent);
                     numberOfBuildings += 1;
@@ -104,7 +94,6 @@ async function addBuilding(feature, parentElement) {
                 innerPoints.push(currentPoints);
             }
         });
-
 
         let newBuilding = document.createElement('a-entity');
         newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: outerPoints, innerPoints: innerPoints, height: height });
