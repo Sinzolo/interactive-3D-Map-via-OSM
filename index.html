@@ -8,15 +8,16 @@
     <link rel="stylesheet" href="style.css">
     <title>Interactive 3D Map via OSM</title>
     <link rel="icon" href="favicon.png">
-    <link rel="prefetch" href="rasterWorker.js" as="worker">
-    <link rel="prefetch" href="fetchWorker.js" as="worker">
+    <!-- <link rel="prefetch" href="rasterWorker.js" as="worker"> -->
+    <!-- <link rel="prefetch" href="fetchWorker.js" as="worker"> -->
     <!-- <link rel="preload" href="geotiff.js.map"> -->
 
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- <script src="aframe.min.js"></script> -->
     <script src="simple-sun-sky.min.js"></script>
-    <script defer src="geotiff.min.js"></script> <!-- Tiff manipulator -->
-    <script defer src="proj4.min.js"></script> <!-- Coord converter -->
+    <script defer src="osmtogeojson.min.js"></script>   <!-- OSM to GeoJSON converter -->
+    <script defer src="geotiff.min.js"></script>    <!-- Tiff manipulator -->
+    <script defer src="proj4.min.js"></script>  <!-- Coord converter -->
     <!-- <script defer src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/instanced-mesh@v0.6.0/src/instanced-mesh.min.js"></script> -->
     <!-- <script defer src="https://unpkg.com/aframe-geometry-merger-component/dist/aframe-geometry-merger-component.min.js"></script> -->
     <!-- <script src="https://unpkg.com/aframe-extras/dist/aframe-extras.controls.min.js"></script>   -->
@@ -29,7 +30,6 @@
         <img id = "geotiff" src="lydiateTiff/SD51nw_DTM_2m.tif" class="hidden"> -->
 
     <script defer src="utilities.js"></script>
-    <script defer src="osmtogeojson.min.js"></script>
     <script defer src="conversions.js"></script>
     <script defer src="greenery.js"></script>
     <script defer src="terrain.js"></script>

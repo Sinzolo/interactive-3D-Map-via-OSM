@@ -1,3 +1,4 @@
 {
-    "liveServer.settings.multiRootWorkspaceName": "interactive-3D-Map-via-OSM"
+    "liveServer.settings.multiRootWorkspaceName": "interactive-3D-Map-via-OSM",
+    "liveServer.settings.port": 5500
 }
