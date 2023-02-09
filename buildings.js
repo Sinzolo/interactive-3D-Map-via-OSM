@@ -6,6 +6,7 @@ const buildingHeightScale = 2.1;                          // Scale for the build
 const buildingHeight = 3;                                 // Building height if height is unknown
 const buildingHeightUnderGround = 30;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
+const metresPerBuildingFloor = 4.3;                      // How many metres per floor (used for calculating the height of the building)
 var numberOfBuildings = 0;
 
 var buildingParent = document.createElement('a-entity');
@@ -63,44 +64,17 @@ async function loadBuildings(coordinate, bboxSize) {
 
 async function addBuilding(feature, parentElement) {
     return new Promise((resolve, reject) => {
+        console.log(feature);
         let tags = feature.properties;
-        let height = tags.height || tags["building:levels"];
-        if (!height && tags.amenity === "shelter") height = 1;
-        else if (!height) height = buildingHeight;
-        height = parseInt(height);
-        let colour = tags.colour || tags["building:colour"] || defaultBuildingColour;
-
-        let outerPoints = [];
-        let innerPoints = [];
-        let sumOfLatCoords = 0;
-        let sumOfLongCoords = 0;
-        let count = 0;
-        /* Loops through every coordinate of the building.
-        The first set of coordinates are for the outside points of the building,
-        the rest are for the inner part of the building that is missing */
-        feature.geometry.coordinates.forEach(points => {
-            let currentPoints = [];
-            points.forEach(point => {
-                sumOfLatCoords += point[1];
-                sumOfLongCoords += point[0];
-                count++;
-                let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
-                currentPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
-            });
-            if (!outerPoints.length) {
-                outerPoints = currentPoints;
-            }
-            else {
-                innerPoints.push(currentPoints);
-            }
-        });
-
+        let height = getBuildingHeight(tags);
+        let colour = getBuildingColour(tags);
+        let coordinates = getBuildingCoordinates(feature.geometry.coordinates);
         let newBuilding = document.createElement('a-entity');
-        newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: outerPoints, innerPoints: innerPoints, height: height });
+        newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: coordinates.outerPoints, innerPoints: coordinates.innerPoints, height: height });
         newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
         newBuilding.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
 
-        let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
+        let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
         parentElement.appendChild(newBuilding);
 
@@ -118,6 +92,56 @@ async function addBuilding(feature, parentElement) {
     });
 }
 
+/**
+ * Returns the height of the building
+ * @param buildingsTags - The tags of the building
+ * @returns The height of the building
+ */
+function getBuildingHeight(buildingsTags) {
+    let height;
+    if (buildingsTags.height) height = buildingsTags.height/metresPerBuildingFloor;
+    else if (buildingsTags["building:levels"]) height = buildingsTags["building:levels"];
+    else if (buildingsTags.amenity === "shelter") height = 1;
+    else height = buildingHeight;
+    return parseInt(height);
+}
+
+/**
+ * Returns the colour of the building
+ * @param buildingsTags - The tags of the building
+ * @returns The colour of the building
+ */
+function getBuildingColour(buildingsTags) {
+    return buildingsTags.colour || buildingsTags["building:colour"] || defaultBuildingColour;
+}
+
+function getBuildingCoordinates(coordinatesOfBuilding) {
+    let outerPoints = [];
+    let innerPoints = [];
+    let sumOfLatCoords = 0;
+    let sumOfLongCoords = 0;
+    let count = 0;
+    /* Loops through every coordinate of the building.
+    The first set of coordinates are for the outside points of the building,
+    the rest are for the inner part of the building that is missing */
+    coordinatesOfBuilding.forEach(points => {
+        let currentPoints = [];
+        points.forEach(point => {
+            sumOfLatCoords += point[1];
+            sumOfLongCoords += point[0];
+            count++;
+            let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
+            currentPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
+        });
+        if (!outerPoints.length) {
+            outerPoints = currentPoints;
+        }
+        else {
+            innerPoints.push(currentPoints);
+        }
+    });
+    return { outerPoints, innerPoints, avgLat: sumOfLatCoords/count, avgLong: sumOfLongCoords/count };
+}
 
 /**
  * Removes all the buildings from the scene
