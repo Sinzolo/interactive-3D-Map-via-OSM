@@ -49,7 +49,7 @@
     </div>
 
     <div id="mapScreen" style="display: none">
-        <button id="loadMenuBtn" onclick="showMainMenu()">Load Menu</button>
+        <button id="loadMenuBtn" onclick="hideNavigationMenu(), showMainMenu()">Load Menu</button>
         <button id="loadNavigationMenuBtn" onclick="showNavigationMenu()">Navigate</button>
 
         <br><button id="highQualityBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High
@@ -59,12 +59,15 @@
 
         <div id="navigationScreen" style="display: none">
             <label for="destinationTextBox">Destination:</label>
-            <input id="destinationLat" type="number" class="coords" placeholder="latitude" step="0.00001" min="-90"
+            <datalist id="buildingNames">
+            </datalist>
+            <input id="buildingInput" autoComplete="on" list="buildingNames" placeholder="Building Name"/>
+            <input id="destinationLat" type="number" class="coords" placeholder="Latitude" step="0.00001" min="-90"
                 max="90" value="54.010930" required> /
-            <input id="destinationLong" type="number" class="coords" placeholder="longitude" step="0.00001" min="-180"
+            <input id="destinationLong" type="number" class="coords" placeholder="Longitude" step="0.00001" min="-180"
                 max="180" value="-2.783544" required><br>
-            <button id="startNavigationBtn" onclick="navigate(pathPromise)">Go!</button>
-            <button id="hideNavigationMenuBtn" onclick="hideNavigationMenu()">Cancel</button>
+            <button id="startNavigationBtn">Go!</button>
+            <button id="hideNavigationMenuBtn">Cancel</button>
         </div>
         <div id="myModal" class="modal">
             <div class="modal-content">

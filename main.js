@@ -27,7 +27,7 @@ const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coord
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
 const grassAreaCoordsScale = 1 / (twfData[0] + areaScale - 1);             // ^^
-const bboxSize = 300;      // Length of one side of bounding box in metres
+const bboxSize = 330;      // Length of one side of bounding box in metres
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
 const distanceNeededToUpdateNavigation = 16;
 const locationOptions = {
@@ -104,6 +104,8 @@ window.addEventListener("unload", async function () {
 //         console.log("Interval Restarted");
 //     }
 // };
+
+fillSuggestions();
 
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data

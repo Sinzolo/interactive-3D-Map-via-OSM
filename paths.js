@@ -23,6 +23,7 @@ const highwayStyles = {
     service: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
     pedestrian: { color: "#ABABAB", pathWidth: 0.7, pathHeightAboveGround: defaultPathHeightAboveGround + 0.016 },
     footway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
+    cycleway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
     path: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.018 },
     steps: { color: "#FFFFFF", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.014 },
 };
@@ -52,14 +53,15 @@ var pathPromise;
 async function loadPaths(coordinate, bboxSize) {
     console.log("=== Loading Paths ===");
 
-    var pathBboxConstraint = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
-    var stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, (bboxSize + pathLookAhead)));
-    var overpassQuery = overpassURL + encodeURIComponent(
+    const pathBboxConstraint = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
+    const stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, (bboxSize + pathLookAhead)));
+    const overpassQuery = overpassURL + encodeURIComponent(
         "[timeout:40];" +
         "(way[highway=path](" + stringBBox + ");" +
         "way[highway=pedestrian](" + stringBBox + ");" +
         "rel[highway=pedestrian](" + stringBBox + ");" +
         "way[highway=footway](" + stringBBox + ");" +
+        "way[highway=cycleway](" + stringBBox + ");" +
         "way[highway=steps](" + stringBBox + ");" +
         "way[highway=motorway](" + stringBBox + ");" +
         "way[highway=trunk](" + stringBBox + ");" +
@@ -72,12 +74,9 @@ async function loadPaths(coordinate, bboxSize) {
         "out geom;>;out skel qt;"
     );
 
-    if ('caches' in window) {
-        pathFetchWorker.postMessage({ overpassQuery, osmCacheName });
-    }
-    else {
-        pathFetchWorker.postMessage({ overpassQuery });
-    }
+    const message = { overpassQuery };
+    if ('caches' in window) message.osmCacheName = osmCacheName;
+    pathFetchWorker.postMessage(message);
 
     return new Promise(async (resolve) => {
         pathFetchWorker.onmessage = async function (e) {
@@ -108,7 +107,6 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
 
     paths[numberOfPaths] = [];
     rectangles[numberOfPaths] = [];
-
     for (let i = 1; i < feature.geometry.coordinates.length; i++) {
         let point1 = feature.geometry.coordinates[i - 1];
         let point2 = feature.geometry.coordinates[i];

@@ -37,12 +37,9 @@ async function loadBuildings(coordinate, bboxSize) {
         "out geom;>;out skel qt;"
     );
 
-    if ('caches' in window) {
-        buildingFetchWorker.postMessage({ overpassQuery, osmCacheName });
-    }
-    else {
-        buildingFetchWorker.postMessage({ overpassQuery });
-    }
+    const message = { overpassQuery };
+    if ('caches' in window) message.osmCacheName = osmCacheName;
+    buildingFetchWorker.postMessage(message);
 
     return new Promise(resolve => {
         buildingFetchWorker.onmessage = async function (e) {
@@ -64,7 +61,6 @@ async function loadBuildings(coordinate, bboxSize) {
 
 async function addBuilding(feature, parentElement) {
     return new Promise((resolve, reject) => {
-        console.log(feature);
         let tags = feature.properties;
         let height = getBuildingHeight(tags);
         let colour = getBuildingColour(tags);

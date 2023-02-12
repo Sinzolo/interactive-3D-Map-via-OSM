@@ -1,13 +1,21 @@
 'use strict';
 
+const navigationFetchWorker = new Worker('fetchWorker.js');
 const sceneElement = document.querySelector('a-scene');
 const sphereHeightAboveGround = 4.6;
+const highlightedPathHeight = 0.014;
+const pathHighlightColour = "#FF00FF";
 const modal = document.getElementById("myModal");
 const span = document.getElementsByClassName("close")[0];
+const destinationLatInputBox = document.getElementById("destinationLat");
+const destinationLongInputBox = document.getElementById("destinationLong");
+const buildingNameDataList = document.getElementById("buildingNames");
+const buildingNameInput = document.getElementById("buildingInput");
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
 var sourceLatLong = {lat: -1, long: -1};
 var destinationLatLong;
+var uniBuildings = new Map();
 
 /**
  * The function starts navigation by finding the closest path node to the user's current location and
@@ -16,10 +24,9 @@ var destinationLatLong;
  * make up the path.
  */
 function navigate(pathPromise) {
-    console.log("Before", pathPromise);
     pathPromise = pathPromise.then(function () {
         navigationInProgress = true;
-        destinationLatLong = { lat: document.getElementById("destinationLat").value, long: document.getElementById("destinationLong").value };
+        destinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
         console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
         sourceLatLong = usersCurrentLatLong;
@@ -38,19 +45,14 @@ function navigate(pathPromise) {
             try {
                 let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
                 currentRectanglesInPaths.push({rectangle, color: rectangle.getAttribute('material').color});
-                currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.setAttribute("material", { color: "#FF00FF" })
-                // TODO - Slightly raise the chosen rectangles to ensure they show up and do not z-fight with the other paths on the map
-                // console.log(currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle);
-                // let pos = currentRectanglesInPaths[currentRectanglesInPaths.length - 1].rectangle.getAttribute("position");
-                // console.log(pos);
+                rectangle.setAttribute("material", { color: pathHighlightColour })
+                rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
             } catch (e) {
-                // console.log(e);
                 console.log("Could not find rectangle to colour (Most likely on purpose)");
             }
         }
         return new Promise(function (resolve, reject) {});
     });
-    console.log("After", pathPromise);
 }
 
 /**
@@ -58,7 +60,6 @@ function navigate(pathPromise) {
  */
 function carryOnNavigating(pathPromise) {
     if (!navigationInProgress) return;
-    console.log("Peen");
     if (checkDestinationReached()) {
         stopNavigation();
         return;
@@ -107,7 +108,6 @@ function find2DIndex(pathToDest) {
     return -1;
 }
 
-
 /**
  * It returns true if the coords object has a valid latitude and longitude, and false otherwise
  * @param coords - The coordinates to check.
@@ -138,7 +138,6 @@ function addFloatingSphere(coords, colour) {
     });
 }
 
-
 /**
  * It removes all the spheres from the scene
  */
@@ -155,6 +154,7 @@ function removeSpheres() {
 function uncolourRectangles() {
     currentRectanglesInPaths.forEach(({rectangle, color}) => {
         rectangle.setAttribute("material", { color });
+        rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y - highlightedPathHeight, rectangle.object3D.position.z);
     });
     currentRectanglesInPaths = [];
 }
@@ -170,11 +170,85 @@ function showDestinationFoundMessage() {
     setTimeout(() => {
         console.log("Hiding destination found message");
         modal.style.animationName = "modalSlideDown";
-        setTimeout(() => {modal.style.display = "none"}, 600);
+        setTimeout(() => {modal.style.display = "none"}, 580);
     }, 3500);
 }
 
 /* Hiding the modal when the user clicks on the X button. */
 span.onclick = function () {
     modal.style.display = "none";
+}
+
+/* An event listener that is called when the user changes the value of the input box. */
+buildingNameInput.onchange = function () {
+    const coords = uniBuildings.get(buildingNameInput.value);
+    if (coords) {
+        console.log("You selected a valid option: " + buildingNameInput.value);
+        let latSum = 0;
+        let longSum = 0;
+        coords[0].forEach(coord => {
+            latSum += coord[1];
+            longSum += coord[0];
+        });
+        const count = coords[0].length;
+        destinationLatInputBox.value = (latSum / count).toFixed(6);
+        destinationLongInputBox.value = (longSum / count).toFixed(6);
+    } else {
+        console.log("You entered an invalid option: " + buildingNameInput.value);
+        destinationLatInputBox.value = "";
+        destinationLongInputBox.value = "";
+    }
+};
+
+/**
+ * Queries the overpass API for all the buildings in the
+ * bounding box that contains the university, and adds the names of the
+ * buildings to the data list for auto-complete.
+ * @returns A promise.
+ */
+function fillSuggestions() {
+    const stringBBox = "54.00216, -2.79478, 54.01638, -2.78173";
+    const overpassQuery = overpassURL + encodeURIComponent(
+        "(way[building](" + stringBBox + ");" +
+        "rel[building](" + stringBBox + "););" +
+        "out geom;>;out skel qt;"
+    );
+    const message = { overpassQuery };
+    if ('caches' in window) message.osmCacheName = osmCacheName;
+    navigationFetchWorker.postMessage(message);
+
+    return new Promise(resolve => {
+        navigationFetchWorker.onmessage = async function (e) {
+            const features = convertOSMResponseToGeoJSON(e.data).features;
+            features.forEach(feature => {
+                if (feature.geometry.type == "Polygon") addBuildingNameToDataList(feature);
+            });
+        }
+    });
+}
+
+/**
+ * Takes a feature, checks if it has a name, and if it does, add it to the
+ * `uniBuildings` map and adds the name of the feature to the `datalist` element.
+ * @param feature - the feature
+ */
+function addBuildingNameToDataList(feature) {
+    if (!feature.properties.name) return;
+    uniBuildings.set(feature.properties.name, feature.geometry.coordinates);
+    const option = document.createElement("option");
+    option.value = feature.properties.name;
+    option.text = feature.properties.name;
+    buildingNameDataList.appendChild(option);
+}
+
+/* Setting the onclick function of the start navigation button to the navigate function. */
+document.getElementById("startNavigationBtn").onclick = function () {
+    navigate(pathPromise)
+    buildingNameInput.value = "";
+}
+
+/* Hiding the navigation menu when the user clicks on the "Hide Navigation Menu" button. */
+document.getElementById("hideNavigationMenuBtn").onclick = function () {
+    hideNavigationMenu();
+    buildingNameInput.value = "";
 }

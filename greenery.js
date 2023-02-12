@@ -30,12 +30,9 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
         "out geom;>;out skel qt;"
     );
 
-    if ('caches' in window) {
-        naturalFeaturesFetchWorker.postMessage({ overpassQuery, osmCacheName });
-    }
-    else {
-        naturalFeaturesFetchWorker.postMessage({ overpassQuery });
-    }
+    const message = { overpassQuery };
+    if ('caches' in window) message.osmCacheName = osmCacheName;
+    naturalFeaturesFetchWorker.postMessage(message);
 
     return new Promise(async (resolve) => {
         naturalFeaturesFetchWorker.onmessage = async function (e) {
