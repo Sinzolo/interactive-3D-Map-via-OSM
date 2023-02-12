@@ -16,6 +16,8 @@ var currentRectanglesInPaths = [];
 var sourceLatLong = {lat: -1, long: -1};
 var destinationLatLong;
 var uniBuildings = new Map();
+var startSphere = null;
+var endSphere = null;
 
 /**
  * The function starts navigation by finding the closest path node to the user's current location and
@@ -33,8 +35,8 @@ function navigate(pathPromise) {
         hideNavigationMenu();
         removeSpheres();
         uncolourRectangles();
-        addFloatingSphere(usersCurrentLatLong, "#00FF00");
-        addFloatingSphere(destinationLatLong, "#FF0000");
+        startSphere = addFloatingSphere(usersCurrentLatLong, "#00FF00");
+        endSphere = addFloatingSphere(destinationLatLong, "#FF0000");
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
         console.log(pathToDest);
 
@@ -136,15 +138,18 @@ function addFloatingSphere(coords, colour) {
             newSphere.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + sphereHeightAboveGround) + " " + pixelCoords.y);
         });
     });
+
+    return newSphere;
 }
 
 /**
- * It removes all the spheres from the scene
+ * It removes the start and end spheres from the scene
  */
 function removeSpheres() {
-    document.querySelectorAll('a-sphere').forEach(element => {
-        element.remove();
-    });
+    if (startSphere) startSphere.remove();
+    startSphere = null;
+    if (endSphere) endSphere.remove();
+    endSphere = null;
 }
 
 /**

@@ -124,7 +124,7 @@ class DijkstrasAlgo {
                 }
             });
             status[currentNode] = nodeStatus.intree;
-            // if (currentNode == destinationNodeIndex) break;
+            if (currentNode == destinationNodeIndex) break;
 
             this.connectedNodes[currentNode].forEach(adjacentNode => {
                 if (status[adjacentNode.index] == nodeStatus.intree) return;

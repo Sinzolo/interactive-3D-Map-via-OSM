@@ -7,8 +7,14 @@ const areaScale = 4.8;              // Scaling the pedestrian areas (bigger numb
 const defaultAreaHeightAboveGround = 0.14 + 0.0007; // How far it should stick above ground
 const areaParent = document.createElement('a-entity');
 areaParent.setAttribute("id", "areaParent");
-areaParent.setAttribute("class", "area");
+areaParent.setAttribute("class", "areas");
 document.querySelector('a-scene').appendChild(areaParent);
+
+const defaultTreeHeightUnderGround = 10;     // How far it should stick under ground
+const treeParent = document.createElement('a-entity');
+treeParent.setAttribute("id", "treeParent");
+treeParent.setAttribute("class", "trees");
+document.querySelector('a-scene').appendChild(treeParent);
 
 /**
  * It takes a coordinate and a bounding box size, and then it queries the Overpass API for all the
@@ -26,7 +32,8 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
         "[timeout:40];" +
         "(way[landuse=grass](" + stringBBox + ");" +
         "relation[landuse=grass](" + stringBBox + ");" +
-        "way[natural=water](" + stringBBox + "););" +
+        "way[natural=water](" + stringBBox + ");" +
+        "node[natural=tree]" + "(" + stringBBox + "););" +
         "out geom;>;out skel qt;"
     );
 
@@ -45,18 +52,13 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
                 if (feature.geometry.type == "Polygon") {   // Area
                     addArea(feature, areaParent);
                 }
+                else if (feature.geometry.type == "Point") {
+                    addTree(feature, treeParent);
+                }
             });
             resolve("Finished Adding Greenery");
         }
     });
-}
-
-/**
- * It removes all the natural areas from the scene
- */
-function removeCurrentNaturalAreas() {
-    console.log("=== Deleting Natural Area ===");
-    removeAllChildren(areaParent);
 }
 
 function addArea(feature, parentElement) {
@@ -109,4 +111,67 @@ function addArea(feature, parentElement) {
         });
         resolve();
     });
+}
+
+/**
+ * It removes all the natural areas from the scene
+ */
+function removeCurrentNaturalAreas() {
+    removeAllChildren(areaParent);
+}
+
+function addTree(feature, parentElement) {
+    return new Promise((resolve, reject) => {
+        let tags = feature.properties;
+        let trunk = document.createElement("a-entity");
+        let height = tags.height ? tags.height : 4.2;
+        let trunkRadius = ((tags.circumference ? tags.circumference : 1) / 2 / Math.PI) * 2.2;
+        let leavesRadius = ((tags.diameter_crown ? tags.diameter_crown : 3) / 2) * 0.87;
+        let pixelCoords = convertLatLongToPixelCoords({ lat: feature.geometry.coordinates[1], long: feature.geometry.coordinates[0] });
+        var trunkHeight = height - leavesRadius;
+
+        if (tags["leaf_type"] == "needleleaved" || Math.floor(Math.random() * 2) === 0) { // special shape for needle-leaved trees
+            var leaves = document.createElement("a-cone");
+            var leavesHeight = height * 0.75;
+            var yComponent = trunkHeight * 0.95;
+            leaves.setAttribute("height", leavesHeight);
+            leaves.setAttribute("radius-bottom", leavesRadius);
+            leaves.setAttribute("radius-top", 0);
+        }
+        else { // use a simple typical broadleaved-type shape
+            var leaves = document.createElement("a-sphere");
+            var yComponent = trunkHeight * 0.95;
+            leaves.setAttribute("radius", leavesRadius);
+        }
+
+        leaves.setAttribute("material", { color: "#80ff80" });
+        leaves.object3D.position.set((pixelCoords.x), (yComponent), (pixelCoords.y));
+
+        trunk.setAttribute("geometry", { primitive: "cylinder", height: trunkHeight + defaultTreeHeightUnderGround, radius: trunkRadius });
+        trunk.setAttribute("material", { color: "#b27f36" });
+        trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 , (pixelCoords.y));
+
+        parentElement.appendChild(trunk);
+        parentElement.appendChild(leaves);
+
+        if (lowQuality) return;
+        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
+            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
+                try {
+                    trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y));
+                    leaves.object3D.position.set((pixelCoords.x), (yComponent) + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y));
+                } catch(e) {
+                    throw new Error("Specfic location on height map not found! (My own error)");
+                }
+            });
+        });
+        resolve();
+    });
+}
+
+/**
+ * It removes all the trees from the scene
+ */
+function removeCurrentTrees() {
+    removeAllChildren(treeParent);
 }

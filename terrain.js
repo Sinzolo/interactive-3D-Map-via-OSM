@@ -136,6 +136,5 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
  * Removes the terrain from the scene
  */
 function removeCurrentTerrain() {
-    console.log("=== Deleting Terrain ===");
     removeAllChildren(triangleParent);
 }

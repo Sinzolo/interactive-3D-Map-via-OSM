@@ -25,8 +25,8 @@ var pathPromise;
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
+const grassAreaCoordsScale = 1 / (twfData[0] + areaScale - 1);                  // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
-const grassAreaCoordsScale = 1 / (twfData[0] + areaScale - 1);             // ^^
 const bboxSize = 330;      // Length of one side of bounding box in metres
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
 const distanceNeededToUpdateNavigation = 16;
@@ -179,7 +179,7 @@ async function locationSuccess(position) {
     console.log("\n\n===== NEW LOCATION ======");
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
-    console.log(newPixelCoords);
+    console.log(newLatLong, newPixelCoords);
     if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
     if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
     else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
@@ -216,7 +216,6 @@ function locationError(error) {
 function movedFarEnoughForMap(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
     if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
-        console.log("First time moving");
         currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
         return true;
     }
@@ -261,7 +260,6 @@ function movedFarEnoughForNavigation(newLatLong) {
  * @param bboxSize - The size of the bounding box in metres.
  */
 async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
-    console.log("=== Loading Map ===");
     heightMaps = getHeightMap(pixelCoords, bboxSize);
     // heightMaps = new Promise((resolve, reject) => {
     //     reject(new Error("Test error"));
@@ -316,6 +314,7 @@ function removeCurrentMap() {
     removeCurrentPaths();
     removeCurrentPedestrianAreas();
     removeCurrentNaturalAreas();
+    removeCurrentTrees();
 }
 
 /**

@@ -4,7 +4,7 @@ const buildingFetchWorker = new Worker('fetchWorker.js');
 const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
 const buildingHeightScale = 2.1;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const buildingHeight = 3;                                 // Building height if height is unknown
-const buildingHeightUnderGround = 30;                    // How far to extend the buildings under the ground
+const buildingHeightUnderGround = 10;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
 const metresPerBuildingFloor = 4.3;                      // How many metres per floor (used for calculating the height of the building)
 var numberOfBuildings = 0;
@@ -143,7 +143,6 @@ function getBuildingCoordinates(coordinatesOfBuilding) {
  * Removes all the buildings from the scene
  */
 function removeCurrentBuildings() {
-    console.log("=== Deleting Buildings ===");
     removeAllChildren(buildingParent);
 }
 

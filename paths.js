@@ -3,7 +3,7 @@ const pathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
 const defaultPathHeightAboveGround = 0.14; // How far it should stick above ground
-const pathHeightUnderGround = 30;   // How far it should stick below ground
+const pathHeightUnderGround = 10;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
@@ -31,7 +31,7 @@ const highwayStyles = {
 const defaultPedestrianAreaColour = "#808080";
 const pedestrianAreaScale = 5.1;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
 const defaultPedestrianAreaHeightAboveGround = defaultPathHeightAboveGround + 0.001; // How far it should stick above ground
-const areaHeightUnderGround = 30;   // How far it should stick below ground
+const areaHeightUnderGround = 10;   // How far it should stick below ground
 const pedestrianAreaParent = document.createElement('a-entity');
 pedestrianAreaParent.setAttribute("id", "pedestrianAreaParent");
 pedestrianAreaParent.setAttribute("class", "pedestrianArea");
@@ -192,7 +192,6 @@ function getRectangleCorners({ x: x1, y: y1 }, { x: x2, y: y2 }, width) {
  * Removes all the paths from the scene
  */
 function removeCurrentPaths() {
-    console.log("=== Deleting Paths ===");
     removeAllChildren(pathParent);
 }
 
@@ -200,7 +199,6 @@ function removeCurrentPaths() {
  * Removes all the paths from the scene
  */
 function removeCurrentPedestrianAreas() {
-    console.log("=== Deleting Pedestrian Areas ===");
     removeAllChildren(pedestrianAreaParent);
 }
 
