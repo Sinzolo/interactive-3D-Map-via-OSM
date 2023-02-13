@@ -83,8 +83,15 @@
             <a-entity light="type: ambient; color: #BBB"></a-entity>
             <a-entity light="type: directional; color: #FFF; intensity: 0.8" position="0.7 1 -1"></a-entity>
 
-            <a-entity id="rig" rotation="0 -90 0">
-                <a-entity id="playerCamera" camera="active: true" look-controls></a-entity>
+            <div id="startAndStopSpheres"></div>
+
+            <a-entity id="rig" rotation="0 0 0">
+                <a-entity id="playerCamera" camera="active: true" look-controls position="0 0 0" rotation="0 0 0">
+                    <a-entity>
+                        <a-entity id="arrow" position="0 -0.4 -0.7" rotation="0 0 0"
+                            geometry="primitive: cone; radiusTop: 0; radiusBottom: 0.06; height: 0.23" material="color: white" visible="false"></a-entity>
+                    </a-entity>
+                    </a-entity>
                 <a-entity id="debugCamera" camera="active: false" look-controls
                     wasd-controls="acceleration: 500; fly: true"></a-entity>
             </a-entity>

@@ -36,6 +36,7 @@ const locationOptions = {
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 const debug = true;
+const camera = document.querySelector("#rig");
 const humanHeight = 1.2;    // Height of the user in metres
 const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
 const rasterWorker = new Worker('rasterWorker.js');
@@ -280,7 +281,6 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
  * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
-    let camera = document.querySelector("#rig");
     camera.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
@@ -344,7 +344,7 @@ async function setLowQuality(tempLowQuality) {
         pathPromise = loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize),
         placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong)
     ]);
-    carryOnNavigating(pathPromise);
+    // carryOnNavigating(pathPromise);
 }
 
 

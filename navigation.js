@@ -11,6 +11,8 @@ const destinationLatInputBox = document.getElementById("destinationLat");
 const destinationLongInputBox = document.getElementById("destinationLong");
 const buildingNameDataList = document.getElementById("buildingNames");
 const buildingNameInput = document.getElementById("buildingInput");
+const arrow = document.getElementById("arrow");
+
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
 var sourceLatLong = {lat: -1, long: -1};
@@ -18,6 +20,7 @@ var destinationLatLong;
 var uniBuildings = new Map();
 var startSphere = null;
 var endSphere = null;
+var updateArrowRequestID = null;
 
 /**
  * The function starts navigation by finding the closest path node to the user's current location and
@@ -27,6 +30,7 @@ var endSphere = null;
  */
 function navigate(pathPromise) {
     pathPromise = pathPromise.then(function () {
+        arrow.setAttribute("visible", "true");
         navigationInProgress = true;
         destinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
         console.log(destinationLatLong);
@@ -37,22 +41,11 @@ function navigate(pathPromise) {
         uncolourRectangles();
         startSphere = addFloatingSphere(usersCurrentLatLong, "#00FF00");
         endSphere = addFloatingSphere(destinationLatLong, "#FF0000");
+        updateArrowRequestID = startUpdatingArrow(startSphere.object3D.position);
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
         console.log(pathToDest);
 
-        for (let pathToDestIndex = 1; pathToDestIndex < pathToDest.length; pathToDestIndex++) {
-            const node1 = pathToDest[pathToDestIndex - 1];
-            const node2 = pathToDest[pathToDestIndex];
-            let index = find2DIndex([node1, node2])
-            try {
-                let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
-                currentRectanglesInPaths.push({rectangle, color: rectangle.getAttribute('material').color});
-                rectangle.setAttribute("material", { color: pathHighlightColour })
-                rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
-            } catch (e) {
-                console.log("Could not find rectangle to colour (Most likely on purpose)");
-            }
-        }
+        colourRectangles(pathToDest);
         return new Promise(function (resolve, reject) {});
     });
 }
@@ -81,6 +74,8 @@ function stopNavigation() {
     removeSpheres();
     uncolourRectangles();
     showDestinationFoundMessage();
+    arrow.setAttribute("visible", "false");
+    stopUpdatingArrow(updateArrowRequestID);
 }
 
 /**
@@ -129,13 +124,13 @@ function addFloatingSphere(coords, colour) {
     const pixelCoords = convertLatLongToPixelCoords({ lat: dijkstrasAlgorithm.getNodes()[closestIndex][1], long: dijkstrasAlgorithm.getNodes()[closestIndex][0] });
     let newSphere = document.createElement('a-sphere');
     newSphere.setAttribute("color", colour);
-    newSphere.setAttribute("position", pixelCoords.x + " " + sphereHeightAboveGround + " " + pixelCoords.y);
+    newSphere.object3D.position.set(pixelCoords.x, sphereHeightAboveGround, pixelCoords.y);
     sceneElement.appendChild(newSphere);
 
-    if (lowQuality) return;
+    if (lowQuality) return newSphere;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            newSphere.setAttribute("position", pixelCoords.x + " " + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + sphereHeightAboveGround) + " " + pixelCoords.y);
+            newSphere.object3D.position.set(pixelCoords.x, heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + sphereHeightAboveGround, pixelCoords.y);
         });
     });
 
@@ -162,6 +157,26 @@ function uncolourRectangles() {
         rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y - highlightedPathHeight, rectangle.object3D.position.z);
     });
     currentRectanglesInPaths = [];
+}
+
+/**
+ * It takes a path to the destination and colours the rectangles in the path.
+ * @param pathToDest - The path to the destination node
+ */
+function colourRectangles(pathToDest) {
+    for (let pathToDestIndex = 1; pathToDestIndex < pathToDest.length; pathToDestIndex++) {
+        const node1 = pathToDest[pathToDestIndex - 1];
+        const node2 = pathToDest[pathToDestIndex];
+        let index = find2DIndex([node1, node2])
+        try {
+            let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
+            currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color });
+            rectangle.setAttribute("material", { color: pathHighlightColour })
+            rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
+        } catch (e) {
+            console.log("Could not find rectangle to colour (Most likely on purpose)");
+        }
+    }
 }
 
 /**
@@ -256,4 +271,25 @@ document.getElementById("startNavigationBtn").onclick = function () {
 document.getElementById("hideNavigationMenuBtn").onclick = function () {
     hideNavigationMenu();
     buildingNameInput.value = "";
+}
+
+/**
+ * It takes a point and makes the arrow look at it
+ * @param point - The point to which the arrow should point
+ * @returns The ID of the requestAnimationFrame() function call
+ */
+function startUpdatingArrow(point) {
+    arrow.object3D.lookAt(point.x, point.y, point.z);
+    arrow.object3D.rotation.y += THREE.MathUtils.degToRad(-90);
+    arrow.object3D.rotation.z += THREE.MathUtils.degToRad(-90);
+    return requestAnimationFrame(() => {
+            startUpdatingArrow(point)
+        });
+}
+
+/**
+ * It cancels the animation frame request that was created in the `updateArrow()` function
+ */
+function stopUpdatingArrow() {
+    cancelAnimationFrame(updateArrowRequestID);
 }
