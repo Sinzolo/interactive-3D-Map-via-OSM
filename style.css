@@ -72,6 +72,15 @@ input {
     position: relative;
 }
 
+#miniMap {
+    z-index: 1;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    border: 2px solid black;
+    border-radius: 128px;
+}
+
 a-scene {
     z-index: 0;
     position: relative;

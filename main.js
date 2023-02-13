@@ -37,7 +37,9 @@ const locationOptions = {
 };
 const debug = true;
 const camera = document.querySelector("#rig");
+const secondaryCamera = document.querySelector("#secondaryRig");
 const humanHeight = 1.2;    // Height of the user in metres
+const birdHeight = 85;    // Height of the user in metres
 const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
 const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
@@ -282,6 +284,7 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     camera.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
+    secondaryCamera.object3D.position.set(pixelCoords.x, birdHeight, pixelCoords.y);
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
 
@@ -289,6 +292,7 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
+            secondaryCamera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + birdHeight), pixelCoords.y);
         });
     }).catch((err) => {
         console.log(err);
@@ -403,3 +407,20 @@ function toggleStats() {
     let sceneElement = document.querySelector('a-scene');
     sceneElement.setAttribute('stats', !sceneElement.getAttribute('stats'));
 }
+
+
+AFRAME.registerComponent("foo", {
+    init: function () {
+        var canvas = document.getElementById("miniMap");
+        this.ctx = canvas.getContext("2d", {
+            antialias: true,
+            depth: true,
+        });
+        this.secondaryCam = document.querySelector("#secondarycam").components.camera.camera;
+    },
+    tick: function () {
+        if (!this.secondaryCam) return;
+        this.el.renderer.render(this.el.sceneEl.object3D, this.secondaryCam);
+        this.ctx.drawImage(this.el.renderer.domElement, 0, 0, 256, 256);
+    }
+});

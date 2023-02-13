@@ -139,7 +139,7 @@ class DijkstrasAlgo {
         let path = [];
         while (previous[currentNode] != null) {
             path.push(currentNode)
-            currentNode = previous[currentNode]
+            currentNode = previous[currentNode];
         }
         path.push(sourceNodeIndex);
 
