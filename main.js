@@ -37,10 +37,15 @@ const locationOptions = {
 };
 const debug = true;
 const camera = document.querySelector("#rig");
-const secondaryCamera = document.querySelector("#secondaryRig");
+const scene = document.querySelector("a-scene");
+const secondaryCameraRig = document.querySelector("#secondaryRig");
+const secondaryCamera = document.querySelector("#secondarycamera");
 const humanHeight = 1.2;    // Height of the user in metres
-const birdHeight = 85;    // Height of the user in metres
+const birdHeight = 140;    // Height of the user in metres
 const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
+const miniMap = document.getElementById("miniMap");
+const playerSphere = document.getElementById("playerSphere");
+
 const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
     rasterWorker.postMessage({ uniURL: uniURL, cityURL: cityURL });
@@ -183,8 +188,8 @@ async function locationSuccess(position) {
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     console.log(newLatLong, newPixelCoords);
-    if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
-    if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize);
+    // if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
+    if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize).then(() => { renderMiniMap(); });
     else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
     placeCameraAtPixelCoords(newPixelCoords, newLatLong);
 }
@@ -263,10 +268,8 @@ function movedFarEnoughForNavigation(newLatLong) {
  * @param bboxSize - The size of the bounding box in metres.
  */
 async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
+    lowQuality = true;
     heightMaps = getHeightMap(pixelCoords, bboxSize);
-    // heightMaps = new Promise((resolve, reject) => {
-    //     reject(new Error("Test error"));
-    // });
     removeCurrentMap();
     loadTerrain();
     loadBuildings(coordinate, bboxSize);
@@ -284,7 +287,9 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     camera.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
-    secondaryCamera.object3D.position.set(pixelCoords.x, birdHeight, pixelCoords.y);
+    secondaryCameraRig.object3D.position.set(pixelCoords.x, birdHeight, pixelCoords.y);
+    playerSphere.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
+    renderMiniMap();
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
 
@@ -292,7 +297,9 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
             camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
-            secondaryCamera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + birdHeight), pixelCoords.y);
+            secondaryCameraRig.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + birdHeight), pixelCoords.y);
+            playerSphere.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
+            renderMiniMap();
         });
     }).catch((err) => {
         console.log(err);
@@ -381,10 +388,10 @@ document.addEventListener("touchend", function (event) {
 }, false);
 
 function handleGesture() {
-    if (touchendX <= touchstartX) {
-        toggleCameraView();
-    }
-    if (touchendX >= touchstartX) {
+    // if (touchendX <= touchstartX) {
+    //     toggleCameraView();
+    // }
+    if (touchendX >= touchstartX || touchendX <= touchstartX) {
         toggleStats();
     }
 }
@@ -408,19 +415,72 @@ function toggleStats() {
     sceneElement.setAttribute('stats', !sceneElement.getAttribute('stats'));
 }
 
+// AFRAME.registerComponent("updatetopdowncam", {
+//     init: function () {
+//         this.ctx = miniMap.getContext("2d", {
+//             failIfMajorPerformanceCaveat: true,
+//             antialias: true,
+//         });
+//         this.secondaryCam = secondaryCamera.components.camera.camera;
+//         this.tick = AFRAME.utils.throttleTick(this.tick, 500, this);    // Throttle the tick function to 500ms
+//     },
+//     tick: function (t, dt) {
+//         if (!this.secondaryCam) return;
+//         this.el.renderer.render(this.el.sceneEl.object3D, this.secondaryCam);   // Render the scene with the secondary camera
+//         this.ctx.drawImage(this.el.renderer.domElement, 0, 0, miniMap.width, miniMap.height);   // Draw the rendered image to the canvas
+//     },
+// });
 
-AFRAME.registerComponent("foo", {
-    init: function () {
-        var canvas = document.getElementById("miniMap");
-        this.ctx = canvas.getContext("2d", {
-            antialias: true,
-            depth: true,
-        });
-        this.secondaryCam = document.querySelector("#secondarycam").components.camera.camera;
-    },
-    tick: function () {
-        if (!this.secondaryCam) return;
-        this.el.renderer.render(this.el.sceneEl.object3D, this.secondaryCam);
-        this.ctx.drawImage(this.el.renderer.domElement, 0, 0, 256, 256);
+miniMap.addEventListener("click", function () {
+    if (miniMap.width === 100) {
+        miniMap.width = 200;
+        miniMap.height = 200;
+        secondaryCamera.setAttribute("camera", "zoom", 1.8);
+        miniMap.style.border = "5px solid black";
+    } else {
+        miniMap.width = 100;
+        miniMap.height = 100;
+        secondaryCamera.setAttribute("camera", "zoom", 3);
+        miniMap.style.border = "2px solid black";
     }
+    renderMiniMap();
 });
+
+function renderMiniMap() {
+    scene.renderer.render(scene.object3D, secondaryCamera.components.camera.camera);
+    miniMap.getContext("2d", {
+        failIfMajorPerformanceCaveat: true,
+        antialias: true
+    }).drawImage(scene.renderer.domElement, 0, 0, miniMap.width, miniMap.height);
+}
+
+// Obtain a new *world-oriented* Full Tilt JS DeviceOrientation Promise
+FULLTILT.getDeviceOrientation({ 'type': 'world' }).then(function (deviceOrientation) {
+    // Register a callback to run every time a new deviceorientation event is fired by the browser.
+    deviceOrientation.listen(function () {
+        // Get the current *screen-adjusted* device orientation angles
+        var currentOrientation = deviceOrientation.getScreenAdjustedEuler();
+        // Calculate the current compass heading that the user is 'looking at' (in degrees)
+        var compassHeading = 360 - currentOrientation.alpha;
+        angleSecondaryCamera(compassHeading)
+    });
+
+}).catch(function (errorMessage) { // Device Orientation Events are not supported
+    console.log(errorMessage);
+});
+
+function angleSecondaryCamera(compassHeading) {
+    // secondaryCameraRig.object3D.rotation.set(MathUtils.degToRad(-90), MathUtils.degToRad(compassHeading), 0);
+}
+
+function toggleInterface() {
+    let interfaceUI = document.getElementById("interface");
+    if (interfaceUI.style.display == "none") {
+        console.log("Displaying interface");
+        interfaceUI.style.display = "block";
+    }
+    else {
+        console.log("Hiding interface");
+        interfaceUI.style.display = "none";
+    }
+}

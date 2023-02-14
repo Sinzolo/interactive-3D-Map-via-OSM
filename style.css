@@ -38,13 +38,30 @@ button {
     font-weight: 600;
     font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
     margin-top: 25px;
-    padding-left: 30px;
-    padding-right: 30px;
+    padding-left: 25px;
+    padding-right: 25px;
     padding-top: 10px;
     padding-bottom: 10px;
     background-color: #a4e09f;
-    z-index: 100;
+    z-index: 2;
     position: relative;
+    border: 2px solid rgb(5, 32, 2);
+    border-radius: 16px;
+}
+
+#startNavigationBtn {
+    background-color: #31bc24;
+    color: white;
+}
+
+#hideNavigationMenuBtn {
+    background-color: #f27777;
+    color: white;
+}
+
+#settings svg {
+    width: 25px;
+    height: 25px;
 }
 
 label {
@@ -72,13 +89,19 @@ input {
     position: relative;
 }
 
+.a-enter-vr-button {
+    z-index: 1;
+    position: absolute;
+    top: 45em;
+}
+
 #miniMap {
     z-index: 1;
     position: absolute;
     top: 20px;
     right: 20px;
     border: 2px solid black;
-    border-radius: 128px;
+    border-radius: 200px;
 }
 
 a-scene {

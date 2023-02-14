@@ -9,15 +9,15 @@ const modal = document.getElementById("myModal");
 const span = document.getElementsByClassName("close")[0];
 const destinationLatInputBox = document.getElementById("destinationLat");
 const destinationLongInputBox = document.getElementById("destinationLong");
-const buildingNameDataList = document.getElementById("buildingNames");
-const buildingNameInput = document.getElementById("buildingInput");
+const placeNameDataList = document.getElementById("placeNames");
+const placeNameInput = document.getElementById("placeInput");
 const arrow = document.getElementById("arrow");
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
 var sourceLatLong = {lat: -1, long: -1};
 var destinationLatLong;
-var uniBuildings = new Map();
+var uniPlaceNames = new Map();
 var startSphere = null;
 var endSphere = null;
 var updateArrowRequestID = null;
@@ -35,6 +35,11 @@ function navigate(pathPromise) {
         destinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
         console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
+        if (checkDestinationReached()) {
+            stopNavigation();
+            renderMiniMap();
+            return new Promise(function (resolve, reject) { });
+        }
         sourceLatLong = usersCurrentLatLong;
         hideNavigationMenu();
         removeSpheres();
@@ -44,8 +49,8 @@ function navigate(pathPromise) {
         updateArrowRequestID = startUpdatingArrow(startSphere.object3D.position);
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
         console.log(pathToDest);
-
         colourRectangles(pathToDest);
+        renderMiniMap();
         return new Promise(function (resolve, reject) {});
     });
 }
@@ -57,6 +62,7 @@ function carryOnNavigating(pathPromise) {
     if (!navigationInProgress) return;
     if (checkDestinationReached()) {
         stopNavigation();
+        renderMiniMap();
         return;
     }
     navigate(pathPromise);
@@ -200,21 +206,28 @@ span.onclick = function () {
 }
 
 /* An event listener that is called when the user changes the value of the input box. */
-buildingNameInput.onchange = function () {
-    const coords = uniBuildings.get(buildingNameInput.value);
+placeNameInput.onchange = function () {
+    const coords = uniPlaceNames.get(placeNameInput.value);
     if (coords) {
-        console.log("You selected a valid option: " + buildingNameInput.value);
+        console.log(coords);
+        console.log("You selected a valid option: " + placeNameInput.value);
         let latSum = 0;
         let longSum = 0;
-        coords[0].forEach(coord => {
-            latSum += coord[1];
-            longSum += coord[0];
-        });
-        const count = coords[0].length;
+        let count = 1;
+        try {
+            coords[0].forEach(coord => {
+                latSum += coord[1];
+                longSum += coord[0];
+            });
+            count = coords[0].length;
+        } catch {
+            latSum = coords[1];
+            longSum = coords[0];
+        }
         destinationLatInputBox.value = (latSum / count).toFixed(6);
         destinationLongInputBox.value = (longSum / count).toFixed(6);
     } else {
-        console.log("You entered an invalid option: " + buildingNameInput.value);
+        console.log("You entered an invalid option: " + placeNameInput.value);
         destinationLatInputBox.value = "";
         destinationLongInputBox.value = "";
     }
@@ -230,6 +243,11 @@ function fillSuggestions() {
     const stringBBox = "54.00216, -2.79478, 54.01638, -2.78173";
     const overpassQuery = overpassURL + encodeURIComponent(
         "(way[building](" + stringBBox + ");" +
+        "node[shop](" + stringBBox + ");" +
+        "node[amenity](" + stringBBox + ");" +
+        "way[amenity](" + stringBBox + ");" +
+        "node[place=neighbourhood](" + stringBBox + ");" +
+        "node[highway=bus_stop](" + stringBBox + ");" +
         "rel[building](" + stringBBox + "););" +
         "out geom;>;out skel qt;"
     );
@@ -241,36 +259,81 @@ function fillSuggestions() {
         navigationFetchWorker.onmessage = async function (e) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach(feature => {
-                if (feature.geometry.type == "Polygon") addBuildingNameToDataList(feature);
+                if (feature.properties.name) addPlaceToDataList(feature);
             });
+            alphabeticallySortDataList();
         }
     });
 }
 
+
 /**
- * Takes a feature, checks if it has a name, and if it does, add it to the
- * `uniBuildings` map and adds the name of the feature to the `datalist` element.
- * @param feature - the feature
+ * It adds the place name to the data list of places.
+ * \
+ * If the datalist already contains the name, it adds a number to the end of the name.
+ * @param feature - the feature to add to the data list
  */
-function addBuildingNameToDataList(feature) {
-    if (!feature.properties.name) return;
-    uniBuildings.set(feature.properties.name, feature.geometry.coordinates);
+function addPlaceToDataList(feature) {
+    let nameChange = "1";
+    let endBracket = ")";
+    let name = addFunctionToName(feature);
+    while (uniPlaceNames.has(name + " " + nameChange + endBracket)) nameChange++;
+    name += " " + nameChange + endBracket;
+    uniPlaceNames.set(name, feature.geometry.coordinates);
     const option = document.createElement("option");
-    option.value = feature.properties.name;
-    option.text = feature.properties.name;
-    buildingNameDataList.appendChild(option);
+    option.value = name;
+    option.text = name;
+    placeNameDataList.appendChild(option);
+}
+
+/**
+ * It adds a function to the name of a feature.
+ * @param feature - the feature to add the function to.
+ * @returns The name of the feature, with the addition of the feature's function.
+ */
+function addFunctionToName(feature) {
+    let name = feature.properties.name;
+    if (feature.properties.shop) name += " (Shop";
+    else if (feature.properties.amenity) name += " (" + capitaliseFirstLetter(feature.properties.amenity).replace(/_/g, " ") + "";
+    else if (feature.properties.building) name += " (Building";
+    else if (feature.properties.place) name += " (Area";
+    else if (feature.properties.highway == "bus_stop") name += " (Bus stop";
+    return name;
+}
+
+/**
+ * Capitalise the first letter of a string.
+ * @param string - The string to be capitalised.
+ * @returns Same string with the first letter capitalised.
+ */
+function capitaliseFirstLetter(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+/**
+ * It gets all the options in the data list, sorts them alphabetically, and then adds them back to the
+ * data list
+ */
+function alphabeticallySortDataList() {
+    const options = document.querySelectorAll("#placeNames option");
+    const sortedOptions = Array.from(options).sort((a, b) => {
+        return a.value.localeCompare(b.value);
+    });
+    sortedOptions.forEach(option => {
+        placeNameDataList.appendChild(option);
+    });
 }
 
 /* Setting the onclick function of the start navigation button to the navigate function. */
 document.getElementById("startNavigationBtn").onclick = function () {
     navigate(pathPromise)
-    buildingNameInput.value = "";
+    placeNameInput.value = "";
 }
 
 /* Hiding the navigation menu when the user clicks on the "Hide Navigation Menu" button. */
 document.getElementById("hideNavigationMenuBtn").onclick = function () {
     hideNavigationMenu();
-    buildingNameInput.value = "";
+    placeNameInput.value = "";
 }
 
 /**

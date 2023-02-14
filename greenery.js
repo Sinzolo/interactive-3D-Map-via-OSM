@@ -137,16 +137,23 @@ function addTree(feature, parentElement) {
             leaves.setAttribute("height", leavesHeight);
             leaves.setAttribute("radius-bottom", leavesRadius);
             leaves.setAttribute("radius-top", 0);
+            leaves.setAttribute("segments-radial", Math.floor(Math.random() * 10) + 4);
+            leaves.setAttribute("segments-height", 1);
+            leaves.setAttribute("roughness", 1);
+            leaves.setAttribute("material", { color: "#53D756" });
         }
         else { // use a simple typical broadleaved-type shape
             var leaves = document.createElement("a-sphere");
             var yComponent = trunkHeight * 0.95;
             leaves.setAttribute("radius", leavesRadius);
+            leaves.setAttribute("segments-width", Math.floor(Math.random() * 12) + 7);
+            leaves.setAttribute("segments-height", Math.floor(Math.random() * 12) + 5);
+            leaves.setAttribute("roughness", 1);
+            leaves.setAttribute("material", { color: "#70Ef70" });
         }
 
-        leaves.setAttribute("material", { color: "#80ff80" });
         leaves.object3D.position.set((pixelCoords.x), (yComponent), (pixelCoords.y));
-
+        
         trunk.setAttribute("geometry", { primitive: "cylinder", height: trunkHeight + defaultTreeHeightUnderGround, radius: trunkRadius });
         trunk.setAttribute("material", { color: "#b27f36" });
         trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 , (pixelCoords.y));
