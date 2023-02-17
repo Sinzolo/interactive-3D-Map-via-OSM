@@ -1,4 +1,5 @@
 'use strict';
+
 const pathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
@@ -7,11 +8,12 @@ const pathHeightUnderGround = 10;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
 const defaultPathColour = "#979797";
-const pathLookAhead = 1500;         // How much bigger the bbox is for the paths to see ahead for navigation
+
 const pathParent = document.createElement('a-entity');
 pathParent.setAttribute("id", "pathParent");
 pathParent.setAttribute("class", "path");
 document.querySelector('a-scene').appendChild(pathParent);
+
 const highwayStyles = {
     motorway: { color: "#404040", pathWidth: 1.6, pathHeightAboveGround: defaultPathHeightAboveGround + 0.012 },    // Varrying heights to try and discourage z-fighting
     trunk: { color: "#505050", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },

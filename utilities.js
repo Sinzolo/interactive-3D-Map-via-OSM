@@ -99,3 +99,26 @@ function getBoundingBox(lat, long, metres) {
         maxLng: long + lngDelta * degreeFactor
     };
 }
+
+/**
+ * Takes a coordinate and adds a distance to it.
+ * 
+ * @param start - A `{lat, long}` object
+ * @param distance - The distance in meters
+ * @param isLatitude - `true` if you want to add distance to the latitude, `false` if you want to add
+ * distance to the longitude
+ * @returns A new coordinate object with the new lat and long values
+ */
+function addDistance(start, distance, isLatitude) {
+    const brng = isLatitude ? 0 : 90; // Bearing (0 for latitude, 90 for longitude)
+    const radianLat = start.lat * radianFactor;
+    const radianLong = start.long * radianFactor;
+
+    const newLat = Math.asin(Math.sin(radianLat) * Math.cos(distance / earthRadius) + Math.cos(radianLat) * Math.sin(distance / earthRadius) * Math.cos(brng));
+    const newLong = radianLong + Math.atan2(Math.sin(brng) * Math.sin(distance / earthRadius) * Math.cos(radianLat), Math.cos(distance / earthRadius) - Math.sin(radianLat) * Math.sin(newLat));
+
+    return {
+        lat: isLatitude ? parseFloat((newLat * degreeFactor).toFixed(6)) : start.lat,
+        long: isLatitude ? start.long : parseFloat((newLong * degreeFactor).toFixed(6))
+    };
+}

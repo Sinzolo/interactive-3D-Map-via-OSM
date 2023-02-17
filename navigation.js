@@ -356,3 +356,19 @@ function startUpdatingArrow(point) {
 function stopUpdatingArrow() {
     cancelAnimationFrame(updateArrowRequestID);
 }
+
+// placeNameInput.addEventListener("keydown", function (event) {
+//     if (event.key === "Enter") {
+//         const inputValue = placeNameInput.value.toLowerCase();
+//         const options = Array.from(placeNameDataList.options);
+//         const matchingOptions = options.filter((option) =>
+//             option.value.toLowerCase().startsWith(inputValue)
+//         );
+//         const displayedOption = matchingOptions.find((option) =>
+//             option === document.activeElement
+//         ) || matchingOptions[0];
+//         if (displayedOption) {
+//             placeNameInput.value = displayedOption.value;
+//         }
+//     }
+// });
