@@ -47,6 +47,7 @@ button {
     position: relative;
     border: 2px solid rgb(5, 32, 2);
     border-radius: 16px;
+    color: black;
 }
 
 #startNavigationBtn {

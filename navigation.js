@@ -12,6 +12,7 @@ const destinationLongInputBox = document.getElementById("destinationLong");
 const placeNameDataList = document.getElementById("placeNames");
 const placeNameInput = document.getElementById("placeInput");
 const arrow = document.getElementById("arrow");
+const canVibrate = window.navigator.vibrate;
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
@@ -27,14 +28,12 @@ var updateArrowRequestID = null;
  * the destination, then it finds the shortest path between the two nodes using Dijkstra's algorithm,
  * and finally it highlights the path to the destination by changing the color of the rectangles that
  * make up the path.
- */
+*/
 function navigate(pathPromise) {
     pathPromise = pathPromise.then(function () {
-        arrow.setAttribute("visible", "true");
-        navigationInProgress = true;
         destinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
-        console.log(destinationLatLong);
         if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
+        navigationInProgress = true;
         if (checkDestinationReached()) {
             stopNavigation();
             renderMiniMap();
@@ -80,7 +79,7 @@ function stopNavigation() {
     removeSpheres();
     uncolourRectangles();
     showDestinationFoundMessage();
-    arrow.setAttribute("visible", "false");
+    if (canVibrate) navigator.vibrate([150, 30, 80, 30, 250]);
     stopUpdatingArrow(updateArrowRequestID);
 }
 
@@ -266,7 +265,6 @@ function fillSuggestions() {
     });
 }
 
-
 /**
  * It adds the place name to the data list of places.
  * \
@@ -337,23 +335,33 @@ document.getElementById("hideNavigationMenuBtn").onclick = function () {
 }
 
 /**
- * It takes a point and makes the arrow look at it
- * @param point - The point to which the arrow should point
- * @returns The ID of the requestAnimationFrame() function call
+ * It makes the arrow visible and then calls the updateArrow function.
+ * @param point - The point where the arrow should point to.
  */
 function startUpdatingArrow(point) {
+    arrow.setAttribute("visible", "true");
+    updateArrow(point)
+}
+
+/**
+ * Rotates the navigation arrow to look at the given point.
+ * @param point - The point in space that the arrow should point to
+ * @returns The requestAnimationFrame ID nubmber
+ */
+function updateArrow(point) {
     arrow.object3D.lookAt(point.x, point.y, point.z);
-    arrow.object3D.rotation.y += THREE.MathUtils.degToRad(-90);
-    arrow.object3D.rotation.z += THREE.MathUtils.degToRad(-90);
+    arrow.object3D.rotation.y += -90 * radianFactor;
+    arrow.object3D.rotation.z += -90 * radianFactor;
     return requestAnimationFrame(() => {
-            startUpdatingArrow(point)
-        });
+        updateArrow(point)
+    });
 }
 
 /**
  * It cancels the animation frame request that was created in the `updateArrow()` function
  */
 function stopUpdatingArrow() {
+    arrow.setAttribute("visible", "false");
     cancelAnimationFrame(updateArrowRequestID);
 }
 

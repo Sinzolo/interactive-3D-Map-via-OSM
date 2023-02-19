@@ -21,7 +21,10 @@ var mapBeingShown = false;
 var lowQuality = false;
 var heightMaps;
 var pathPromise;
+var centreCamera = false;
+var touchstartX;
 
+const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
@@ -31,21 +34,26 @@ const bboxSize = 600;                       // Length of one side of bounding bo
 const pathLookAhead = 1500 - bboxSize;      // How much bigger the bbox is for the paths to see ahead for navigation (1500m = uni campus size)
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
 const distanceNeededToUpdateNavigation = 16;
+const humanHeight = 1.2;    // Height of the user in metres
+const birdHeight = 140;     // Height of the user in metres
+const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
+const debug = true;
+
+const scene = document.querySelector("a-scene");
+const cameraRig = document.getElementById("rig");
+const secondaryCameraRig = document.getElementById("secondaryRig");
+const secondaryCamera = document.getElementById("secondarycamera");
+const playerCamera = document.getElementById("playerCamera");
+const debugCamera = document.getElementById("debugCamera");
+const playerSphere = document.getElementById("playerSphere");
+const interfaceUI = document.getElementById("interface");
+const miniMap = document.getElementById("miniMap");
+
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 0,      // How often the location should be updated
+    maximumAge: 100000,      // How often the location should be updated
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
-const debug = true;
-const camera = document.querySelector("#rig");
-const scene = document.querySelector("a-scene");
-const secondaryCameraRig = document.querySelector("#secondaryRig");
-const secondaryCamera = document.querySelector("#secondarycamera");
-const humanHeight = 1.2;    // Height of the user in metres
-const birdHeight = 140;    // Height of the user in metres
-const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
-const miniMap = document.getElementById("miniMap");
-const playerSphere = document.getElementById("playerSphere");
 
 const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
@@ -140,15 +148,6 @@ function showMap() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("mapScreen").style.display = "block";
 
-
-    // TODO #4 Get the camera to face the correct heading.
-    // navigator.geolocation.getCurrentPosition(function(position) {
-    //     console.log("Position:", position);
-    //     var heading = position.coords.heading;
-    //     console.log("Heading: ", heading);
-    //     let camera = document.getElementById("rig");
-    //     camera.setAttribute("rotation", {x: 0, y: heading, z: 0});
-    // });
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     // cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
     mapBeingShown = true;
@@ -287,7 +286,7 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
  * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
-    camera.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
+    cameraRig.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
     secondaryCameraRig.object3D.position.set(pixelCoords.x, birdHeight, pixelCoords.y);
     playerSphere.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
     renderMiniMap();
@@ -297,7 +296,7 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     if (lowQuality) return;
     heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
         Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            camera.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
+            cameraRig.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
             secondaryCameraRig.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + birdHeight), pixelCoords.y);
             playerSphere.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
             renderMiniMap();
@@ -318,7 +317,7 @@ function removeAllChildren(element) {
 }
 
 /**
- * Removes the current terrain and buildings
+ * Removes the everything from the scene.
  */
 function removeCurrentMap() {
     removeCurrentTerrain();
@@ -329,115 +328,62 @@ function removeCurrentMap() {
     removeCurrentTrees();
 }
 
-/**
- * It removes the sun from the scene if low quality is enabled, and adds it back in if low quality is
- * disabled. Also, it sets the lowQuality variable to the given value.
- * @param tempLowQuality - a boolean, true if low quality is to be set,
- * false if high quality is to be set.
- */
-async function setLowQuality(tempLowQuality) {
-    if (lowQuality == tempLowQuality) return
-    lowQuality = tempLowQuality;
-    if (tempLowQuality) {
-        // removeElement("sun");
-        document.getElementById("sun").remove();
-    }
-    else {
-        let newSun = document.createElement('a-simple-sun-sky');
-        newSun.setAttribute("id", "sun");
-        newSun.setAttribute("sun-position", "0.7 1 -1");
-        newSun.setAttribute("light-color", "#87cefa");
-        newSun.setAttribute("dark-color", "#00bfff");
-        newSun.setAttribute("fog-color", "#74d2fa");
-        document.querySelector('a-scene').appendChild(newSun);
-    }
-    let pathPromise;
-    await Promise.all([
-        pathPromise = loadNewMapArea(usersCurrentLatLong, currentCentreOfBBox, bboxSize),
-        placeCameraAtPixelCoords(usersCurrentPixelCoords, usersCurrentLatLong)
-    ]);
-    // carryOnNavigating(pathPromise);
-}
-
-
-
-/* Listening for the keydown event and if the key pressed is the c key,
-then it will switch the active camera. */
+/* Listens for any key presses. */
 document.addEventListener("keydown", function (event) {
-    if (event.code === "KeyC") {
-        toggleCameraView();
-    }
-    else if (event.code === "KeyV") {
-        toggleStats();
-    }
+    if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+    if (event.code === "KeyC") toggleCameraView();
+    else if (event.code === "KeyV") toggleStats();
 });
 
-var touchstartX = 0;
-var touchendX = 0;
-
+/* Listens for when the user starts touching the screen. */
 document.addEventListener("touchstart", function (event) {
     if (event.touches.length === 2) {
         touchstartX = event.changedTouches[0].screenX;
     }
-}, false);
+});
 
+/* Listens for when the user stops touching the screen. */
 document.addEventListener("touchend", function (event) {
     if (event.touches.length === 2) {
-        touchendX = event.changedTouches[0].screenX;
-        handleGesture();
+        handleGesture(touchstartX, event.changedTouches[0].screenX);
     }
-}, false);
+});
 
-function handleGesture() {
-    // if (touchendX <= touchstartX) {
-    //     toggleCameraView();
-    // }
+/**
+ * If the user swipes left or right, toggle the stats.
+ * @param touchstartX - The x coordinate of the point where the user started the touch 
+ * @param touchendX - The x coordinate of the point where the user ended the touch
+ */
+function handleGesture(touchstartX, touchendX) {
     if (touchendX >= touchstartX || touchendX <= touchstartX) {
         toggleStats();
     }
 }
 
+/**
+ * If the player camera is active, make the debug camera active. Otherwise, make the player camera
+ * active.
+ */
 function toggleCameraView() {
-    var playerCamera = document.getElementById("playerCamera");
-    if (playerCamera.getAttribute('camera').active == true) {
-        var debugCamera = document.getElementById("debugCamera");
-        debugCamera.setAttribute('camera', 'active', true);
-        console.log("Debug camera now active");
-    }
-    else {
-        playerCamera.setAttribute('camera', 'active', true)
-        console.log("Player camera now active");
-    }
+    const playerActive = playerCamera.getAttribute('camera').active;
+    playerCamera.setAttribute('camera', 'active', !playerActive);
+    debugCamera.setAttribute('camera', 'active', playerActive);
 }
 
+/**
+ * Toggles the stats attribute on the scene element.
+ */
 function toggleStats() {
-    console.log("Toggling stats");
-    let sceneElement = document.querySelector('a-scene');
-    sceneElement.setAttribute('stats', !sceneElement.getAttribute('stats'));
+    scene.setAttribute('stats', !scene.getAttribute('stats'));
 }
 
-// AFRAME.registerComponent("updatetopdowncam", {
-//     init: function () {
-//         this.ctx = miniMap.getContext("2d", {
-//             failIfMajorPerformanceCaveat: true,
-//             antialias: true,
-//         });
-//         this.secondaryCam = secondaryCamera.components.camera.camera;
-//         this.tick = AFRAME.utils.throttleTick(this.tick, 500, this);    // Throttle the tick function to 500ms
-//     },
-//     tick: function (t, dt) {
-//         if (!this.secondaryCam) return;
-//         this.el.renderer.render(this.el.sceneEl.object3D, this.secondaryCam);   // Render the scene with the secondary camera
-//         this.ctx.drawImage(this.el.renderer.domElement, 0, 0, miniMap.width, miniMap.height);   // Draw the rendered image to the canvas
-//     },
-// });
-
+/* When mini map is clicked, zoom in/out to make it bigger. */
 miniMap.addEventListener("click", function () {
     if (miniMap.width === 100) {
         miniMap.width = 200;
         miniMap.height = 200;
         secondaryCamera.setAttribute("camera", "zoom", 1.8);
-        miniMap.style.border = "5px solid black";
+        miniMap.style.border = "4px solid black";
     } else {
         miniMap.width = 100;
         miniMap.height = 100;
@@ -447,6 +393,10 @@ miniMap.addEventListener("click", function () {
     renderMiniMap();
 });
 
+/**
+ * It renders the scene from the perspective of the secondary camera, and then draws the result to the
+ * mini map canvas.
+ */
 function renderMiniMap() {
     scene.renderer.render(scene.object3D, secondaryCamera.components.camera.camera);
     miniMap.getContext("2d", {
@@ -455,33 +405,70 @@ function renderMiniMap() {
     }).drawImage(scene.renderer.domElement, 0, 0, miniMap.width, miniMap.height);
 }
 
-// Obtain a new *world-oriented* Full Tilt JS DeviceOrientation Promise
-FULLTILT.getDeviceOrientation({ 'type': 'world' }).then(function (deviceOrientation) {
-    // Register a callback to run every time a new deviceorientation event is fired by the browser.
-    deviceOrientation.listen(function () {
-        // Get the current *screen-adjusted* device orientation angles
-        var currentOrientation = deviceOrientation.getScreenAdjustedEuler();
-        // Calculate the current compass heading that the user is 'looking at' (in degrees)
-        var compassHeading = 360 - currentOrientation.alpha;
-        angleSecondaryCamera(compassHeading)
-    });
+// // Obtain a new *world-oriented* Full Tilt JS DeviceOrientation Promise
+// FULLTILT.getDeviceOrientation({ 'type': 'world' }).then(function (deviceOrientation) {
+//     console.log("Full Tilt JS Device Orientation Events are supported!");
+//     // Register a callback to run every time a new deviceorientation event is fired by the browser.
+//     deviceOrientation.listen(function () {
+//         // Get the current *screen-adjusted* device orientation angles
+//         var currentOrientation = deviceOrientation.getScreenAdjustedEuler();
+//         // Calculate the current compass heading that the user is 'looking at' (in degrees)
+//         var compassHeading = 360 - currentOrientation.alpha;
+//         angleSecondaryCamera(compassHeading);
+//         if (centreCamera) angleMainCamera(compassHeading);
+//     });
 
-}).catch(function (errorMessage) { // Device Orientation Events are not supported
-    console.log(errorMessage);
-});
+// }).catch(function (errorMessage) { // Device Orientation Events are not supported
+//     console.log(errorMessage);
+// });
 
-function angleSecondaryCamera(compassHeading) {
-    // secondaryCameraRig.object3D.rotation.set(MathUtils.degToRad(-90), MathUtils.degToRad(compassHeading), 0);
+/**
+ * If the interface is hidden, show it, otherwise hide it.
+ */
+function toggleInterface() {
+    interfaceUI.style.display = interfaceUI.style.display === "none" ? "block" : "none";
 }
 
-function toggleInterface() {
-    let interfaceUI = document.getElementById("interface");
-    if (interfaceUI.style.display == "none") {
-        console.log("Displaying interface");
-        interfaceUI.style.display = "block";
-    }
-    else {
-        console.log("Hiding interface");
-        interfaceUI.style.display = "none";
-    }
+/**
+ * Adds an event listener to the window object to listen for the deviceorientation event.
+ */
+function startCompass() {
+    if (isIOS) window.addEventListener("deviceorientation", handleCompassHeading, true);
+    else window.addEventListener("deviceorientationabsolute", handleCompassHeading, true);
+}
+
+/**
+ * It takes the compass heading and uses it to rotate the main and secondary cameras.
+ * @param event - The event object that contains the compass heading.
+ */
+function handleCompassHeading(event) {
+    let compassHeading = event.webkitCompassHeading || Math.abs(event.alpha - 360);
+    if (centreCamera) angleMainCamera(compassHeading);
+    angleSecondaryCamera(compassHeading);
+}
+
+/**
+ * Takes the compass heading and rotates the mini map to match the heading of the device.
+ * @param compassHeading - The compass heading of the device.
+ */
+function angleSecondaryCamera(compassHeading) {
+    miniMap.style.transform = "rotate(" + (360 - compassHeading) + "deg)";
+}
+
+/**
+ * Takes the compass heading and rotates the camera to match the heading of the device.
+ * @param compassHeading - The compass heading in degrees.
+ */
+function angleMainCamera(compassHeading) {
+    console.log("BEFORE Compass Heading: " + compassHeading + " degrees");
+    compassHeading = 360 - compassHeading;
+    console.log("AFTER Compass Heading: " + compassHeading + " degrees");
+    centreCamera = false;
+    // playerCamera.setAttribute("rotation", "0 " + compassHeading + " 0")
+    // console.log("yaw", playerCamera.components['look-controls'].yawObject.rotation.y);
+    // console.log("magic", playerCamera.components['look-controls'].magicWindowDeltaEuler.y);
+    // console.log("magic ABS", playerCamera.components['look-controls'].magicWindowAbsoluteEuler.y);
+    console.log(playerCamera.components['look-controls']);
+    playerCamera.components['look-controls'].magicWindowControls.deviceOrientation.alpha = compassHeading;
+    // playerCamera.components['look-controls'].yawObject.rotation.y = compassHeading - playerCamera.components['look-controls'].magicWindowDeltaEuler.y;
 }

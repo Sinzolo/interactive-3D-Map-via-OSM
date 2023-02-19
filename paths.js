@@ -24,6 +24,7 @@ const highwayStyles = {
     living_street: { color: "#909090", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
     unclassified: { color: "#9B9B9B", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.002 },
     service: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
+    track: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
     pedestrian: { color: "#ABABAB", pathWidth: 0.7, pathHeightAboveGround: defaultPathHeightAboveGround + 0.016 },
     footway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
     cycleway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
@@ -74,6 +75,7 @@ async function loadPaths(coordinate, bboxSize) {
         "way[highway=residential](" + stringBBox + ");" +
         "way[highway=living_street](" + stringBBox + ");" +
         "way[highway=unclassified](" + stringBBox + ");" +
+        "way[highway=track](" + stringBBox + ");" +
         "way[highway=service](" + stringBBox + "););" +
         "out geom;>;out skel qt;"
     );
