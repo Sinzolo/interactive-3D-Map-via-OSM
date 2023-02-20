@@ -1,5 +1,6 @@
 'use strict';
 
+const debug = false;
 const earthRadius = 6371e3;     // Earth's radius in metres
 const radianFactor = Math.PI / 180;
 const degreeFactor = 180 / Math.PI;
@@ -25,9 +26,9 @@ async function fetchWithRetry(url, retries = 10) {
             retries = 0;
             return response;
         }).catch((error) => {
-            console.log(error);
+            debugLog(error);
             retries--;
-            console.log("Retrying, "+retries+" attempts left.");
+            debugLog("Retrying, "+retries+" attempts left.");
         });
         await sleep(seconds);
         seconds *= 2;

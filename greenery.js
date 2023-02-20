@@ -25,7 +25,7 @@ document.querySelector('a-scene').appendChild(treeParent);
  * @returns A promise that resolves when the natural features have been loaded
  */
 async function loadNaturalFeatures(coordinate, bboxSize) {
-    console.log("=== Loading Natural Features ===");
+    debugLog("=== Loading Natural Features ===");
 
     var stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, bboxSize));
     var overpassQuery = overpassURL + encodeURIComponent(

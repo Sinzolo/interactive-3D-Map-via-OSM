@@ -55,7 +55,7 @@ var pathPromise;
  * @returns A promise that resolves when the paths have been loaded
  */
 async function loadPaths(coordinate, bboxSize) {
-    console.log("=== Loading Paths ===");
+    debugLog("=== Loading Paths ===");
 
     const pathBboxConstraint = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
     const stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, (bboxSize + pathLookAhead)));

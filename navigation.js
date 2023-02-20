@@ -12,7 +12,7 @@ const destinationLongInputBox = document.getElementById("destinationLong");
 const placeNameDataList = document.getElementById("placeNames");
 const placeNameInput = document.getElementById("placeInput");
 const arrow = document.getElementById("arrow");
-const canVibrate = window.navigator.vibrate;
+const vibrateAvailable = window.navigator.vibrate;
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
@@ -47,7 +47,7 @@ function navigate(pathPromise) {
         endSphere = addFloatingSphere(destinationLatLong, "#FF0000");
         updateArrowRequestID = startUpdatingArrow(startSphere.object3D.position);
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
-        console.log(pathToDest);
+        debugLog(pathToDest);
         colourRectangles(pathToDest);
         renderMiniMap();
         return new Promise(function (resolve, reject) {});
@@ -73,13 +73,13 @@ function carryOnNavigating(pathPromise) {
  * message to the user.
  */
 function stopNavigation() {
-    console.log("Destination reached!");
+    debugLog("Destination reached!");
     navigationInProgress = false;
     destinationLatLong = null;
     removeSpheres();
     uncolourRectangles();
     showDestinationFoundMessage();
-    if (canVibrate) navigator.vibrate([150, 30, 80, 30, 250]);
+    if (vibrateAvailable) navigator.vibrate([150, 30, 80, 30, 250]);
     stopUpdatingArrow(updateArrowRequestID);
 }
 
@@ -89,7 +89,7 @@ function stopNavigation() {
  * @returns A boolean value.
  */
 function checkDestinationReached() {
-    console.log("Distance: " + getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) + "m");
+    debugLog("Distance: " + getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) + "m");
     return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < 25;
 }
 
@@ -187,11 +187,11 @@ function colourRectangles(pathToDest) {
  * Shows the modal for 3.5 seconds, then hides it.
  */
 function showDestinationFoundMessage() {
-    console.log("Showing destination found message");
+    debugLog("Showing destination found message");
     modal.style.display = "block";
     modal.style.animationName = "modalSlideUp";
     setTimeout(() => {
-        console.log("Hiding destination found message");
+        debugLog("Hiding destination found message");
         modal.style.animationName = "modalSlideDown";
         setTimeout(() => {modal.style.display = "none"}, 580);
     }, 3500);
@@ -206,8 +206,8 @@ span.onclick = function () {
 placeNameInput.onchange = function () {
     const coords = uniPlaceNames.get(placeNameInput.value);
     if (coords) {
-        console.log(coords);
-        console.log("You selected a valid option: " + placeNameInput.value);
+        debugLog(coords);
+        debugLog("You selected a valid option: " + placeNameInput.value);
         let latSum = 0;
         let longSum = 0;
         let count = 1;
@@ -224,7 +224,7 @@ placeNameInput.onchange = function () {
         destinationLatInputBox.value = (latSum / count).toFixed(6);
         destinationLongInputBox.value = (longSum / count).toFixed(6);
     } else {
-        console.log("You entered an invalid option: " + placeNameInput.value);
+        debugLog("You entered an invalid option: " + placeNameInput.value);
         destinationLatInputBox.value = "";
         destinationLongInputBox.value = "";
     }

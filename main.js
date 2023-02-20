@@ -21,6 +21,9 @@ var heightMaps;
 var pathPromise;
 var centreCamera = false;
 var touchstartX;
+var rigPos = { x: 0, y: 0, z: 0 };
+var hasToggledCamView = false;
+var hasToggledStatView = false;
 
 const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
@@ -35,7 +38,6 @@ const distanceNeededToUpdateNavigation = 16;
 const humanHeight = 1.2;    // Height of the user in metres
 const birdHeight = 140;     // Height of the user in metres
 const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
-const debug = true;
 
 const scene = document.querySelector("a-scene");
 const cameraRig = document.getElementById("rig");
@@ -58,7 +60,7 @@ const rasters = new Promise((resolve, reject) => {
     rasterWorker.postMessage({ uniURL: uniURL, cityURL: cityURL });
     rasterWorker.onmessage = async function (e) {
         if (e.data.status == "bad") {
-            console.log("Worker failed. Reverting to UI thread.");
+            debugLog("Worker failed. Reverting to UI thread.");
             // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
             let cpuCores = navigator.hardwareConcurrency;
             var pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
@@ -97,8 +99,8 @@ var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given 
  */
 // async function deleteAndReOpenCache() {
 //     await caches.delete(osmCacheName);
-//     console.log("Cache Storage Deleted");
-//     console.log("Opening New Cache Storage");
+//     debugLog("Cache Storage Deleted");
+//     debugLog("Opening New Cache Storage");
 //     osmCache = caches.open(osmCacheName);
 // }
 /* Delete the cache when the page is unloaded. */
@@ -109,14 +111,14 @@ window.addEventListener("unload", async function () {
 // window.onblur = function () {
 //     if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
 //         cacheDeletionInterval = clearInterval(cacheDeletionInterval);
-//         console.log("Interval Cleared");
+//         debugLog("Interval Cleared");
 //     }
 // };
 // /* Restarting the cache deletion interval when the window is in focus. */
 // window.onfocus = function () {
 //     if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
 //         cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
-//         console.log("Interval Restarted");
+//         debugLog("Interval Restarted");
 //     }
 // };
 
@@ -161,7 +163,7 @@ function showMainMenu() {
     navigator.geolocation.clearWatch(watchID);
     watchID = -1;
     clearInterval(cacheDeletionInterval);
-    console.log("Interval Cleared");
+    debugLog("Interval Cleared");
     mapBeingShown = false;
 }
 
@@ -187,10 +189,10 @@ function hideNavigationMenu() {
  * @param position - the position object returned by the geolocation API
  */
 async function locationSuccess(position) {
-    console.log("\n\n===== NEW LOCATION ======");
+    debugLog("\n\n===== NEW LOCATION ======");
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
-    console.log(newLatLong, newPixelCoords);
+    debugLog(newLatLong, newPixelCoords);
     // if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
     if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize).then(() => { renderMiniMap(); });
     else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
@@ -204,16 +206,16 @@ async function locationSuccess(position) {
 function locationError(error) {
     switch (error.code) {
         case error.PERMISSION_DENIED:
-            console.log("User denied the request for Geolocation.")
+            debugLog("User denied the request for Geolocation.")
             break;
         case error.POSITION_UNAVAILABLE:
-            console.log("Location information is unavailable.")
+            debugLog("Location information is unavailable.")
             break;
         case error.TIMEOUT:
-            console.log("The request to get user location timed out.")
+            debugLog("The request to get user location timed out.")
             break;
         case error.UNKNOWN_ERROR:
-            console.log("An unknown error occurred.")
+            debugLog("An unknown error occurred.")
             break;
     }
 }
@@ -235,8 +237,8 @@ function movedFarEnoughForMap(newPixelCoords) {
     xDistance = Math.abs(xDistance) * 2;
     let yDistance = currentCentreOfBBox.y - newPixelCoords.y;
     yDistance = Math.abs(yDistance) * 2;
-    console.log(xDistance);
-    console.log(yDistance);
+    debugLog(xDistance);
+    debugLog(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
     if (xDistance > distanceNeededToLoadNewChunk || yDistance > distanceNeededToLoadNewChunk) {
@@ -254,9 +256,9 @@ function movedFarEnoughForMap(newPixelCoords) {
 function movedFarEnoughForNavigation(newLatLong) {
     if (!navigationInProgress) return false;
     let distance = getDistance([sourceLatLong.lat, sourceLatLong.long], [newLatLong.lat, newLatLong.long]);
-    console.log("Distance: " + distance + " metres");
+    debugLog("Distance: " + distance + " metres");
     if (distance > distanceNeededToUpdateNavigation) {
-        console.log("Moved far enough!");
+        debugLog("Moved far enough!");
         return true;
     }
     return false;
@@ -285,10 +287,11 @@ async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
  * Places the camera at the pixel coords and sets the users current location variables.
  * @param pixelCoords - The new pixel coordinates of the user.
  * @param newLatLong - The new latitude and longitude of the user.
- * @returns returns null
  */
 function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
-    cameraRig.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
+    if (watchID != -1) {
+        cameraRig.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
+    }
     secondaryCameraRig.object3D.position.set(pixelCoords.x, birdHeight, pixelCoords.y);
     playerSphere.object3D.position.set(pixelCoords.x, humanHeight, pixelCoords.y);
     renderMiniMap();
@@ -304,7 +307,7 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
             renderMiniMap();
         });
     }).catch((err) => {
-        console.log(err);
+        debugLog(err);
     });
 }
 
@@ -357,9 +360,8 @@ document.addEventListener("touchend", function (event) {
  * @param touchendX - The x coordinate of the point where the user ended the touch
  */
 function handleGesture(touchstartX, touchendX) {
-    if (touchendX >= touchstartX || touchendX <= touchstartX) {
-        toggleStats();
-    }
+    if (touchendX <= touchstartX) toggleCameraView();
+    else if (touchendX >= touchstartX) toggleStats();
 }
 
 /**
@@ -367,15 +369,31 @@ function handleGesture(touchstartX, touchendX) {
  * active.
  */
 function toggleCameraView() {
+    if (!hasToggledCamView) {
+        hasToggledCamView = true;
+        alert("Swiping with three fingers left toggles the camera view :)");
+    }
     const playerActive = playerCamera.getAttribute('camera').active;
-    playerCamera.setAttribute('camera', 'active', !playerActive);
-    debugCamera.setAttribute('camera', 'active', playerActive);
+    if (!playerActive) {
+        watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
+        playerCamera.setAttribute('camera', 'active', !playerActive);
+    }
+    else {
+        navigator.geolocation.clearWatch(watchID);
+        watchID = -1;
+        debugCamera.setAttribute('camera', 'active', playerActive);
+        rigPos = cameraRig.object3D.position;
+    }
 }
 
 /**
  * Toggles the stats attribute on the scene element.
  */
 function toggleStats() {
+    if (!hasToggledStatView) {
+        hasToggledStatView = true;
+        alert("Swiping with three fingers right toggles the stats :)")
+    }
     scene.setAttribute('stats', !scene.getAttribute('stats'));
 }
 
@@ -445,15 +463,28 @@ function angleSecondaryCamera(compassHeading) {
  * @param compassHeading - The compass heading in degrees.
  */
 function angleMainCamera(compassHeading) {
-    console.log("BEFORE Compass Heading: " + compassHeading + " degrees");
+    debugLog("BEFORE Compass Heading: " + compassHeading + " degrees");
     compassHeading = 360 - compassHeading;
-    console.log("AFTER Compass Heading: " + compassHeading + " degrees");
+    debugLog("AFTER Compass Heading: " + compassHeading + " degrees");
     centreCamera = false;
     // playerCamera.setAttribute("rotation", "0 " + compassHeading + " 0")
-    // console.log("yaw", playerCamera.components['look-controls'].yawObject.rotation.y);
-    // console.log("magic", playerCamera.components['look-controls'].magicWindowDeltaEuler.y);
-    // console.log("magic ABS", playerCamera.components['look-controls'].magicWindowAbsoluteEuler.y);
-    console.log(playerCamera.components['look-controls']);
+    // debugLog("yaw", playerCamera.components['look-controls'].yawObject.rotation.y);
+    // debugLog("magic", playerCamera.components['look-controls'].magicWindowDeltaEuler.y);
+    // debugLog("magic ABS", playerCamera.components['look-controls'].magicWindowAbsoluteEuler.y);
+    debugLog(playerCamera.components['look-controls']);
     playerCamera.components['look-controls'].magicWindowControls.deviceOrientation.alpha = compassHeading;
     // playerCamera.components['look-controls'].yawObject.rotation.y = compassHeading - playerCamera.components['look-controls'].magicWindowDeltaEuler.y;
 }
+
+AFRAME.registerComponent("updatedebugmap", {
+    init: function () {
+        // this.tick = AFRAME.utils.throttleTick(this.tick, 200, this);    // Throttle the tick function to 500ms
+    },
+    tick: function () {
+        if (!mapBeingShown || watchID != -1) return;
+        let debugPos = debugCamera.object3D.position;
+        let newPixelCoords = { x: debugPos.x + rigPos.x, y: debugPos.z + rigPos.z};
+        let latLong = convertPixelCoordsToLatLong(newPixelCoords);
+        locationSuccess({ coords: { latitude: latLong.x, longitude: latLong.y } });
+    },
+});

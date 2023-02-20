@@ -18,7 +18,7 @@ document.querySelector('a-scene').appendChild(triangleParent);
  * @returns An Promise object with two properties: windowedTwoDHeightMapArray and twoDHeightMapArray.
  */
 async function getHeightMap(pixelCoords, bboxSize) {
-    console.log("=== Getting Height Map ===");
+    debugLog("=== Getting Height Map ===");
     let xPixel = pixelCoords.roundedX;
     let yPixel = pixelCoords.roundedY;
     let offset = Math.round(bboxSize / (2 * twfData[0])); // Converts bbox size into an offset
@@ -46,7 +46,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
  * @returns A 2D array of the values in the original array between the min and max values.
  */
 function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
-    // console.log(maxX - minX, maxY - minY);
+    // debugLog(maxX - minX, maxY - minY);
     let windowedTwoDArray = [];
     for (let x = 0; x < maxX - minX; x++) {
         windowedTwoDArray[x] = [];
@@ -65,7 +65,7 @@ function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
  */
 function loadTerrain() {
     return new Promise((resolve, reject) => {
-        console.log("=== Loading Terrain ===");
+        debugLog("=== Loading Terrain ===");
         removeCurrentTerrain();
         drawTriangles(createTrianglesForTerrain(xzScale, true));    // Draws a flat terrain while waiting for the height map
         resolve("Flat Terrain Drawn");
@@ -76,10 +76,10 @@ function loadTerrain() {
                 drawTriangles(createTrianglesForTerrain(xzScale, false, heightMap));    // Draws a height map accurate terrain
                 resolve("Height-Based Terrain Drawn");
             }).catch((err) => {
-                console.log(err);
+                debugLog(err);
             });
         }).catch((err) => {
-            console.log(err);
+            debugLog(err);
         });
     });
 }

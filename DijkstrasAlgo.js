@@ -13,11 +13,11 @@ class DijkstrasAlgo {
     }
 
     printNodes() {
-        console.log("Nodes: ", this.nodes);
+        debugLog("Nodes: ", this.nodes);
     }
 
     printConnectedNodes() {
-        console.log("Connected Nodes: ", this.connectedNodes);
+        debugLog("Connected Nodes: ", this.connectedNodes);
     }
 
     printEverything() {
@@ -86,12 +86,12 @@ class DijkstrasAlgo {
         let sourceNodeIndex = this.findClosestPathNodeIndex(sourceCoords);
         let destinationNodeIndex = this.findClosestPathNodeIndex(destinationCoords);
 
-        console.log("Source:");
-        console.log(sourceNodeIndex);
-        console.log(this.connectedNodes[sourceNodeIndex]);
-        console.log("Destination:");
-        console.log(destinationNodeIndex);
-        console.log(this.connectedNodes[destinationNodeIndex]);
+        debugLog("Source:");
+        debugLog(sourceNodeIndex);
+        debugLog(this.connectedNodes[sourceNodeIndex]);
+        debugLog("Destination:");
+        debugLog(destinationNodeIndex);
+        debugLog(this.connectedNodes[destinationNodeIndex]);
 
         let shortestDistances = new Array(this.connectedNodes.length);
         shortestDistances.fill(Infinity);

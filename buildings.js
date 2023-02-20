@@ -14,18 +14,18 @@ buildingParent.setAttribute("class", "building");
 document.querySelector('a-scene').appendChild(buildingParent);
 
 async function loadBuildings(coordinate, bboxSize) {
-    console.log("=== Loading Buildings ===");
+    debugLog("=== Loading Buildings ===");
 
     //(way(around:50, 51.1788435,-1.826204);>;);out body;
     //var uniBoundingBox = "54.002150,-2.798493,54.014962,-2.776263"
 
-    //console.log(bbox);
+    //debugLog(bbox);
     // TODO Put this (below) into the REST DTM 2m 2020 website and it works!
     // 348391,457481,348747,456988 (just saving this for later (put this into the website))
     // https://stackoverflow.com/questions/41478249/aframe-extend-component-and-override
     // https://stackoverflow.com/questions/639695/how-to-convert-latitude-or-longitude-to-meters
     //helpful but not for this problem
-    //console.log([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
+    //debugLog([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
 
     bboxSize *= 0.9;
     var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);

@@ -50,6 +50,18 @@ function convertUTMToPixelCoords(easting, northing) {
 }
 
 /**
+ * Given a pixel X and Y coordinate, return the UTM easting and northing.
+ * @param pixelX - The x coordinate of the pixel you want to convert
+ * @param pixelY - The y coordinate of the pixel you want to convert
+ * @returns An object with two properties, easting and northing
+ */
+function convertPixelToUTMCoords(pixelX, pixelY) {
+    let utmEasting = (twfData[0] * (pixelX)) + (twfData[2] * (pixelY)) + twfData[4];
+    let utmNorthing = (twfData[1] * (pixelX)) + (twfData[3] * (pixelY)) + twfData[5];
+    return { easting: utmEasting, northing: utmNorthing };
+}
+
+/**
  * Convert a latitude/longitude coordinate to a pixel coordinate of the '.tiff' file.
  * 
  * @param coordinate - a coordinate object with a lat and long property
@@ -59,6 +71,18 @@ function convertLatLongToPixelCoords(coordinate) {
     let utm = convertLatLongToUTM(coordinate.lat, coordinate.long);
     let pixelCoords = convertUTMToPixelCoords(utm.x, utm.y);
     return { x: pixelCoords.x, y: pixelCoords.y, roundedX: Math.round(pixelCoords.x), roundedY: Math.round(pixelCoords.y) };
+}
+
+/**
+ * Convert a pixel coordinate to a latitude/longitude coordinate.
+ * 
+ * @param coordinate - a coordinate object with a x and y properties
+ * @returns An object with the x and y coordinates where x is the latitude and y is the longitude
+ */
+function convertPixelCoordsToLatLong(pixelCoord) {
+    let utm = convertPixelToUTMCoords(pixelCoord.x, pixelCoord.y);
+    let latLong = convertUTMToLatAndLong(utm.easting, utm.northing);
+    return { x: parseFloat(latLong.y.toFixed(6)), y: parseFloat(latLong.x.toFixed(6)) };
 }
 
 /**
