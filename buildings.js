@@ -7,7 +7,6 @@ const buildingHeight = 3;                                 // Building height if 
 const buildingHeightUnderGround = 10;                    // How far to extend the buildings under the ground
 const defaultBuildingColour = "#7AA4C1";
 const metresPerBuildingFloor = 4.3;                      // How many metres per floor (used for calculating the height of the building)
-var numberOfBuildings = 0;
 
 var buildingParent = document.createElement('a-entity');
 buildingParent.setAttribute("id", "buildingParent");
@@ -34,7 +33,7 @@ async function loadBuildings(coordinate, bboxSize) {
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building](" + stringBBox + ");" +
         "rel[building](" + stringBBox + "););" +
-        "out geom;>;out skel qt;"
+        "out geom qt;>;"
     );
 
     const message = { overpassQuery };
@@ -43,21 +42,14 @@ async function loadBuildings(coordinate, bboxSize) {
 
     return new Promise(resolve => {
         buildingFetchWorker.onmessage = async function (e) {
-            numberOfBuildings = 0;
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach(feature => {
-                if (feature.geometry.type == "Polygon") {
-                    addBuilding(feature, buildingParent);
-                    numberOfBuildings += 1;
-                } else {
-                }
+                if (feature.geometry.type == "Polygon") addBuilding(feature, buildingParent);
             });
-            console.log("Number of buidlings: ", numberOfBuildings);
             resolve("Finished Adding Buildings");
         }
     });
 }
-
 
 async function addBuilding(feature, parentElement) {
     return new Promise((resolve, reject) => {
@@ -111,33 +103,40 @@ function getBuildingColour(buildingsTags) {
     return buildingsTags.colour || buildingsTags["building:colour"] || defaultBuildingColour;
 }
 
+/**
+ * It takes in the set of coordinates of a building, and returns
+ * the outer coords, inner coords, and centre coords of the building.
+ * @param coordinatesOfBuilding - The coordinates of the building in the form of an array of arrays
+ * @returns An object with the outer points of the building, the inner points of the building, and the
+ * average latitude and longitude of the building.
+ */
 function getBuildingCoordinates(coordinatesOfBuilding) {
     let outerPoints = [];
     let innerPoints = [];
     let sumOfLatCoords = 0;
     let sumOfLongCoords = 0;
-    let count = 0;
+    let count = coordinatesOfBuilding[0].length;
     /* Loops through every coordinate of the building.
     The first set of coordinates are for the outside points of the building,
     the rest are for the inner part of the building that is missing */
-    coordinatesOfBuilding.forEach(points => {
+    for (let index = 0; index < coordinatesOfBuilding.length; index++) {
+        let coords = coordinatesOfBuilding[index];
         let currentPoints = [];
-        points.forEach(point => {
-            sumOfLatCoords += point[1];
-            sumOfLongCoords += point[0];
-            count++;
-            let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
-            currentPoints.push(new THREE.Vector2(pixelCoords.x * buildingCoordsScale, pixelCoords.y * buildingCoordsScale));
-        });
-        if (!outerPoints.length) {
-            outerPoints = currentPoints;
+        for (let i = 0; i < coords.length; i++) {
+            let coord = coords[i];
+            if (index === 0) {
+                sumOfLatCoords += coord[1];
+                sumOfLongCoords += coord[0];
+            }
+            let { x, y } = convertLatLongToPixelCoords({ lat: coord[1], long: coord[0] });
+            currentPoints.push(new THREE.Vector2(x * buildingCoordsScale, y * buildingCoordsScale));
         }
-        else {
-            innerPoints.push(currentPoints);
-        }
-    });
-    return { outerPoints, innerPoints, avgLat: sumOfLatCoords/count, avgLong: sumOfLongCoords/count };
+        if (index === 0) outerPoints = currentPoints;
+        else innerPoints.push(currentPoints);
+    }
+    return { outerPoints, innerPoints, avgLat: sumOfLatCoords / count, avgLong: sumOfLongCoords / count };
 }
+
 
 /**
  * Removes all the buildings from the scene

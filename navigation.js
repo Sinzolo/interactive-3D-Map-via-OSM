@@ -178,9 +178,7 @@ function colourRectangles(pathToDest) {
             currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color });
             rectangle.setAttribute("material", { color: pathHighlightColour })
             rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
-        } catch (e) {
-            console.log("Could not find rectangle to colour (Most likely on purpose)");
-        }
+        } catch {}
     }
 }
 
@@ -248,7 +246,7 @@ function fillSuggestions() {
         "node[place=neighbourhood](" + stringBBox + ");" +
         "node[highway=bus_stop](" + stringBBox + ");" +
         "rel[building](" + stringBBox + "););" +
-        "out geom;>;out skel qt;"
+        "out geom qt;>;out skel qt;"
     );
     const message = { overpassQuery };
     if ('caches' in window) message.osmCacheName = osmCacheName;

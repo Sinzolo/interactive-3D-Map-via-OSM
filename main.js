@@ -15,8 +15,6 @@ var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         
 var usersCurrentPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 };     // Impossible coordinates in pixel coords
 var usersCurrentLatLong = { lat: 91, long: 181 };                               // Impossible coordinates in lat and long
 var watchID = -1;
-var numberOfPositionChanges = 0;
-var coordsTotal = { lat: 0, long: 0 };
 var mapBeingShown = false;
 var lowQuality = false;
 var heightMaps;
@@ -51,7 +49,7 @@ const miniMap = document.getElementById("miniMap");
 
 const locationOptions = {
     enableHighAccuracy: true,
-    maximumAge: 100000,      // How often the location should be updated
+    maximumAge: 0,      // How often the location should be updated
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
 
@@ -167,16 +165,21 @@ function showMainMenu() {
     mapBeingShown = false;
 }
 
+/**
+ * The function hides the button to open the navigation menu and displays the navigation menu.
+ */
 function showNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "block";
     document.getElementById("loadNavigationMenuBtn").style.visibility = "hidden";
 }
 
+/**
+ * Hide the navigation menu and show the button to open the navigation menu.
+ */
 function hideNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("loadNavigationMenuBtn").style.visibility = "";
 }
-
 
 /**
  * If the user has moved far enough, load a new map area, and place the camera at the user's new
@@ -214,7 +217,6 @@ function locationError(error) {
             break;
     }
 }
-
 
 /**
  * If the user has moved more than 'distanceNeededToLoadNewChunk' metres, return true
@@ -404,23 +406,6 @@ function renderMiniMap() {
         antialias: true
     }).drawImage(scene.renderer.domElement, 0, 0, miniMap.width, miniMap.height);
 }
-
-// // Obtain a new *world-oriented* Full Tilt JS DeviceOrientation Promise
-// FULLTILT.getDeviceOrientation({ 'type': 'world' }).then(function (deviceOrientation) {
-//     console.log("Full Tilt JS Device Orientation Events are supported!");
-//     // Register a callback to run every time a new deviceorientation event is fired by the browser.
-//     deviceOrientation.listen(function () {
-//         // Get the current *screen-adjusted* device orientation angles
-//         var currentOrientation = deviceOrientation.getScreenAdjustedEuler();
-//         // Calculate the current compass heading that the user is 'looking at' (in degrees)
-//         var compassHeading = 360 - currentOrientation.alpha;
-//         angleSecondaryCamera(compassHeading);
-//         if (centreCamera) angleMainCamera(compassHeading);
-//     });
-
-// }).catch(function (errorMessage) { // Device Orientation Events are not supported
-//     console.log(errorMessage);
-// });
 
 /**
  * If the interface is hidden, show it, otherwise hide it.

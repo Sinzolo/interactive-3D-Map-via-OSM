@@ -49,12 +49,8 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
             dijkstrasAlgorithm = new DijkstrasAlgo();
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
-                if (feature.geometry.type == "Polygon") {   // Area
-                    addArea(feature, areaParent);
-                }
-                else if (feature.geometry.type == "Point") {
-                    addTree(feature, treeParent);
-                }
+                if (feature.geometry.type == "Polygon") addArea(feature, areaParent);
+                else if (feature.geometry.type == "Point") addTree(feature, treeParent);
             });
             resolve("Finished Adding Greenery");
         }

@@ -83,9 +83,9 @@ function getDistance(coord1, coord2) {
  */
 function getBoundingBox(lat, long, metres) {
     metres /= 2;
-    let latRadians = lat * radianFactor; // convert latitude to radians
-    let latDelta = metres / earthRadius;  // calculate change in latitude
-    let lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
+    const latRadians = lat * radianFactor; // convert latitude to radians
+    const latDelta = metres / earthRadius;  // calculate change in latitude
+    const lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
 
     return {
         minLat: lat - latDelta * degreeFactor,

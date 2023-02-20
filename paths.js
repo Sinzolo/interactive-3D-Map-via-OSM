@@ -77,7 +77,7 @@ async function loadPaths(coordinate, bboxSize) {
         "way[highway=unclassified](" + stringBBox + ");" +
         "way[highway=track](" + stringBBox + ");" +
         "way[highway=service](" + stringBBox + "););" +
-        "out geom;>;out skel qt;"
+        "out geom qt;>;out skel qt;"
     );
 
     const message = { overpassQuery };
@@ -92,15 +92,12 @@ async function loadPaths(coordinate, bboxSize) {
             dijkstrasAlgorithm = new DijkstrasAlgo();
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
-                if (feature.geometry.type == "Polygon") {   // Pedestrian Area
-                    addPedestrianArea(feature, pedestrianAreaParent, pathBboxConstraint);
-                }
+                if (feature.geometry.type == "Polygon") addPedestrianArea(feature, pedestrianAreaParent, pathBboxConstraint);
                 else if (feature.geometry.type == "LineString") {   // Path
                     addPath(feature, pathParent, pathBboxConstraint);
                     numberOfPaths++;
                 }
             });
-            console.log("Number of paths: ", numberOfPaths);
             resolve("Finished Adding Paths");
         }
     });
@@ -192,7 +189,6 @@ function getRectangleCorners({ x: x1, y: y1 }, { x: x2, y: y2 }, width) {
 
     return [new THREE.Vector2(bottomLeft.x, bottomLeft.y), new THREE.Vector2(topRight.x, topRight.y), new THREE.Vector2(bottomRight.x, bottomRight.y), new THREE.Vector2(topLeft.x, topLeft.y)];
 }
-
 
 /**
  * Removes all the paths from the scene
