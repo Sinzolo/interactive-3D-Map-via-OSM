@@ -132,7 +132,7 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         let newPath = document.createElement('a-entity');
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", { roughness: "0.6", color: color });
-        newPath.setAttribute("scale", pathScale + " 1 " + pathScale);
+        newPath.object3D.scale.set(pathScale, 1, pathScale);
 
         if (tags.highway != 'motorway') rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
         else rectangles[numberOfPaths].push(null);
@@ -248,7 +248,7 @@ function addPedestrianArea(feature, parentElement, pathBboxConstraint) {
         let newPedestrianArea = document.createElement('a-entity');
         newPedestrianArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultPedestrianAreaHeightAboveGround });
         newPedestrianArea.setAttribute("material", { roughness: "0.6", color: colour });
-        newPedestrianArea.setAttribute("scale", pedestrianAreaScale + " " + 1 + " " + pedestrianAreaScale);
+        newPedestrianArea.object3D.scale.set(pedestrianAreaScale, 1, pedestrianAreaScale);
         newPedestrianArea.object3D.position.set((pixelCoords.x * pedestrianAreaCoordsScale), 0, (pixelCoords.y * pedestrianAreaCoordsScale));
         parentElement.appendChild(newPedestrianArea);
 

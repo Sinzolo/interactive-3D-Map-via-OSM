@@ -16,6 +16,33 @@ treeParent.setAttribute("id", "treeParent");
 treeParent.setAttribute("class", "trees");
 document.querySelector('a-scene').appendChild(treeParent);
 
+const trunkInstance = document.createElement('a-cylinder');
+trunkInstance.setAttribute("id", "trunkInstance");
+trunkInstance.setAttribute("height", "1");
+trunkInstance.setAttribute("radius", "1");
+trunkInstance.setAttribute("color", "#b27f36");
+
+const sphericalLeavesInstance = document.createElement('a-sphere');
+sphericalLeavesInstance.setAttribute("id", "sphericalLeavesInstance");
+sphericalLeavesInstance.setAttribute("radius", 1);
+sphericalLeavesInstance.setAttribute("segments-width", 7);
+sphericalLeavesInstance.setAttribute("segments-height", 6);
+sphericalLeavesInstance.setAttribute("roughness", 1);
+sphericalLeavesInstance.setAttribute("color", "#60DF60");
+
+const coneLeavesInstance = document.createElement('a-cone');
+coneLeavesInstance.setAttribute("id", "coneLeavesInstance");
+coneLeavesInstance.setAttribute("height", 1);
+coneLeavesInstance.setAttribute("radius-bottom", 1);
+coneLeavesInstance.setAttribute("radius-top", 0);
+coneLeavesInstance.setAttribute("segments-radial", 5);
+coneLeavesInstance.setAttribute("segments-height", 1);
+coneLeavesInstance.setAttribute("roughness", 1);
+coneLeavesInstance.setAttribute("color", "#50D453");
+
+var instanceMeshesSetUp = false;
+var numbOfTrees = 0;
+
 /**
  * It takes a coordinate and a bounding box size, and then it queries the Overpass API for all the
  * grass and water features in that bounding box. It then converts the response to GeoJSON, and then
@@ -41,16 +68,26 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
     if ('caches' in window) message.osmCacheName = osmCacheName;
     naturalFeaturesFetchWorker.postMessage(message);
 
+    if (!instanceMeshesSetUp) {
+        trunkInstance.setAttribute("instanced-mesh", "capacity:1000");
+        sphericalLeavesInstance.setAttribute("instanced-mesh", "capacity:1000");
+        coneLeavesInstance.setAttribute("instanced-mesh", "capacity:1000");
+        scene.appendChild(trunkInstance);
+        scene.appendChild(sphericalLeavesInstance);
+        scene.appendChild(coneLeavesInstance);
+        instanceMeshesSetUp = true;
+    }
+
     return new Promise(async (resolve) => {
         naturalFeaturesFetchWorker.onmessage = async function (e) {
-            numberOfPaths = 0;
-            paths = [];
-            rectangles = [];
-            dijkstrasAlgorithm = new DijkstrasAlgo();
+            numbOfTrees = 0;
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach((feature) => {
                 if (feature.geometry.type == "Polygon") addArea(feature, areaParent);
-                else if (feature.geometry.type == "Point") addTree(feature, treeParent);
+                else if (feature.geometry.type == "Point") {
+                    addTree(feature, treeParent);
+                    numbOfTrees++;
+                }
             });
             resolve("Finished Adding Greenery");
         }
@@ -91,7 +128,7 @@ function addArea(feature, parentElement) {
         let newGrassArea = document.createElement('a-entity');
         newGrassArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultAreaHeightAboveGround });
         newGrassArea.setAttribute("material", { roughness: "0.6", color: colour });
-        newGrassArea.setAttribute("scale", areaScale + " " + 1 + " " + areaScale);
+        newGrassArea.object3D.scale.set(areaScale, 1, areaScale);
         newGrassArea.object3D.position.set((pixelCoords.x * grassAreaCoordsScale), 0, (pixelCoords.y * grassAreaCoordsScale));
         parentElement.appendChild(newGrassArea);
 
@@ -116,46 +153,41 @@ function removeCurrentNaturalAreas() {
     removeAllChildren(areaParent);
 }
 
+/**
+ * It creates a tree with a trunk and leaves, and then positions it on the map
+ * @param feature - The tree GeoJSON object
+ * @param parentElement - The parent element to add the new tree to
+ * @returns A promise that resolves when the tree has been added to the scene
+ */
 function addTree(feature, parentElement) {
     return new Promise((resolve, reject) => {
         let tags = feature.properties;
-        let trunk = document.createElement("a-entity");
         let height = tags.height ? tags.height : 4.2;
         let trunkRadius = ((tags.circumference ? tags.circumference : 1) / 2 / Math.PI) * 2.2;
         let leavesRadius = ((tags.diameter_crown ? tags.diameter_crown : 3) / 2) * 0.87;
         let pixelCoords = convertLatLongToPixelCoords({ lat: feature.geometry.coordinates[1], long: feature.geometry.coordinates[0] });
-        var trunkHeight = height - leavesRadius;
+        let trunkHeight = height - leavesRadius;
+        var leavesHeight = trunkHeight * 0.95;
+        let trunk = document.createElement("a-entity");
+        trunk.setAttribute("id", "trunk" + numbOfTrees);
+        trunk.setAttribute("instanced-mesh-member", "mesh:#trunkInstance;");
 
-        if (tags["leaf_type"] == "needleleaved" || Math.floor(Math.random() * 2) === 0) { // special shape for needle-leaved trees
-            var leaves = document.createElement("a-cone");
-            var leavesHeight = height * 0.75;
-            var yComponent = trunkHeight * 0.95;
-            leaves.setAttribute("height", leavesHeight);
-            leaves.setAttribute("radius-bottom", leavesRadius);
-            leaves.setAttribute("radius-top", 0);
-            leaves.setAttribute("segments-radial", Math.floor(Math.random() * 10) + 4);
-            leaves.setAttribute("segments-height", 1);
-            leaves.setAttribute("roughness", 1);
-            leaves.setAttribute("material", { color: "#53D756" });
+        let leaves = document.createElement("a-entity");
+        if (tags["leaf_type"] == "needleleaved" || Math.floor(Math.random() * 2) === 0) { // Conical leaves
+            leaves.setAttribute("id", "coneLeaves" + numbOfTrees);
+            leaves.setAttribute("instanced-mesh-member", "mesh:#coneLeavesInstance;");
+            leaves.object3D.scale.set(leavesRadius, height * 0.75, leavesRadius);
         }
-        else { // use a simple typical broadleaved-type shape
-            var leaves = document.createElement("a-sphere");
-            var yComponent = trunkHeight * 0.95;
-            leaves.setAttribute("radius", leavesRadius);
-            leaves.setAttribute("segments-width", Math.floor(Math.random() * 12) + 7);
-            leaves.setAttribute("segments-height", Math.floor(Math.random() * 12) + 5);
-            leaves.setAttribute("roughness", 1);
-            leaves.setAttribute("material", { color: "#70Ef70" });
+        else { // Spherical leaves
+            leaves.setAttribute("id", "sphereLeaves" + numbOfTrees);
+            leaves.setAttribute("instanced-mesh-member", "mesh:#sphericalLeavesInstance;");
+            leaves.object3D.scale.set(leavesRadius, leavesRadius, leavesRadius);
         }
-
-        leaves.object3D.position.set((pixelCoords.x), (yComponent), (pixelCoords.y));
-        
-        trunk.setAttribute("geometry", { primitive: "cylinder", height: trunkHeight + defaultTreeHeightUnderGround, radius: trunkRadius });
-        trunk.setAttribute("material", { color: "#b27f36" });
+        leaves.object3D.position.set((pixelCoords.x), (leavesHeight), (pixelCoords.y));
+        trunk.object3D.scale.set(trunkRadius, (trunkHeight + defaultTreeHeightUnderGround), trunkRadius);
         trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 , (pixelCoords.y));
-
-        parentElement.appendChild(trunk);
         parentElement.appendChild(leaves);
+        parentElement.appendChild(trunk);
 
         if (lowQuality) return;
         heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {

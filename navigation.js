@@ -16,7 +16,7 @@ const vibrateAvailable = window.navigator.vibrate;
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
-var sourceLatLong = {lat: -1, long: -1};
+var sourceLatLong = { lat: -1, long: -1 };
 var destinationLatLong;
 var uniPlaceNames = new Map();
 var startSphere = null;
@@ -36,7 +36,6 @@ function navigate(pathPromise) {
         navigationInProgress = true;
         if (checkDestinationReached()) {
             stopNavigation();
-            renderMiniMap();
             return new Promise(function (resolve, reject) { });
         }
         sourceLatLong = usersCurrentLatLong;
@@ -45,12 +44,12 @@ function navigate(pathPromise) {
         uncolourRectangles();
         startSphere = addFloatingSphere(usersCurrentLatLong, "#00FF00");
         endSphere = addFloatingSphere(destinationLatLong, "#FF0000");
-        updateArrowRequestID = startUpdatingArrow(startSphere.object3D.position);
+        updateArrowRequestID = startUpdatingArrow({ x: startSphere.object3D.position.x, y: startSphere.object3D.position.y - sphereHeightAboveGround, z: startSphere.object3D.position.z });
         let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
         debugLog(pathToDest);
         colourRectangles(pathToDest);
         renderMiniMap();
-        return new Promise(function (resolve, reject) {});
+        return new Promise(function (resolve, reject) { });
     });
 }
 
@@ -61,7 +60,6 @@ function carryOnNavigating(pathPromise) {
     if (!navigationInProgress) return;
     if (checkDestinationReached()) {
         stopNavigation();
-        renderMiniMap();
         return;
     }
     navigate(pathPromise);
@@ -79,8 +77,9 @@ function stopNavigation() {
     removeSpheres();
     uncolourRectangles();
     showDestinationFoundMessage();
-    if (vibrateAvailable) navigator.vibrate([150, 30, 80, 30, 250]);
+    if (vibrateAvailable) navigator.vibrate([150, 30, 80, 30, 250, 30, 150, 30, 80, 30, 250]);
     stopUpdatingArrow(updateArrowRequestID);
+    renderMiniMap();
 }
 
 /**
@@ -103,7 +102,7 @@ function find2DIndex(pathToDest) {
         for (let j = 0; j < paths[i].length - 1; j++) {
             if ((paths[i][j] === pathToDest[0] && paths[i][j + 1] === pathToDest[1]) ||
                 (paths[i][j] === pathToDest[1] && paths[i][j + 1] === pathToDest[0])) {
-                return [i,j];
+                return [i, j];
             }
         }
     }
@@ -157,7 +156,7 @@ function removeSpheres() {
  * before.
  */
 function uncolourRectangles() {
-    currentRectanglesInPaths.forEach(({rectangle, color}) => {
+    currentRectanglesInPaths.forEach(({ rectangle, color }) => {
         rectangle.setAttribute("material", { color });
         rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y - highlightedPathHeight, rectangle.object3D.position.z);
     });
@@ -178,7 +177,7 @@ function colourRectangles(pathToDest) {
             currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color });
             rectangle.setAttribute("material", { color: pathHighlightColour })
             rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
-        } catch {}
+        } catch { }
     }
 }
 
@@ -193,7 +192,7 @@ function showDestinationFoundMessage() {
     setTimeout(() => {
         debugLog("Hiding destination found message");
         modal.style.animationName = "modalSlideDown";
-        setTimeout(() => {modal.style.display = "none"}, 580);
+        setTimeout(() => { modal.style.display = "none" }, 580);
     }, 3500);
 }
 
@@ -337,7 +336,7 @@ document.getElementById("hideNavigationMenuBtn").onclick = function () {
  * @param point - The point where the arrow should point to.
  */
 function startUpdatingArrow(point) {
-    arrow.setAttribute("visible", "true");
+    arrow.object3D.visible = true;
     updateArrow(point)
 }
 
@@ -359,7 +358,7 @@ function updateArrow(point) {
  * It cancels the animation frame request that was created in the `updateArrow()` function
  */
 function stopUpdatingArrow() {
-    arrow.setAttribute("visible", "false");
+    arrow.object3D.visible = false;
     cancelAnimationFrame(updateArrowRequestID);
 }
 

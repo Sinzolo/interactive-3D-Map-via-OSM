@@ -60,7 +60,8 @@ async function addBuilding(feature, parentElement) {
         let newBuilding = document.createElement('a-entity');
         newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: coordinates.outerPoints, innerPoints: coordinates.innerPoints, height: height });
         newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
-        newBuilding.setAttribute("scale", buildingScale + " " + buildingHeightScale + " " + buildingScale);
+        newBuilding.object3D.scale.set(buildingScale, buildingHeightScale, buildingScale);
+
 
         let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
