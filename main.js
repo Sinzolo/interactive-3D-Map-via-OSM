@@ -24,6 +24,7 @@ var touchstartX;
 var rigPos = { x: 0, y: 0, z: 0 };
 var hasToggledCamView = false;
 var hasToggledStatView = false;
+var lastDebugPos = { x: 0, y: 0, z: 0 };
 
 const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
@@ -138,7 +139,6 @@ function uniMap() {
         return rasters.uniRaster;
     });
 }
-
 
 /**
  * Hides the welcome screen and shows the map
@@ -476,15 +476,30 @@ function angleMainCamera(compassHeading) {
     // playerCamera.components['look-controls'].yawObject.rotation.y = compassHeading - playerCamera.components['look-controls'].magicWindowDeltaEuler.y;
 }
 
+/**
+ * If the camera has moved more than 1.5 meters in either the x or z direction, return true.
+ * @param newDebugPos - The new position of the debug camera
+ * @returns A boolean value
+ */
+function debugCamMovedFarEnough(newDebugPos) {
+    const xDistance = Math.abs(lastDebugPos.x - newDebugPos.x);
+    if (xDistance > 1.5) return true;
+    const yDistance = Math.abs(lastDebugPos.z - newDebugPos.z);
+    if (yDistance > 1.5) return true;
+    return false;
+}
+
 AFRAME.registerComponent("updatedebugmap", {
     init: function () {
-        this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);    // Throttle the tick function to 500ms
+        this.tick = AFRAME.utils.throttleTick(this.tick, 80, this);    // Throttle the tick function to 500ms
     },
     tick: function () {
         if (!mapBeingShown || watchID != -1) return;
-        let debugPos = debugCamera.object3D.position;
-        let newPixelCoords = { x: debugPos.x + rigPos.x, y: debugPos.z + rigPos.z};
-        let latLong = convertPixelCoordsToLatLong(newPixelCoords);
-        locationSuccess({ coords: { latitude: latLong.x, longitude: latLong.y } });
+        let debugPos = debugCamera.object3D.position.clone();
+        if (debugCamMovedFarEnough(debugPos)) {
+            lastDebugPos = debugPos;
+            let latLong = convertPixelCoordsToLatLong({ x: debugPos.x + rigPos.x, y: debugPos.z + rigPos.z });
+            locationSuccess({ coords: { latitude: latLong.x, longitude: latLong.y } });
+        }
     },
 });
