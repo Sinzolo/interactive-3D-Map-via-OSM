@@ -5,8 +5,8 @@ const sceneElement = document.querySelector('a-scene');
 const sphereHeightAboveGround = 4.6;
 const highlightedPathHeight = 0.014;
 const pathHighlightColour = "#FF00FF";
-const modal = document.getElementById("myModal");
-const span = document.getElementsByClassName("close")[0];
+const destinationReachedModal = document.getElementById("destinationReachedModal");
+const destinationReachedSpan = document.getElementsByClassName("close")[0];
 const destinationLatInputBox = document.getElementById("destinationLat");
 const destinationLongInputBox = document.getElementById("destinationLong");
 const placeNameDataList = document.getElementById("placeNames");
@@ -187,18 +187,18 @@ function colourRectangles(pathToDest) {
  */
 function showDestinationFoundMessage() {
     debugLog("Showing destination found message");
-    modal.style.display = "block";
-    modal.style.animationName = "modalSlideUp";
+    destinationReachedModal.style.display = "block";
+    destinationReachedModal.style.animationName = "modalSlideUp";
     setTimeout(() => {
         debugLog("Hiding destination found message");
-        modal.style.animationName = "modalSlideDown";
-        setTimeout(() => { modal.style.display = "none" }, 580);
+        destinationReachedModal.style.animationName = "modalSlideDown";
+        setTimeout(() => { destinationReachedModal.style.display = "none" }, 580);
     }, 3500);
 }
 
 /* Hiding the modal when the user clicks on the X button. */
-span.onclick = function () {
-    modal.style.display = "none";
+destinationReachedSpan.onclick = function () {
+    destinationReachedModal.style.display = "none";
 }
 
 /* An event listener that is called when the user changes the value of the input box. */
@@ -248,7 +248,7 @@ function fillSuggestions() {
         "out geom qt;>;out skel qt;"
     );
     const message = { overpassQuery };
-    if ('caches' in window) message.osmCacheName = osmCacheName;
+    // if ('caches' in window) message.osmCacheName = osmCacheName;
     navigationFetchWorker.postMessage(message);
 
     return new Promise(resolve => {

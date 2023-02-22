@@ -12,19 +12,17 @@ self.onmessage = async function (e) {
                     self.postMessage(await response.clone().text());
                 }
                 else {
-                    this.postWithFetch(overpassQuery, osmCacheName, caches.open(osmCacheName));
+                    this.postWithFetch(overpassQuery, osmCacheName);
                 }
             });
     }
-    else {
-        this.postWithFetch(overpassQuery);
-    }
+    else this.postWithFetch(overpassQuery);
 }
 
-async function postWithFetch(overpassQuery, osmCacheName = null, osmCache) {
+async function postWithFetch(overpassQuery, osmCacheName = null) {
     self.postMessage(await fetchWithRetry(overpassQuery).then(async (response) => {
         if (osmCacheName != null) {
-            osmCache.then((cache) => {
+            caches.open(osmCacheName).then((cache) => {
                 cache.put(overpassQuery, response);        //  Once fetched cache the response
                 debugLog("Storing in cache Fetch worker");
             });

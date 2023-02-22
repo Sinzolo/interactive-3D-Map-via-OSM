@@ -61,11 +61,6 @@ button {
     color: white;
 }
 
-#settings svg {
-    width: 25px;
-    height: 25px;
-}
-
 label {
     font-size: large;
     font-weight: 600;

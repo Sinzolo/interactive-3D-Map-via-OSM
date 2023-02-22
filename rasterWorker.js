@@ -2,7 +2,7 @@
 
 try {
     // importScripts("https://cdn.jsdelivr.net/npm/geotiff@2.0.7/dist-browser/geotiff.js");
-    importScripts("./geotiff.min.js");
+    // importScripts("./geotiff.min.js");
 } catch (error) {
     // If the browser doesn't support importScripts, then don't use web workers
     self.postMessage({ status: "bad" });
@@ -10,6 +10,8 @@ try {
 }
 
 self.onmessage = async function (e) {
+    self.postMessage({ status: "bad" });    // No more height map
+    self.close();
     // let cpuCores = navigator.hardwareConcurrency;
     //let pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
     let [uniRaster, cityRaster] = await Promise.all([

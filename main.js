@@ -11,9 +11,10 @@ var tiffURL = uniURL;    // Uni .tiff data
 //var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 350001.0000000000, 419999.0000000000]       // Lydiate .twf Data
 //var tiffURL = "lydiateTiff/SD51nw_DTM_2m.tif";    // Lydiate .tiff data
 
-var currentCentreOfBBox = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         // Impossible coordinates in pixel coords
-var usersCurrentPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 };     // Impossible coordinates in pixel coords
-var usersCurrentLatLong = { lat: 91, long: 181 };                               // Impossible coordinates in lat and long
+var bboxPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         // Impossible coordinates in pixel coords
+var bboxLatLongCoords = { lat: 91, long: 181 };                             // Impossible coordinates in lat and long coords
+var usersCurrentPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 }; // Impossible coordinates in pixel coords
+var usersCurrentLatLong = { lat: 91, long: 181 };                           // Impossible coordinates in lat and long
 var watchID = -1;
 var mapBeingShown = false;
 var lowQuality = false;
@@ -25,6 +26,12 @@ var rigPos = { x: 0, y: 0, z: 0 };
 var hasToggledCamView = false;
 var hasToggledStatView = false;
 var lastDebugPos = { x: 0, y: 0, z: 0 };
+var xNumberDistancesMoved = 0;
+var yNumberDistancesMoved = 0;
+
+const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
+var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
+var cacheDeletionInterval;
 
 const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
@@ -35,10 +42,11 @@ const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   
 const bboxSize = 400;                       // Length of one side of bounding box in metres
 const pathLookAhead = 1500 - bboxSize;      // How much bigger the bbox is for the paths to see ahead for navigation (1500m = uni campus size)
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.70;     // Used to check if the user has moved far enough
+const bboxOffset = distanceNeededToLoadNewChunk * -1.9;
 const distanceNeededToUpdateNavigation = 16;
 const humanHeight = 1.2;    // Height of the user in metres
 const birdHeight = 140;     // Height of the user in metres
-const cacheTTL = 1000 * 60 * 3;     // How often the cache should be deleted and reopened
+const cacheTTL = 1000 * 60 * 2;     // How often the cache should be deleted and reopened
 
 const scene = document.querySelector("a-scene");
 const cameraRig = document.getElementById("rig");
@@ -49,6 +57,7 @@ const debugCamera = document.getElementById("debugCamera");
 const playerSphere = document.getElementById("playerSphere");
 const interfaceUI = document.getElementById("interface");
 const miniMap = document.getElementById("miniMap");
+const loadingModal = document.getElementById("loadingModal");
 
 const locationOptions = {
     enableHighAccuracy: true,
@@ -60,28 +69,31 @@ const rasterWorker = new Worker('rasterWorker.js');
 const rasters = new Promise((resolve, reject) => {
     rasterWorker.postMessage({ uniURL: uniURL, cityURL: cityURL });
     rasterWorker.onmessage = async function (e) {
-        if (e.data.status == "bad") {
-            debugLog("Worker failed. Reverting to UI thread.");
-            // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
-            let cpuCores = navigator.hardwareConcurrency;
-            var pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
-            const rasters = await Promise.all([
-                rasterFromURL(uniURL, pools[0]),
-                rasterFromURL(cityURL, pools[1])
-            ]);
-            pools.forEach((pool, index) => {
-                pools[index] = undefined;
-                pool.destroy();
-            });
-            resolve({ uniRaster: rasters[0], cityRaster: rasters[1] })
-        }
-        resolve({ uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster });
+        // if (e.data.status == "bad") {
+        //     debugLog("Worker failed. Reverting to UI thread.");
+        //     // TODO #3 Need to look over adding catches to this code as if it fails, no height map will be created.
+        //     let cpuCores = navigator.hardwareConcurrency;
+        //     var pools = [new GeoTIFF.Pool(cpuCores / 2 - 1), new GeoTIFF.Pool(cpuCores / 2 - 1)];
+        //     const rasters = await Promise.all([
+        //         rasterFromURL(uniURL, pools[0]),
+        //         rasterFromURL(cityURL, pools[1])
+        //     ]);
+        //     pools.forEach((pool, index) => {
+        //         pools[index] = undefined;
+        //         pool.destroy();
+        //     });
+        //     resolve({ uniRaster: rasters[0], cityRaster: rasters[1] })
+        // }
+        // resolve({ uniRaster: e.data.uniRaster, cityRaster: e.data.cityRaster });
+        resolve({ uniRaster: 0, cityRaster: 0 });
     }
 });
+
 var currentRaster = rasters.then((rasters) => {
     return rasters.uniRaster;
 });
 
+fillSuggestions();
 
 function rasterFromURL(url, pool) {
     return GeoTIFF.fromUrl(url).then(tiff => {
@@ -91,40 +103,6 @@ function rasterFromURL(url, pool) {
     });
 }
 
-
-const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
-var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
-// var cacheDeletionInterval;
-/**
- * Deletes the cache and then opens a new cache.
- */
-// async function deleteAndReOpenCache() {
-//     await caches.delete(osmCacheName);
-//     debugLog("Cache Storage Deleted");
-//     debugLog("Opening New Cache Storage");
-//     osmCache = caches.open(osmCacheName);
-// }
-/* Delete the cache when the page is unloaded. */
-window.addEventListener("unload", async function () {
-    await caches.delete(osmCacheName);
-});
-// /* Clearing the interval when the window is not in focus. */
-// window.onblur = function () {
-//     if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
-//         cacheDeletionInterval = clearInterval(cacheDeletionInterval);
-//         debugLog("Interval Cleared");
-//     }
-// };
-// /* Restarting the cache deletion interval when the window is in focus. */
-// window.onfocus = function () {
-//     if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
-//         cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
-//         debugLog("Interval Restarted");
-//     }
-// };
-
-fillSuggestions();
-
 function cityMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 464999.0000000000]      // City .twf Data
     tiffURL = cityURL;    // City .tiff data
@@ -132,6 +110,7 @@ function cityMap() {
         return rasters.cityRaster;
     });
 }
+
 function uniMap() {
     twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
     tiffURL = uniURL;    // Uni .tiff data
@@ -148,8 +127,9 @@ function showMap() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("mapScreen").style.display = "block";
 
+    showLoadingMessage();
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
-    // cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
+    cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
     mapBeingShown = true;
 }
 
@@ -189,14 +169,72 @@ function hideNavigationMenu() {
  * @param position - the position object returned by the geolocation API
  */
 async function locationSuccess(position) {
+    // debugLog("\n\n===== NEW LOCATION ======");
+    // let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
+    // let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
+    // debugLog(newLatLong, newPixelCoords);
+    // // if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
+    // if (movedFarEnoughForMap(newPixelCoords)) {
+    //     if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
+    //         currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    //     }
+    //     else {
+    //         currentCentreOfBBox = { x: currentCentreOfBBox.x + (bboxSize / 3) * xNumberDistancesMoved, y: currentCentreOfBBox.y + (bboxSize / 3) * yNumberDistancesMoved, roundedX: currentCentreOfBBox.roundedX + (bboxSize / 3) * xNumberDistancesMoved, roundedY: currentCentreOfBBox.roundedY + (bboxSize / 3) * yNumberDistancesMoved };
+    //         // console.log("Before: " + newPixelCoords.x + ", " + newPixelCoords.y);
+    //         // // newPixelCoords = { x: newPixelCoords.x + bboxSize * xNumberDistancesMoved, y: newPixelCoords.y + bboxSize * yNumberDistancesMoved, roundedX: newPixelCoords.roundedX + bboxSize * xNumberDistancesMoved, roundedY: newPixelCoords.roundedY + bboxSize * yNumberDistancesMoved };
+    //         // console.log("After: " + newPixelCoords.x + ", " + newPixelCoords.y);
+    //         // console.log("Before: " + newLatLong.lat + ", " + newLatLong.long);
+    //         // newLatLong = addDistance(newLatLong, xNumberDistancesMoved * (bboxSize/2), true)
+    //         // console.log("During: " + newLatLong.lat + ", " + newLatLong.long + "");
+    //         // newLatLong = addDistance(newLatLong, yNumberDistancesMoved * (bboxSize/2), false)
+    //         // console.log("After: " + newLatLong.lat + ", " + newLatLong.long + "");
+    //     }
+    //     let bboxLatLong = convertPixelCoordsToLatLong(currentCentreOfBBox);
+    //     bboxLatLong = {lat: bboxLatLong.x, long: bboxLatLong.y}
+    //     console.log("BBox Pixel: " + currentCentreOfBBox.x + ", " + currentCentreOfBBox.y + "");
+    //     console.log("BBox LatLong: " + bboxLatLong.lat + ", " + bboxLatLong.long + "");
+    //     loadNewMapArea(bboxLatLong, currentCentreOfBBox, bboxSize).then(() => { renderMiniMap(); });
+    // }
+    // else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
+    // placeCameraAtPixelCoords(newPixelCoords, { lat: position.coords.latitude, long: position.coords.longitude });
+
     debugLog("\n\n===== NEW LOCATION ======");
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
-    debugLog(newLatLong, newPixelCoords);
-    // if (newPixelCoords.roundedX < 0 || newPixelCoords.roundedX > 2500 || newPixelCoords.roundedY < 0 || newPixelCoords.roundedY > 2500) throw "Invalid Coordinates"
-    if (movedFarEnoughForMap(newPixelCoords)) loadNewMapArea(newLatLong, currentCentreOfBBox, bboxSize).then(() => { renderMiniMap(); });
+    debugLog(newLatLong);
+    if (movedEnoughForNewChunk(bboxPixelCoords, newPixelCoords)) {
+        bboxPixelCoords = saveNewChunkCoords(bboxPixelCoords, newPixelCoords);
+        showLoadingMessage();
+        loadNewMapArea(bboxPixelCoords, bboxSize).then(() => {
+            renderMiniMap();
+            if ('caches' in window) {
+                deleteAndReOpenCache();
+                loadFourEdgeChunks(structuredClone(bboxPixelCoords), bboxSize);
+            }
+            hideLoadingMessage();
+        });
+    }
     else if (movedFarEnoughForNavigation(newLatLong)) carryOnNavigating(pathPromise);
     placeCameraAtPixelCoords(newPixelCoords, newLatLong);
+}
+
+function movedEnoughForNewChunk(currentCentreOfBBox, newPixelCoords) {
+    if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) return true;
+    let xDistance = Math.abs(currentCentreOfBBox.x - newPixelCoords.x) * 2;
+    let yDistance = Math.abs(currentCentreOfBBox.y - newPixelCoords.y) * 2;
+    if (xDistance > distanceNeededToLoadNewChunk || yDistance > distanceNeededToLoadNewChunk) return true;
+    return false;
+}
+
+function saveNewChunkCoords(currentCentreOfBBox, newPixelCoords) {
+    if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
+        return { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    }
+    let xDistance = (currentCentreOfBBox.x - newPixelCoords.x) * 2;
+    let yDistance = (currentCentreOfBBox.y - newPixelCoords.y) * 2;
+    let xNumberDistancesMoved = Math.trunc(xDistance / distanceNeededToLoadNewChunk)/2;
+    let yNumberDistancesMoved = Math.trunc(yDistance / distanceNeededToLoadNewChunk)/2;
+    return { x: currentCentreOfBBox.x + xNumberDistancesMoved * bboxOffset, y: currentCentreOfBBox.y + yNumberDistancesMoved * bboxOffset, roundedX: currentCentreOfBBox.roundedX + xNumberDistancesMoved * bboxOffset, roundedY: currentCentreOfBBox.roundedY + yNumberDistancesMoved * bboxOffset };
 }
 
 /**
@@ -227,24 +265,38 @@ function locationError(error) {
  */
 function movedFarEnoughForMap(newPixelCoords) {
     // Guard check. If -1, this is first time user has moved.
-    if (currentCentreOfBBox.x == -1 && currentCentreOfBBox.y == -1) {
-        currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    if (bboxPixelCoords.x == -1 && bboxPixelCoords.y == -1) {
+        // currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
         return true;
     }
 
     // Storing how many metres the user has moved in the x and y directions.
-    let xDistance = currentCentreOfBBox.x - newPixelCoords.x;
+    let xDistance = bboxPixelCoords.x - newPixelCoords.x;
     xDistance = Math.abs(xDistance) * 2;
-    let yDistance = currentCentreOfBBox.y - newPixelCoords.y;
+    let yDistance = bboxPixelCoords.y - newPixelCoords.y;
     yDistance = Math.abs(yDistance) * 2;
     debugLog(xDistance);
     debugLog(yDistance);
 
     // The user has to have moved 'distanceNeededToMove' metres.
-    if (xDistance > distanceNeededToLoadNewChunk || yDistance > distanceNeededToLoadNewChunk) {
-        currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    xNumberDistancesMoved = Math.floor(xDistance / distanceNeededToLoadNewChunk);
+    yNumberDistancesMoved = Math.floor(yDistance / distanceNeededToLoadNewChunk);
+    console.log("xNumberDistancesMoved: " + xNumberDistancesMoved);
+    console.log("yNumberDistancesMoved: " + yNumberDistancesMoved);
+    if (xNumberDistancesMoved > 0 || yNumberDistancesMoved > 0) {
+        // currentCentreOfBBox = { x: currentCentreOfBBox.x + bboxSize * xNumberDistancesMoved, y: currentCentreOfBBox.y + bboxSize * yNumberDistancesMoved, roundedX: currentCentreOfBBox.roundedX + bboxSize * xNumberDistancesMoved, roundedY: currentCentreOfBBox.roundedY + bboxSize * yNumberDistancesMoved };
         return true;
     }
+    // if (xDistance > distanceNeededToLoadNewChunk && yDistance > distanceNeededToLoadNewChunk) {
+    // }
+    // else if (xDistance > distanceNeededToLoadNewChunk) {
+    //     currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    //     return true;
+    // }
+    // else if (yDistance > distanceNeededToLoadNewChunk) {
+    //     currentCentreOfBBox = { x: newPixelCoords.x, y: newPixelCoords.y, roundedX: newPixelCoords.roundedX, roundedY: newPixelCoords.roundedY };
+    //     return true;
+    // }
     return false;
 }
 
@@ -271,14 +323,14 @@ function movedFarEnoughForNavigation(newLatLong) {
  * @param pixelCoords - The pixel coordinates of the center of the map.
  * @param bboxSize - The size of the bounding box in metres.
  */
-async function loadNewMapArea(coordinate, pixelCoords, bboxSize) {
+async function loadNewMapArea(pixelCoords, bboxSize) {
     lowQuality = true;
     heightMaps = getHeightMap(pixelCoords, bboxSize);
     removeCurrentMap();
     loadTerrain();
-    loadBuildings(coordinate, bboxSize);
-    pathPromise = loadPaths(coordinate, bboxSize);
-    loadNaturalFeatures(coordinate, bboxSize);
+    loadBuildings(pixelCoords, bboxSize);
+    pathPromise = loadPaths(pixelCoords, bboxSize);
+    loadNaturalFeatures(pixelCoords, bboxSize);
     carryOnNavigating(pathPromise);
     return pathPromise;
 }
@@ -310,6 +362,60 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
         debugLog(err);
     });
 }
+
+function loadFourEdgeChunks(tempBboxPixelCoords, bboxSize) {
+    tempBboxPixelCoords.x += bboxOffset / 2;
+    preloadBuildingChunk(tempBboxPixelCoords, bboxSize);
+    preloadPathChunk(tempBboxPixelCoords, bboxSize);
+
+    tempBboxPixelCoords.x -= bboxOffset / 2;
+    tempBboxPixelCoords.y += bboxOffset / 2;
+    preloadBuildingChunk(tempBboxPixelCoords, bboxSize);
+    preloadPathChunk(tempBboxPixelCoords, bboxSize);
+
+    tempBboxPixelCoords.x -= bboxOffset / 2;
+    tempBboxPixelCoords.y -= bboxOffset / 2;
+    preloadBuildingChunk(tempBboxPixelCoords, bboxSize);
+    preloadPathChunk(tempBboxPixelCoords, bboxSize);
+
+    tempBboxPixelCoords.x += bboxOffset / 2;
+    tempBboxPixelCoords.y -= bboxOffset / 2;
+    preloadBuildingChunk(tempBboxPixelCoords, bboxSize);
+    preloadPathChunk(tempBboxPixelCoords, bboxSize);
+}
+
+/**
+ * Deletes the cache and then opens a new cache.
+ */
+async function deleteAndReOpenCache() {
+    await caches.delete(osmCacheName);
+    console.log("Cache Storage Deleted");
+    console.log("Opening New Cache Storage");
+    debugLog("Cache Storage Deleted");
+    debugLog("Opening New Cache Storage");
+    osmCache = caches.open(osmCacheName);
+}
+
+/* Delete the cache when the page is unloaded. */
+window.addEventListener("unload", async function () {
+    await caches.delete(osmCacheName);
+});
+
+/* Clearing the interval when the window is not in focus. */
+window.onblur = function () {
+    if (typeof cacheDeletionInterval !== 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = clearInterval(cacheDeletionInterval);
+        debugLog("Interval Cleared");
+    }
+};
+
+/* Restarting the cache deletion interval when the window is in focus. */
+window.onfocus = function () {
+    if (typeof cacheDeletionInterval === 'undefined' && mapBeingShown == true) {
+        cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
+        debugLog("Interval Restarted");
+    }
+};
 
 /**
  * While the element has a first child, remove that child.
@@ -360,8 +466,7 @@ document.addEventListener("touchend", function (event) {
  * @param touchendX - The x coordinate of the point where the user ended the touch
  */
 function handleGesture(touchstartX, touchendX) {
-    if (touchendX <= touchstartX) toggleCameraView();
-    else if (touchendX >= touchstartX) toggleStats();
+    if (touchendX >= touchstartX || touchendX <= touchstartX) toggleStats();
 }
 
 /**
@@ -371,7 +476,6 @@ function handleGesture(touchstartX, touchendX) {
 function toggleCameraView() {
     if (!hasToggledCamView) {
         hasToggledCamView = true;
-        alert("Swiping with three fingers left toggles the camera view :)");
     }
     const playerActive = playerCamera.getAttribute('camera').active;
     if (!playerActive) {
@@ -392,7 +496,7 @@ function toggleCameraView() {
 function toggleStats() {
     if (!hasToggledStatView) {
         hasToggledStatView = true;
-        alert("Swiping with three fingers right toggles the stats :)")
+        alert("Swiping with three fingers right or pressing 'v' toggles the stats :)")
     }
     scene.setAttribute('stats', !scene.getAttribute('stats'));
 }
@@ -489,6 +593,20 @@ function debugCamMovedFarEnough(newDebugPos) {
     return false;
 }
 
+/**
+ * Shows the modal that tells the user that the website is loading.
+ */
+function showLoadingMessage() {
+    loadingModal.style.display = "block";
+    loadingModal.style.animationName = "modalSlideUp";
+}
+
+function hideLoadingMessage() {
+    // loadingModal.style.animationName = "modalSlideDown";
+    loadingModal.style.display = "none"
+    // setTimeout(() => { loadingModal.style.display = "none" }, 580);
+}
+
 AFRAME.registerComponent("updatedebugmap", {
     init: function () {
         this.tick = AFRAME.utils.throttleTick(this.tick, 80, this);    // Throttle the tick function to 500ms
@@ -499,7 +617,7 @@ AFRAME.registerComponent("updatedebugmap", {
         if (debugCamMovedFarEnough(debugPos)) {
             lastDebugPos = debugPos;
             let latLong = convertPixelCoordsToLatLong({ x: debugPos.x + rigPos.x, y: debugPos.z + rigPos.z });
-            locationSuccess({ coords: { latitude: latLong.x, longitude: latLong.y } });
+            locationSuccess({ coords: { latitude: latLong.lat, longitude: latLong.long } });
         }
     },
 });

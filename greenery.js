@@ -51,10 +51,11 @@ var numbOfTrees = 0;
  * @param bboxSize - The size of the bounding box to load
  * @returns A promise that resolves when the natural features have been loaded
  */
-async function loadNaturalFeatures(coordinate, bboxSize) {
+async function loadNaturalFeatures(bboxPixelCoords, bboxSize) {
     debugLog("=== Loading Natural Features ===");
 
-    var stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, bboxSize));
+    let bboxLatLongCoords = convertPixelCoordsToLatLong(bboxPixelCoords);
+    var stringBBox = convertBBoxToString(getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize));
     var overpassQuery = overpassURL + encodeURIComponent(
         "[timeout:40];" +
         "(way[landuse=grass](" + stringBBox + ");" +
@@ -65,7 +66,7 @@ async function loadNaturalFeatures(coordinate, bboxSize) {
     );
 
     const message = { overpassQuery };
-    if ('caches' in window) message.osmCacheName = osmCacheName;
+    // if ('caches' in window) message.osmCacheName = osmCacheName;
     naturalFeaturesFetchWorker.postMessage(message);
 
     if (!instanceMeshesSetUp) {
