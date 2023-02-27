@@ -82,7 +82,7 @@ function convertLatLongToPixelCoords(coordinate) {
 function convertPixelCoordsToLatLong(pixelCoord) {
     let utm = convertPixelToUTMCoords(pixelCoord.x, pixelCoord.y);
     let latLong = convertUTMToLatAndLong(utm.easting, utm.northing);
-    return { x: parseFloat(latLong.y.toFixed(6)), y: parseFloat(latLong.x.toFixed(6)) };
+    return { lat: parseFloat(latLong.y.toFixed(4)), long: parseFloat(latLong.x.toFixed(4)) };
 }
 
 /**

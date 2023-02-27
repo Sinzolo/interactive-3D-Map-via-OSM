@@ -1,6 +1,7 @@
 'use strict';
 
 const pathFetchWorker = new Worker('fetchWorker.js');
+const secondaryPathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
 const defaultPathHeightAboveGround = 0.14; // How far it should stick above ground
@@ -54,11 +55,12 @@ var pathPromise;
  * @param bboxSize - The size of the bounding box to load paths in
  * @returns A promise that resolves when the paths have been loaded
  */
-async function loadPaths(coordinate, bboxSize) {
+async function loadPaths(bboxPixelCoords, bboxSize) {
     debugLog("=== Loading Paths ===");
 
-    const pathBboxConstraint = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
-    const stringBBox = convertBBoxToString(getBoundingBox(coordinate.lat, coordinate.long, (bboxSize + pathLookAhead)));
+    let bboxLatLongCoords = convertPixelCoordsToLatLong(bboxPixelCoords);
+    const pathBboxConstraint = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
+    const stringBBox = convertBBoxToString(getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, (bboxSize + pathLookAhead)));
     const overpassQuery = overpassURL + encodeURIComponent(
         "[timeout:40];" +
         "(way[highway=path](" + stringBBox + ");" +
@@ -101,6 +103,33 @@ async function loadPaths(coordinate, bboxSize) {
             resolve("Finished Adding Paths");
         }
     });
+}
+
+function preloadPathChunk(tempBboxPixelCoords, bboxSize) {
+    if (!('caches' in window)) return;
+    const bboxLatLongCoords = convertPixelCoordsToLatLong(tempBboxPixelCoords);
+    const stringBBox = convertBBoxToString(getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, (bboxSize + pathLookAhead)));
+    const overpassQuery = overpassURL + encodeURIComponent(
+        "[timeout:40];" +
+        "(way[highway=path](" + stringBBox + ");" +
+        "way[highway=pedestrian](" + stringBBox + ");" +
+        "rel[highway=pedestrian](" + stringBBox + ");" +
+        "way[highway=footway](" + stringBBox + ");" +
+        "way[highway=cycleway](" + stringBBox + ");" +
+        "way[highway=steps](" + stringBBox + ");" +
+        "way[highway=motorway](" + stringBBox + ");" +
+        "way[highway=trunk](" + stringBBox + ");" +
+        "way[highway=primary](" + stringBBox + ");" +
+        "way[highway=secondary](" + stringBBox + ");" +
+        "way[highway=tertiary](" + stringBBox + ");" +
+        "way[highway=residential](" + stringBBox + ");" +
+        "way[highway=living_street](" + stringBBox + ");" +
+        "way[highway=unclassified](" + stringBBox + ");" +
+        "way[highway=track](" + stringBBox + ");" +
+        "way[highway=service](" + stringBBox + "););" +
+        "out geom qt;>;out skel qt;"
+    );
+    secondaryPathFetchWorker.postMessage({ overpassQuery, osmCacheName });
 }
 
 async function addPath(feature, parentElement, pathBboxConstraint) {

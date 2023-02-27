@@ -1,6 +1,8 @@
 'use strict';
 
-const buildingFetchWorker = new Worker('fetchWorker.js');
+const mainBuildingFetchWorker = new Worker('fetchWorker.js');
+const secondaryBuildingFetchWorker = new Worker('fetchWorker.js');
+
 const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
 const buildingHeightScale = 2.1;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const buildingHeight = 3;                                 // Building height if height is unknown
@@ -13,22 +15,11 @@ buildingParent.setAttribute("id", "buildingParent");
 buildingParent.setAttribute("class", "building");
 document.querySelector('a-scene').appendChild(buildingParent);
 
-async function loadBuildings(coordinate, bboxSize) {
+
+async function loadBuildings(tempBboxPixelCoords, bboxSize) {
     debugLog("=== Loading Buildings ===");
-
-    //(way(around:50, 51.1788435,-1.826204);>;);out body;
-    //var uniBoundingBox = "54.002150,-2.798493,54.014962,-2.776263"
-
-    //debugLog(bbox);
-    // TODO Put this (below) into the REST DTM 2m 2020 website and it works!
-    // 348391,457481,348747,456988 (just saving this for later (put this into the website))
-    // https://stackoverflow.com/questions/41478249/aframe-extend-component-and-override
-    // https://stackoverflow.com/questions/639695/how-to-convert-latitude-or-longitude-to-meters
-    //helpful but not for this problem
-    //debugLog([convertLatLongToUTM(bbox.minLat, bbox.minLng), convertLatLongToUTM(bbox.maxLat, bbox.maxLng)]);
-
-    bboxSize *= 0.9;
-    var bbox = getBoundingBox(coordinate.lat, coordinate.long, bboxSize);
+    let bboxLatLongCoords = convertPixelCoordsToLatLong(tempBboxPixelCoords);
+    var bbox = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
     var stringBBox = convertBBoxToString(bbox);
     var overpassQuery = overpassURL + encodeURIComponent(
         "(way[building](" + stringBBox + ");" +
@@ -38,14 +29,18 @@ async function loadBuildings(coordinate, bboxSize) {
 
     const message = { overpassQuery };
     if ('caches' in window) message.osmCacheName = osmCacheName;
-    buildingFetchWorker.postMessage(message);
+    mainBuildingFetchWorker.postMessage(message);
 
     return new Promise(resolve => {
-        buildingFetchWorker.onmessage = async function (e) {
+        mainBuildingFetchWorker.onmessage = async function (e) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach(feature => {
                 if (feature.geometry.type == "Polygon") addBuilding(feature, buildingParent);
             });
+            // loadFourEdgeChunks(structuredClone(tempBboxPixelCoords), bboxSize);
+            // removeChunksFromCache();
+            // priorChunks = currentChunks;
+            // currentChunks = [];
             resolve("Finished Adding Buildings");
         }
     });
@@ -61,7 +56,6 @@ async function addBuilding(feature, parentElement) {
         newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: coordinates.outerPoints, innerPoints: coordinates.innerPoints, height: height });
         newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
         newBuilding.object3D.scale.set(buildingScale, buildingHeightScale, buildingScale);
-
 
         let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
@@ -145,6 +139,31 @@ function getBuildingCoordinates(coordinatesOfBuilding) {
 function removeCurrentBuildings() {
     removeAllChildren(buildingParent);
 }
+
+function preloadBuildingChunk(tempBboxPixelCoords, bboxSize) {
+    let bboxLatLongCoords = convertPixelCoordsToLatLong(tempBboxPixelCoords);
+    let bbox = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
+    let stringBBox = convertBBoxToString(bbox);
+    let overpassQuery = overpassURL + encodeURIComponent(
+        "(way[building](" + stringBBox + ");" +
+        "rel[building](" + stringBBox + "););" +
+        "out geom qt;>;"
+    );
+    let mes = { overpassQuery };
+    mes.osmCacheName = osmCacheName
+    secondaryBuildingFetchWorker.postMessage(mes);
+}
+
+// function removeChunksFromCache() {
+//     console.log("priorChunks: " + priorChunks);
+//     console.log("currentChunks: " + currentChunks);
+//     let urlToDelete = findOddStrings(priorChunks, currentChunks);
+//     console.log("urlToDelete: " + urlToDelete);
+//     caches.open(osmCacheName).then(cache => {
+//         cache.delete(urlToDelete.slice(1))
+//     })
+// }
+
 
 
 AFRAME.registerGeometry('building', {

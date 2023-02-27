@@ -73,7 +73,6 @@ function getDistance(coord1, coord2) {
     return distance;
 }
 
-
 /**
  * It takes a latitude and longitude and returns the coordinates of a bounding box that is a square
  * with sides of length metres
@@ -89,10 +88,10 @@ function getBoundingBox(lat, long, metres) {
     const lngDelta = metres / (earthRadius * Math.cos(latRadians)); // calculate change in longitude
 
     return {
-        minLat: lat - latDelta * degreeFactor,
-        minLng: long - lngDelta * degreeFactor,
-        maxLat: lat + latDelta * degreeFactor,
-        maxLng: long + lngDelta * degreeFactor
+        minLat: (lat - latDelta * degreeFactor).toFixed(6),
+        minLng: (long - lngDelta * degreeFactor).toFixed(6),
+        maxLat: (lat + latDelta * degreeFactor).toFixed(6),
+        maxLng: (long + lngDelta * degreeFactor).toFixed(6)
     };
 }
 
