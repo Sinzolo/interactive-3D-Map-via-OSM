@@ -19,6 +19,13 @@ self.onmessage = async function (e) {
     else this.postWithFetch(overpassQuery);
 }
 
+/**
+ * It takes an overpass query and an optional cache name, and returns the response from the overpass
+ * server. If a cache name is provided, it also stores the response in the cache.
+ * @param overpassQuery - The URL of the Overpass API query.
+ * @param [osmCacheName=null] - The name of the cache to store the response in. If null, the response
+ * is not cached.
+ */
 async function postWithFetch(overpassQuery, osmCacheName = null) {
     self.postMessage(await fetchWithRetry(overpassQuery).then(async (response) => {
         if (osmCacheName != null) {

@@ -1,6 +1,6 @@
 'use strict';
 
-var twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
+const twfData = [2.0000000000, 0.0000000000, 0.0000000000, -2.0000000000, 345001.0000000000, 459999.0000000000]      // Uni .twf Data
 
 var bboxPixelCoords = { x: -1, y: -1, roundedX: -1, roundedY: -1 };         // Impossible coordinates in pixel coords
 var bboxLatLongCoords = { lat: 91, long: 181 };                             // Impossible coordinates in lat and long coords
@@ -21,7 +21,7 @@ var xNumberDistancesMoved = 0;
 var yNumberDistancesMoved = 0;
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
-var osmCache = caches.open(osmCacheName);   // Opens a new cache with the given name
+var osmCache;
 var cacheDeletionInterval;
 
 const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
@@ -30,7 +30,7 @@ const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coord
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
 const areaCoordsScale = 1 / (twfData[0] + areaScale - 1);                  // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
-const bboxSize = 430;                       // Length of one side of bounding box in metres
+const bboxSize = 400;                       // Length of one side of bounding box in metres
 const pathLookAhead = 1500 - bboxSize;      // How much bigger the bbox is for the paths to see ahead for navigation (1500m = uni campus size)
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.65;     // Used to check if the user has moved far enough
 const bboxOffset = distanceNeededToLoadNewChunk * -1.9;
@@ -129,10 +129,10 @@ async function locationSuccess(position) {
     if (movedEnoughForNewChunk(bboxPixelCoords, newPixelCoords)) {
         bboxPixelCoords = saveNewChunkCoords(bboxPixelCoords, newPixelCoords);
         showLoadingMessage();
-        loadNewMapArea(bboxPixelCoords, bboxSize).then(() => {
+        loadNewMapArea(bboxPixelCoords, bboxSize).then(async () => {
             renderMiniMap();
             if ('caches' in window) {
-                deleteAndReOpenCache();
+                await deleteAndReOpenCache();
                 loadFourEdgeChunks(structuredClone(bboxPixelCoords), bboxSize);
             }
             hideLoadingMessage();
@@ -293,7 +293,7 @@ async function deleteAndReOpenCache() {
     await caches.delete(osmCacheName);
     debugLog("Cache Storage Deleted");
     debugLog("Opening New Cache Storage");
-    osmCache = caches.open(osmCacheName);
+    osmCache = await caches.open(osmCacheName);
 }
 
 /* Delete the cache when the page is unloaded. */

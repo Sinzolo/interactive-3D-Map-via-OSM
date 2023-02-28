@@ -37,10 +37,6 @@ async function loadBuildings(tempBboxPixelCoords, bboxSize) {
             features.forEach(feature => {
                 if (feature.geometry.type == "Polygon") addBuilding(feature, buildingParent);
             });
-            // loadFourEdgeChunks(structuredClone(tempBboxPixelCoords), bboxSize);
-            // removeChunksFromCache();
-            // priorChunks = currentChunks;
-            // currentChunks = [];
             resolve("Finished Adding Buildings");
         }
     });

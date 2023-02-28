@@ -3,6 +3,7 @@
 proj4.defs('EPSG:27700', '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs');
 const EPSG27700 = new proj4.Proj('EPSG:27700');
 const EPSG4326 = new proj4.Proj('EPSG:4326');     //WGS84
+var pixelCoordsOffset;
 
 /**
  * Converts from UTM coords to lat and long coords.
@@ -41,12 +42,14 @@ function convertLatLongToUTM(lat, long) {
  * It takes in the easting and northing of a point, and returns the pixel coordinates of that point.
  * @param {double} easting - The easting coordinate of the point you want to convert.
  * @param {double} northing - The northing coordinate of the point you want to convert.
- * @returns A promise that resolves to an object containing the x and y pixel coordinates.
+ * @returns An object containing the x and y pixel coordinates.
  */
 function convertUTMToPixelCoords(easting, northing) {
-    let x = (twfData[3] * easting - twfData[2] * northing + twfData[2] * twfData[5] - twfData[3] * twfData[4]) / (twfData[0] * twfData[3] - twfData[1] * twfData[2]);
-    let y = (-twfData[1] * easting + twfData[0] * northing + twfData[1] * twfData[4] - twfData[0] * twfData[5]) / (twfData[0] * twfData[3] - twfData[1] * twfData[2]);
-    return { x: x, y: y };
+    const [a, b, c, d, e, f] = twfData;
+    const x = (d * easting - c * northing + c * f - d * e) / (a * d - b * c);
+    const y = (-b * easting + a * northing + b * e - a * f) / (a * d - b * c);
+    if (!pixelCoordsOffset) pixelCoordsOffset = { x: x, y: y };
+    return { x: x - pixelCoordsOffset.x, y: y - pixelCoordsOffset.y };
 }
 
 /**
@@ -56,6 +59,8 @@ function convertUTMToPixelCoords(easting, northing) {
  * @returns An object with two properties, easting and northing
  */
 function convertPixelToUTMCoords(pixelX, pixelY) {
+    pixelX += pixelCoordsOffset.x;
+    pixelY += pixelCoordsOffset.y;
     let utmEasting = (twfData[0] * (pixelX)) + (twfData[2] * (pixelY)) + twfData[4];
     let utmNorthing = (twfData[1] * (pixelX)) + (twfData[3] * (pixelY)) + twfData[5];
     return { easting: utmEasting, northing: utmNorthing };
@@ -92,8 +97,7 @@ function convertPixelCoordsToLatLong(pixelCoord) {
  * @returns A string of the bounding box coordinates.
  */
 function convertBBoxToString(bbox) {
-    let string = bbox.minLat + "," + bbox.minLng + "," + bbox.maxLat + "," + bbox.maxLng;
-    return string;
+    return bbox.minLat + "," + bbox.minLng + "," + bbox.maxLat + "," + bbox.maxLng;
 }
 
 /**
