@@ -16,11 +16,13 @@ treeParent.setAttribute("id", "treeParent");
 treeParent.setAttribute("class", "trees");
 document.querySelector('a-scene').appendChild(treeParent);
 
+const instantPosOffset = 1000;
 const trunkInstance = document.createElement('a-cylinder');
 trunkInstance.setAttribute("id", "trunkInstance");
 trunkInstance.setAttribute("height", "1");
 trunkInstance.setAttribute("radius", "1");
 trunkInstance.setAttribute("color", "#b27f36");
+trunkInstance.setAttribute('position', '-' + instantPosOffset + ' -' + instantPosOffset +' -'+instantPosOffset);
 
 const sphericalLeavesInstance = document.createElement('a-sphere');
 sphericalLeavesInstance.setAttribute("id", "sphericalLeavesInstance");
@@ -29,6 +31,7 @@ sphericalLeavesInstance.setAttribute("segments-width", 7);
 sphericalLeavesInstance.setAttribute("segments-height", 6);
 sphericalLeavesInstance.setAttribute("roughness", 1);
 sphericalLeavesInstance.setAttribute("color", "#60DF60");
+sphericalLeavesInstance.setAttribute('position', '-' + instantPosOffset + ' -' + instantPosOffset + ' -' + instantPosOffset);
 
 const coneLeavesInstance = document.createElement('a-cone');
 coneLeavesInstance.setAttribute("id", "coneLeavesInstance");
@@ -39,6 +42,7 @@ coneLeavesInstance.setAttribute("segments-radial", 5);
 coneLeavesInstance.setAttribute("segments-height", 1);
 coneLeavesInstance.setAttribute("roughness", 1);
 coneLeavesInstance.setAttribute("color", "#50D453");
+coneLeavesInstance.setAttribute('position', '-' + instantPosOffset + ' -' + instantPosOffset + ' -' + instantPosOffset);
 
 var instanceMeshesSetUp = false;
 var numbOfTrees = 0;
@@ -183,9 +187,9 @@ function addTree(feature, parentElement) {
             leaves.setAttribute("instanced-mesh-member", "mesh:#sphericalLeavesInstance;");
             leaves.object3D.scale.set(leavesRadius, leavesRadius, leavesRadius);
         }
-        leaves.object3D.position.set((pixelCoords.x), (leavesHeight), (pixelCoords.y));
+        leaves.object3D.position.set((pixelCoords.x + instantPosOffset), (leavesHeight + instantPosOffset), (pixelCoords.y + instantPosOffset));
         trunk.object3D.scale.set(trunkRadius, (trunkHeight + defaultTreeHeightUnderGround), trunkRadius);
-        trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 , (pixelCoords.y));
+        trunk.object3D.position.set((pixelCoords.x + instantPosOffset), (trunkHeight - defaultTreeHeightUnderGround) / 2 + instantPosOffset, (pixelCoords.y + instantPosOffset));
         parentElement.appendChild(leaves);
         parentElement.appendChild(trunk);
 
@@ -193,8 +197,8 @@ function addTree(feature, parentElement) {
         heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
             Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
                 try {
-                    trunk.object3D.position.set((pixelCoords.x), (trunkHeight - defaultTreeHeightUnderGround) / 2 + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y));
-                    leaves.object3D.position.set((pixelCoords.x), (yComponent) + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y));
+                    trunk.object3D.position.set((pixelCoords.x + instantPosOffset), (trunkHeight - defaultTreeHeightUnderGround) / 2 + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) + instantPosOffset, (pixelCoords.y + instantPosOffset));
+                    leaves.object3D.position.set((pixelCoords.x + instantPosOffset), (yComponent) + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) + instantPosOffset, (pixelCoords.y + instantPosOffset));
                 } catch(e) {
                     throw new Error("Specfic location on height map not found! (My own error)");
                 }

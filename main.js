@@ -49,6 +49,14 @@ const playerSphere = document.getElementById("playerSphere");
 const interfaceUI = document.getElementById("interface");
 const miniMap = document.getElementById("miniMap");
 const loadingModal = document.getElementById("loadingModal");
+const pLoadingModalTxt = loadingModal.querySelector("p");
+const invalidEntryModal = document.getElementById("invalidEntryModal");
+const pInvalidEntryModalTxt = invalidEntryModal.querySelector("p");
+
+const ctx = miniMap.getContext("2d", {
+    failIfMajorPerformanceCaveat: false,
+    antialias: false,
+});
 
 const locationOptions = {
     enableHighAccuracy: true,
@@ -80,6 +88,9 @@ function showMap() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("mapScreen").style.display = "block";
 
+    pLoadingModalTxt.innerHTML = "Getting Location!";
+    loadingModal.style.backgroundColor = "#b51d1d";
+    pLoadingModalTxt.style.color = "#F5F5F5";
     showLoadingMessage();
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
@@ -105,7 +116,6 @@ function showMainMenu() {
  */
 function showNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "block";
-    document.getElementById("loadNavigationMenuBtn").style.visibility = "hidden";
 }
 
 /**
@@ -113,7 +123,13 @@ function showNavigationMenu() {
  */
 function hideNavigationMenu() {
     document.getElementById("navigationScreen").style.display = "none";
-    document.getElementById("loadNavigationMenuBtn").style.visibility = "";
+}
+
+/**
+ * If the navigation screen is not displayed, display it. Otherwise, hide it
+ */
+function toggleNavigationMenu() {
+    document.getElementById("navigationScreen").style.display = document.getElementById("navigationScreen").style.display === "none" ? "block" : "none";
 }
 
 /**
@@ -122,10 +138,12 @@ function hideNavigationMenu() {
  * @param position - the position object returned by the geolocation API
  */
 async function locationSuccess(position) {
+    pLoadingModalTxt.innerHTML = "Fetching Map Data!";
+    loadingModal.style.backgroundColor = "#ffa500";
+    pLoadingModalTxt.style.color = "#2e2e2e";
     debugLog("\n\n===== NEW LOCATION ======");
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
-    debugLog(newLatLong);
     if (movedEnoughForNewChunk(bboxPixelCoords, newPixelCoords)) {
         bboxPixelCoords = saveNewChunkCoords(bboxPixelCoords, newPixelCoords);
         showLoadingMessage();
@@ -204,9 +222,7 @@ function locationError(error) {
 function movedFarEnoughForNavigation(newLatLong) {
     if (!navigationInProgress) return false;
     let distance = getDistance([sourceLatLong.lat, sourceLatLong.long], [newLatLong.lat, newLatLong.long]);
-    debugLog("Distance: " + distance + " metres");
     if (distance > distanceNeededToUpdateNavigation) {
-        debugLog("Moved far enough!");
         return true;
     }
     return false;
@@ -346,29 +362,6 @@ document.addEventListener("keydown", function (event) {
     else if (event.code === "KeyV") toggleStats();
 });
 
-/* Listens for when the user starts touching the screen. */
-document.addEventListener("touchstart", function (event) {
-    if (event.touches.length === 2) {
-        touchstartX = event.changedTouches[0].screenX;
-    }
-});
-
-/* Listens for when the user stops touching the screen. */
-document.addEventListener("touchend", function (event) {
-    if (event.touches.length === 2) {
-        handleGesture(touchstartX, event.changedTouches[0].screenX);
-    }
-});
-
-/**
- * If the user swipes left or right, toggle the stats.
- * @param touchstartX - The x coordinate of the point where the user started the touch 
- * @param touchendX - The x coordinate of the point where the user ended the touch
- */
-function handleGesture(touchstartX, touchendX) {
-    // if (touchendX >= touchstartX || touchendX <= touchstartX) toggleStats();
-}
-
 /**
  * If the player camera is active, make the debug camera active. Otherwise, make the player camera
  * active.
@@ -408,12 +401,12 @@ miniMap.addEventListener("click", function () {
         miniMap.width = 200;
         miniMap.height = 200;
         secondaryCamera.setAttribute("camera", "zoom", 1.8);
-        miniMap.style.border = "4px solid black";
+        miniMap.style.border = "3.8px solid black";
     } else {
         miniMap.width = 100;
         miniMap.height = 100;
         secondaryCamera.setAttribute("camera", "zoom", 3);
-        miniMap.style.border = "2px solid black";
+        miniMap.style.border = "2.4px solid black";
     }
     renderMiniMap();
 });
@@ -423,11 +416,8 @@ miniMap.addEventListener("click", function () {
  * mini map canvas.
  */
 function renderMiniMap() {
-    scene.renderer.render(scene.object3D, secondaryCamera.components.camera.camera);
-    miniMap.getContext("2d", {
-        failIfMajorPerformanceCaveat: true,
-        antialias: true
-    }).drawImage(scene.renderer.domElement, 0, 0, miniMap.width, miniMap.height);
+    scene.renderer.render(scene.object3D, secondaryCamera.components.camera.camera);    // Render the scene from the perspective of the secondary camera
+    ctx.drawImage(scene.renderer.domElement, 0, 0, miniMap.width, miniMap.height);      // Draw the result to the mini map canvas
 }
 
 /**
@@ -435,6 +425,20 @@ function renderMiniMap() {
  */
 function toggleInterface() {
     interfaceUI.style.display = interfaceUI.style.display === "none" ? "block" : "none";
+}
+
+/**
+ * Show the interface.
+ */
+function showInterface() {
+    interfaceUI.style.display = "block";
+}
+
+/**
+ * Hide the interface.
+ */
+function hideInterace() {
+    interfaceUI.style.display = "none";
 }
 
 /**
@@ -466,6 +470,7 @@ function angleSecondaryCamera(compassHeading) {
 /**
  * Takes the compass heading and rotates the camera to match the heading of the device.
  * @param compassHeading - The compass heading in degrees.
+ * ! Doesn't work
  */
 function angleMainCamera(compassHeading) {
     debugLog("BEFORE Compass Heading: " + compassHeading + " degrees");
@@ -506,12 +511,15 @@ function showLoadingMessage() {
  * When the page is loaded, hide the loading modal.
  */
 function hideLoadingMessage() {
-    loadingModal.style.display = "none"
+    setTimeout(() => {
+        loadingModal.style.animationName = "modalSlideDown";
+        setTimeout(() => { loadingModal.style.display = "none" }, 580);
+    }, 3500);
 }
 
 AFRAME.registerComponent("updatedebugmap", {
     init: function () {
-        this.tick = AFRAME.utils.throttleTick(this.tick, 80, this);    // Throttle the tick function to 500ms
+        this.tick = AFRAME.utils.throttleTick(this.tick, 100, this);    // Throttle the tick function to 100ms
     },
     tick: function () {
         if (!mapBeingShown || watchID != -1) return;

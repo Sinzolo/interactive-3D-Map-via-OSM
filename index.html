@@ -30,11 +30,10 @@
         <h2>Welcome to my Third Year Project for Lancaster University.</h2>
         <br>This website automatically generates a 3D map of the specified place using OSM's large database.
         <br><button id="loadMapBtn" onclick="uniMap(), showMap(), startCompass()">Start!</button>
-        <!-- <br><button id="loadMapBtn" onclick="cityMap(), showMap()">Load City Map</button> -->
     </div>
 
     <div id="mapScreen" style="display: none">
-        <button id="hamburgerMenuBtn" onclick="toggleInterface()">
+        <button id="hamburgerMenuBtn" onclick="toggleInterface(), hideNavigationMenu()">
             <svg fill="#000000" version="1.1" id="hamburgerMenu" xmlns="http://www.w3.org/2000/svg"
                 xmlns:xlink="http://www.w3.org/1999/xlink" width="25px" height="25px" viewBox="0 0 24.75 24.75"
                 xml:space="preserve">
@@ -46,17 +45,9 @@
             </svg>
         </button>
         <div id="interface" style="display: none">
-            <button id="centreCam" onclick="centreCamera = true">Centre</button>
-            <br> <button id="loadNavigationMenuBtn" onclick="showNavigationMenu()">Navigate</button>
-            <!-- <br> <button id="loadMenuBtn" onclick="hideNavigationMenu(), showMainMenu()">Load Menu</button> -->
-
-            <!-- <br><button id="highQualityBtn" title="Better quality but worse performance" onclick="setLowQuality(false)">High
-                Quality</button> -->
-            <!-- <button id="lowQualityBtn" title="Better performance but worse quality" onclick="setLowQuality(true)">Low
-                Quality</button> -->
+            <button id="loadNavigationMenuBtn" onclick="toggleNavigationMenu()">Navigate</button>
 
             <div id="navigationScreen" style="display: none">
-                <label>Destination:</label>
                 <datalist id="placeNames">
                 </datalist>
                 <input id="placeInput" type="search" name="q" aria-label="Search for building/amenities for navigation." autocomplete="on" list="placeNames" placeholder="Place Name"/>
@@ -67,6 +58,20 @@
                     max="180" value="" required hidden><br>
                 <button id="startNavigationBtn">Go!</button>
                 <button id="hideNavigationMenuBtn">Cancel</button>
+            </div>
+
+            <div id="credit">
+                <p>Map data &copy;
+                    <a href="http://www.openstreetmap.org/" target="_blank">OpenStreetMap</a>,
+                    under
+                    <a href="http://www.openstreetmap.org/copyright" target="_blank">ODbL/CC-BY-SA</a>
+                    licenses.
+                    <br>
+                    Using
+                    <a href="https://aframe.io" target="_blank">A-Frame</a>.
+                    With help from
+                    <a href="https://vrmap.kairo.at" target="_blank">Kairo's Demo</a>.
+                </p>
             </div>
         </div>
 
@@ -80,6 +85,11 @@
         <div id="loadingModal" class="modal">
             <div class="modal-content">
                 <p>Loading!</p>
+            </div>
+        </div>
+        <div id="invalidEntryModal" class="modal">
+            <div class="modal-content">
+                <p>Invalid Entry!</p>
             </div>
         </div>
 
@@ -106,24 +116,11 @@
             </a-entity>
 
             <a-entity id="secondaryRig" rotation="-90 0 0">
-                <a-entity id="secondarycamera" camera="zoom: 3; active: false;"></a-entity>
+                <a-entity id="secondarycamera" camera="zoom: 3; active: false; aspect: 1;"></a-entity>
             </a-entity>
 
         </a-scene>
         <canvas id="miniMap" width="100" height="100"></canvas>
-        <div id="credit">
-            <p>Map data &copy;
-                <a href="http://www.openstreetmap.org/" target="_blank">OpenStreetMap</a>,
-                under
-                <a href="http://www.openstreetmap.org/copyright" target="_blank">ODbL/CC-BY-SA</a>
-                licenses.
-                <br>
-                With help from
-                <a href="https://vrmap.kairo.at" target="_blank">Kairo's Demo</a>
-                and
-                <a href="https://aframe.io" target="_blank">A-Frame's framework</a>.
-            </p>
-        </div>
     </div>
 
 </body>

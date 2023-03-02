@@ -86,13 +86,6 @@ class DijkstrasAlgo {
         let sourceNodeIndex = this.findClosestPathNodeIndex(sourceCoords);
         let destinationNodeIndex = this.findClosestPathNodeIndex(destinationCoords);
 
-        debugLog("Source:");
-        debugLog(sourceNodeIndex);
-        debugLog(this.connectedNodes[sourceNodeIndex]);
-        debugLog("Destination:");
-        debugLog(destinationNodeIndex);
-        debugLog(this.connectedNodes[destinationNodeIndex]);
-
         let shortestDistances = new Array(this.connectedNodes.length);
         shortestDistances.fill(Infinity);
         shortestDistances[sourceNodeIndex] = 0;

@@ -46,7 +46,6 @@ async function getHeightMap(pixelCoords, bboxSize) {
  * @returns A 2D array of the values in the original array between the min and max values.
  */
 function getAreaOf2DArray(twoDArray, minX, minY, maxX, maxY) {
-    // debugLog(maxX - minX, maxY - minY);
     let windowedTwoDArray = [];
     for (let x = 0; x < maxX - minX; x++) {
         windowedTwoDArray[x] = [];

@@ -13,6 +13,7 @@ const placeNameDataList = document.getElementById("placeNames");
 const placeNameInput = document.getElementById("placeInput");
 const arrow = document.getElementById("arrow");
 const vibrateAvailable = window.navigator.vibrate;
+const distanceNeededToStopNavigating = 35;
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
@@ -40,6 +41,7 @@ function navigate(pathPromise) {
             return new Promise(function (resolve, reject) { });
         }
         sourceLatLong = usersCurrentLatLong;
+        hideInterace();
         hideNavigationMenu();
         removeSpheres();
         uncolourRectangles();
@@ -50,7 +52,6 @@ function navigate(pathPromise) {
         // If could not find path, use the last path found
         if (pathToDest.length == 1) pathToDest = lastPathToDest;
         else lastPathToDest = pathToDest;
-        debugLog(pathToDest);
         colourRectangles(pathToDest);
         renderMiniMap();
         return new Promise(function (resolve, reject) { });
@@ -75,7 +76,6 @@ function carryOnNavigating(pathPromise) {
  * message to the user.
  */
 function stopNavigation() {
-    debugLog("Destination reached!");
     navigationInProgress = false;
     destinationLatLong = null;
     removeSpheres();
@@ -92,8 +92,7 @@ function stopNavigation() {
  * @returns A boolean value.
  */
 function checkDestinationReached() {
-    debugLog("Distance: " + getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) + "m");
-    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < 25;
+    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < distanceNeededToStopNavigating;
 }
 
 /**
@@ -190,11 +189,9 @@ function colourRectangles(pathToDest) {
  * Shows the modal for 3.5 seconds, then hides it.
  */
 function showDestinationFoundMessage() {
-    debugLog("Showing destination found message");
     destinationReachedModal.style.display = "block";
     destinationReachedModal.style.animationName = "modalSlideUp";
     setTimeout(() => {
-        debugLog("Hiding destination found message");
         destinationReachedModal.style.animationName = "modalSlideDown";
         setTimeout(() => { destinationReachedModal.style.display = "none" }, 580);
     }, 3500);
@@ -209,8 +206,6 @@ destinationReachedSpan.onclick = function () {
 placeNameInput.onchange = function () {
     const coords = uniPlaceNames.get(placeNameInput.value);
     if (coords) {
-        debugLog(coords);
-        debugLog("You selected a valid option: " + placeNameInput.value);
         let latSum = 0;
         let longSum = 0;
         let count = 1;
@@ -227,11 +222,31 @@ placeNameInput.onchange = function () {
         destinationLatInputBox.value = (latSum / count).toFixed(6);
         destinationLongInputBox.value = (longSum / count).toFixed(6);
     } else {
-        debugLog("You entered an invalid option: " + placeNameInput.value);
         destinationLatInputBox.value = "";
         destinationLongInputBox.value = "";
+        informUserOfInvalidEntry();
     }
 };
+
+/**
+ * Shakes the input box and displays a message to the
+ * user to inform them that they have entered an invalid place name.
+ */
+function informUserOfInvalidEntry() {
+    placeNameInput.classList.add("error");
+    setTimeout(() => {
+        placeNameInput.classList.remove("error");
+    }, 2000);
+    pInvalidEntryModalTxt.innerHTML = "Invalid Place Name!";
+    invalidEntryModal.style.backgroundColor = "#b51d1d";
+    pInvalidEntryModalTxt.style.color = "#F5F5F5";
+    invalidEntryModal.style.display = "block";
+    invalidEntryModal.style.animationName = "modalSlideUp";
+    setTimeout(() => {
+        invalidEntryModal.style.animationName = "modalSlideDown";
+        setTimeout(() => { invalidEntryModal.style.display = "none" }, 580);
+    }, 3500);
+}
 
 /**
  * Queries the Overpass API for the given point of interest and adds them to the searchable navigation.
@@ -327,6 +342,7 @@ document.getElementById("startNavigationBtn").onclick = function () {
 
 /* Hiding the navigation menu when the user clicks on the "Hide Navigation Menu" button. */
 document.getElementById("hideNavigationMenuBtn").onclick = function () {
+    if (navigationInProgress) stopNavigation();
     hideNavigationMenu();
     placeNameInput.value = "";
 }
