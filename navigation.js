@@ -13,12 +13,12 @@ const placeNameDataList = document.getElementById("placeNames");
 const placeNameInput = document.getElementById("placeInput");
 const arrow = document.getElementById("arrow");
 const vibrateAvailable = window.navigator.vibrate;
-const distanceNeededToStopNavigating = 35;
+const distanceNeededToStopNavigating = 30;
 
 var navigationInProgress = false;
 var currentRectanglesInPaths = [];
 var sourceLatLong = { lat: -1, long: -1 };
-var destinationLatLong;
+var currentDestinationLatLong = null;
 var uniPlaceNames = new Map();
 var startSphere = null;
 var endSphere = null;
@@ -33,22 +33,14 @@ var lastPathToDest = [];
 */
 function navigate(pathPromise) {
     pathPromise = pathPromise.then(function () {
-        destinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
-        if (!areCoordsValid(destinationLatLong) || !areCoordsValid(usersCurrentLatLong)) return;
         navigationInProgress = true;
-        if (checkDestinationReached()) {
-            stopNavigation();
-            return new Promise(function (resolve, reject) { });
-        }
         sourceLatLong = usersCurrentLatLong;
-        hideInterace();
-        hideNavigationMenu();
         removeSpheres();
         uncolourRectangles();
         startSphere = addFloatingSphere(usersCurrentLatLong, "#00FF00");
-        endSphere = addFloatingSphere(destinationLatLong, "#FF0000");
+        endSphere = addFloatingSphere(currentDestinationLatLong, "#FF0000");
         updateArrowRequestID = startUpdatingArrow({ x: startSphere.object3D.position.x, y: startSphere.object3D.position.y - sphereHeightAboveGround, z: startSphere.object3D.position.z });
-        let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, destinationLatLong);
+        let pathToDest = dijkstrasAlgorithm.findShortestPathBetween(usersCurrentLatLong, currentDestinationLatLong);
         // If could not find path, use the last path found
         if (pathToDest.length == 1) pathToDest = lastPathToDest;
         else lastPathToDest = pathToDest;
@@ -58,8 +50,12 @@ function navigate(pathPromise) {
     });
 }
 
+
 /**
- * If the navigation is in progress, start the navigation
+ * If the user is still navigating, and the destination hasn't been reached, and the destination and
+ * current location are valid, then navigate.
+ * @param pathPromise - This is the promise returned by the loadPaths function.
+ * @returns {void} Nothing
  */
 function carryOnNavigating(pathPromise) {
     if (!navigationInProgress) return;
@@ -67,7 +63,14 @@ function carryOnNavigating(pathPromise) {
         stopNavigation();
         return;
     }
-    navigate(pathPromise);
+    if (validCoord(currentDestinationLatLong) && validCoord(usersCurrentLatLong)) {
+        currentDestinationLatLong = currentDestinationLatLong ? currentDestinationLatLong : { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
+        navigate(pathPromise);
+    } else {
+        currentDestinationLatLong = null;
+    }
+    destinationLatInputBox.value = "";
+    destinationLongInputBox.value = "";
 }
 
 /**
@@ -77,7 +80,7 @@ function carryOnNavigating(pathPromise) {
  */
 function stopNavigation() {
     navigationInProgress = false;
-    destinationLatLong = null;
+    currentDestinationLatLong = null;
     removeSpheres();
     uncolourRectangles();
     showDestinationFoundMessage();
@@ -92,7 +95,7 @@ function stopNavigation() {
  * @returns A boolean value.
  */
 function checkDestinationReached() {
-    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [destinationLatLong.lat, destinationLatLong.long]) < distanceNeededToStopNavigating;
+    return getDistance([usersCurrentLatLong.lat, usersCurrentLatLong.long], [currentDestinationLatLong.lat, currentDestinationLatLong.long]) < distanceNeededToStopNavigating;
 }
 
 /**
@@ -117,7 +120,7 @@ function find2DIndex(pathToDest) {
  * @param coords - The coordinates to check.
  * @returns A boolean value.
  */
-function areCoordsValid(coords) {
+function validCoord(coords) {
     return coords.lat !== "" && coords.long !== "" && coords.lat >= -90 && coords.lat <= 90 && coords.long >= -180 && coords.long <= 180;
 }
 
@@ -204,6 +207,12 @@ destinationReachedSpan.onclick = function () {
 
 /* An event listener that is called when the user changes the value of the input box. */
 placeNameInput.onchange = function () {
+    let destLatLong = getDestinationLatLong();
+    destinationLatInputBox.value = destLatLong.destLat;
+    destinationLongInputBox.value = destLatLong.destLong;
+};
+
+function getDestinationLatLong() {
     const coords = uniPlaceNames.get(placeNameInput.value);
     if (coords) {
         let latSum = 0;
@@ -219,14 +228,18 @@ placeNameInput.onchange = function () {
             latSum = coords[1];
             longSum = coords[0];
         }
+        return { destLat: (latSum / count).toFixed(6) , destLong: (longSum / count).toFixed(6) };
         destinationLatInputBox.value = (latSum / count).toFixed(6);
         destinationLongInputBox.value = (longSum / count).toFixed(6);
     } else {
+        informUserOfInvalidEntry();
+        return { destLat: "", destLong: "" };
         destinationLatInputBox.value = "";
         destinationLongInputBox.value = "";
-        informUserOfInvalidEntry();
     }
-};
+}
+
+
 
 /**
  * Shakes the input box and displays a message to the
@@ -259,6 +272,7 @@ function fillSuggestions() {
         "node[shop](" + stringBBox + ");" +
         "node[amenity](" + stringBBox + ");" +
         "way[amenity](" + stringBBox + ");" +
+        "way[building=residential](" + stringBBox + ");" +
         "node[place=neighbourhood](" + stringBBox + ");" +
         "node[highway=bus_stop](" + stringBBox + ");" +
         "rel[building](" + stringBBox + "););" +
@@ -270,7 +284,7 @@ function fillSuggestions() {
         navigationFetchWorker.onmessage = async function (e) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
             features.forEach(feature => {
-                if (feature.properties.name) addPlaceToDataList(feature);
+                if (feature.properties.name || feature.properties["addr:housename"]) addPlaceToDataList(feature);
             });
             alphabeticallySortDataList();
         }
@@ -302,7 +316,7 @@ function addPlaceToDataList(feature) {
  * @returns The name of the feature, with the addition of the feature's function.
  */
 function addFunctionToName(feature) {
-    let name = feature.properties.name;
+    let name = feature.properties.name || feature.properties["addr:housename"];
     if (feature.properties.shop) name += " (Shop";
     else if (feature.properties.amenity) name += " (" + capitaliseFirstLetter(feature.properties.amenity).replace(/_/g, " ") + "";
     else if (feature.properties.building) name += " (Building";
@@ -335,16 +349,34 @@ function alphabeticallySortDataList() {
 }
 
 /* Setting the onclick function of the start navigation button to the navigate function. */
-document.getElementById("startNavigationBtn").onclick = function () {
-    navigate(pathPromise)
+document.getElementById("goNavigationBtn").onclick = function () {
+    let destLatLong = getDestinationLatLong();
+    destinationLatInputBox.value = destLatLong.destLat;
+    destinationLongInputBox.value = destLatLong.destLong;
+    currentDestinationLatLong = { lat: destinationLatInputBox.value, long: destinationLongInputBox.value };
+    destinationLatInputBox.value = "";
+    destinationLongInputBox.value = "";
+    if (!validCoord(currentDestinationLatLong) || !validCoord(usersCurrentLatLong)) {
+        currentDestinationLatLong = null;
+        return
+    }
+    else if (checkDestinationReached()) {
+        stopNavigation();
+        return;
+    }
+    hideHamburgerMenu();
+    hideNavigationMenu();
+    navigate(pathPromise);
     placeNameInput.value = "";
 }
 
 /* Hiding the navigation menu when the user clicks on the "Hide Navigation Menu" button. */
-document.getElementById("hideNavigationMenuBtn").onclick = function () {
+document.getElementById("cancelNavigationMenuBtn").onclick = function () {
     if (navigationInProgress) stopNavigation();
     hideNavigationMenu();
     placeNameInput.value = "";
+    destinationLatInputBox.value = "";
+    destinationLongInputBox.value = "";
 }
 
 /**

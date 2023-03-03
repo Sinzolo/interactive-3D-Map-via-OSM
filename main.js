@@ -46,7 +46,7 @@ const secondaryCamera = document.getElementById("secondarycamera");
 const playerCamera = document.getElementById("playerCamera");
 const debugCamera = document.getElementById("debugCamera");
 const playerSphere = document.getElementById("playerSphere");
-const interfaceUI = document.getElementById("interface");
+const hamburgerMenuDiv = document.getElementById("hamburgerMenuDiv");
 const miniMap = document.getElementById("miniMap");
 const loadingModal = document.getElementById("loadingModal");
 const pLoadingModalTxt = loadingModal.querySelector("p");
@@ -88,9 +88,7 @@ function showMap() {
     document.getElementById("navigationScreen").style.display = "none";
     document.getElementById("mapScreen").style.display = "block";
 
-    pLoadingModalTxt.innerHTML = "Getting Location!";
-    loadingModal.style.backgroundColor = "#b51d1d";
-    pLoadingModalTxt.style.color = "#F5F5F5";
+    changeLoadingModal("Getting Your Location!", "#b51d1d", "#F5F5F5");
     showLoadingMessage();
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
@@ -138,13 +136,11 @@ function toggleNavigationMenu() {
  * @param position - the position object returned by the geolocation API
  */
 async function locationSuccess(position) {
-    pLoadingModalTxt.innerHTML = "Fetching Map Data!";
-    loadingModal.style.backgroundColor = "#ffa500";
-    pLoadingModalTxt.style.color = "#2e2e2e";
     debugLog("\n\n===== NEW LOCATION ======");
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     if (movedEnoughForNewChunk(bboxPixelCoords, newPixelCoords)) {
+        changeLoadingModal("Fetching Map Data!", "#ffa500", "#2e2e2e");
         bboxPixelCoords = saveNewChunkCoords(bboxPixelCoords, newPixelCoords);
         showLoadingMessage();
         loadNewMapArea(bboxPixelCoords, bboxSize).then(async () => {
@@ -153,6 +149,7 @@ async function locationSuccess(position) {
                 await deleteAndReOpenCache();
                 loadFourEdgeChunks(structuredClone(bboxPixelCoords), bboxSize);
             }
+            changeLoadingModal("Map Loaded!", "#006110", "#F5F5F5");
             hideLoadingMessage();
         });
     }
@@ -423,22 +420,22 @@ function renderMiniMap() {
 /**
  * If the interface is hidden, show it, otherwise hide it.
  */
-function toggleInterface() {
-    interfaceUI.style.display = interfaceUI.style.display === "none" ? "block" : "none";
+function toggleHamburgerMenu() {
+    hamburgerMenuDiv.style.display = hamburgerMenuDiv.style.display === "none" ? "block" : "none";
 }
 
 /**
- * Show the interface.
+ * Show the hamburger menu.
  */
-function showInterface() {
-    interfaceUI.style.display = "block";
+function showHamburgerMenu() {
+    hamburgerMenuDiv.style.display = "block";
 }
 
 /**
- * Hide the interface.
+ * Hide the hamburger menu.
  */
-function hideInterace() {
-    interfaceUI.style.display = "none";
+function hideHamburgerMenu() {
+    hamburgerMenuDiv.style.display = "none";
 }
 
 /**
@@ -515,6 +512,18 @@ function hideLoadingMessage() {
         loadingModal.style.animationName = "modalSlideDown";
         setTimeout(() => { loadingModal.style.display = "none" }, 580);
     }, 3500);
+}
+
+/**
+ * It changes the text, background colour, and text colour of the loading modal.
+ * @param text - The text to display in the loading modal.
+ * @param backgroundColour - The background colour of the loading modal.
+ * @param textColour - The colour of the text in the loading modal.
+ */
+function changeLoadingModal(text, backgroundColour, textColour) {
+    pLoadingModalTxt.innerHTML = text;
+    loadingModal.style.backgroundColor = backgroundColour;
+    pLoadingModalTxt.style.color = textColour;
 }
 
 AFRAME.registerComponent("updatedebugmap", {
