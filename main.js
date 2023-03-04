@@ -25,6 +25,7 @@ var osmCache;
 var cacheDeletionInterval;
 
 const isIOS = navigator.userAgent.match(/(iPod|iPhone|iPad)/) && navigator.userAgent.match(/AppleWebKit/);
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const overpassURL = "https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=";
 const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coordinates of the buildings need to be offset depending on the scale of the geotiff image and the scale of the building
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
@@ -52,6 +53,7 @@ const loadingModal = document.getElementById("loadingModal");
 const pLoadingModalTxt = loadingModal.querySelector("p");
 const invalidEntryModal = document.getElementById("invalidEntryModal");
 const pInvalidEntryModalTxt = invalidEntryModal.querySelector("p");
+const fullscreenBtn = document.getElementById('fullscreenBtn');
 
 const ctx = miniMap.getContext("2d", {
     failIfMajorPerformanceCaveat: false,
@@ -352,12 +354,14 @@ function removeCurrentMap() {
     removeCurrentTrees();
 }
 
-/* Listens for any key presses. */
-document.addEventListener("keydown", function (event) {
-    if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
-    if (event.code === "KeyC") toggleCameraView();
-    else if (event.code === "KeyV") toggleStats();
-});
+if (!isMobile) {
+    /* Listens for any key presses. */
+    document.addEventListener("keydown", function (event) {
+        if (event.ctrlKey || event.shiftKey || event.altKey || event.metaKey) return;
+        if (event.code === "KeyC") toggleCameraView();
+        else if (event.code === "KeyV") toggleStats();
+    });
+}
 
 /**
  * If the player camera is active, make the debug camera active. Otherwise, make the player camera
@@ -524,6 +528,34 @@ function changeLoadingModal(text, backgroundColour, textColour) {
     pLoadingModalTxt.innerHTML = text;
     loadingModal.style.backgroundColor = backgroundColour;
     pLoadingModalTxt.style.color = textColour;
+}
+
+if (isIOS) fullscreenBtn.style.display = "none";
+else {
+    fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement && !document.mozFullScreenElement && 
+        !document.webkitFullscreenElement && !document.msFullscreenElement ) {
+            if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+            } else if (document.documentElement.msRequestFullscreen) {
+            document.documentElement.msRequestFullscreen();
+            } else if (document.documentElement.mozRequestFullScreen) {
+            document.documentElement.mozRequestFullScreen();
+            } else if (document.documentElement.webkitRequestFullscreen) {
+            document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+            }
+        } else {
+            if (document.exitFullscreen) {
+            document.exitFullscreen();
+            } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+            } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+            } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+            }
+        }
+    });
 }
 
 AFRAME.registerComponent("updatedebugmap", {
