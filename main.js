@@ -31,7 +31,7 @@ const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coord
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
 const areaCoordsScale = 1 / (twfData[0] + areaScale - 1);                  // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
-const bboxSize = 400;                       // Length of one side of bounding box in metres
+const bboxSize = 360;                       // Length of one side of bounding box in metres
 const pathLookAhead = 1500 - bboxSize;      // How much bigger the bbox is for the paths to see ahead for navigation (1500m = uni campus size)
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.65;     // Used to check if the user has moved far enough
 const bboxOffset = distanceNeededToLoadNewChunk * -1.9;

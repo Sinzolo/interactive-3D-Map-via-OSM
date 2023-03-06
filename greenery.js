@@ -5,6 +5,9 @@ const defaultGrassAreaColour = "#4A9342";
 const defaultWaterColour = "#0E87CC";
 const areaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
 const defaultAreaHeightAboveGround = 0.14 + 0.0007; // How far it should stick above ground
+const multiSphereTreeScale = 0.5;              // Scaling the trees (bigger number = bigger tree)
+const pointyTreeScale = 0.7;              // Scaling the trees (bigger number = bigger tree)
+
 const areaParent = document.createElement('a-entity');
 areaParent.setAttribute("id", "areaParent");
 areaParent.setAttribute("class", "areas");
@@ -27,11 +30,23 @@ trunkInstance.setAttribute('position', '-' + instantPosOffset + ' -' + instantPo
 const sphericalLeavesInstance = document.createElement('a-sphere');
 sphericalLeavesInstance.setAttribute("id", "sphericalLeavesInstance");
 sphericalLeavesInstance.setAttribute("radius", 1);
-sphericalLeavesInstance.setAttribute("segments-width", 7);
-sphericalLeavesInstance.setAttribute("segments-height", 6);
+sphericalLeavesInstance.setAttribute("segments-width", 5);
+sphericalLeavesInstance.setAttribute("segments-height", 4);
 sphericalLeavesInstance.setAttribute("roughness", 1);
-sphericalLeavesInstance.setAttribute("color", "#60DF60");
+sphericalLeavesInstance.setAttribute("color", "#79df05");
 sphericalLeavesInstance.setAttribute('position', '-' + instantPosOffset + ' -' + instantPosOffset + ' -' + instantPosOffset);
+
+const multiSphereTreeInstance = document.createElement('a-entity');
+multiSphereTreeInstance.setAttribute("id", "multiSphereTreeMesh");
+multiSphereTreeInstance.setAttribute("gltf-model", "#multiSphereTree");
+multiSphereTreeInstance.setAttribute("scale", multiSphereTreeScale + " " + multiSphereTreeScale + " " + multiSphereTreeScale);
+multiSphereTreeInstance.setAttribute("position", "0 " + -1 * multiSphereTreeScale + " 0");
+
+const pointyTreeInstance = document.createElement('a-entity');
+pointyTreeInstance.setAttribute("id", "pointyTreeMesh");
+pointyTreeInstance.setAttribute("gltf-model", "#pointyTree");
+pointyTreeInstance.setAttribute("scale", pointyTreeScale + " " + pointyTreeScale + " " + pointyTreeScale);
+pointyTreeInstance.setAttribute("position", "0 " + -1 * pointyTreeScale + " 0");
 
 const coneLeavesInstance = document.createElement('a-cone');
 coneLeavesInstance.setAttribute("id", "coneLeavesInstance");
@@ -73,12 +88,18 @@ async function loadNaturalFeatures(bboxPixelCoords, bboxSize) {
     naturalFeaturesFetchWorker.postMessage(message);
 
     if (!instanceMeshesSetUp) {
-        trunkInstance.setAttribute("instanced-mesh", "capacity:1000");
-        sphericalLeavesInstance.setAttribute("instanced-mesh", "capacity:500");
-        coneLeavesInstance.setAttribute("instanced-mesh", "capacity:500");
+        multiSphereTreeInstance.setAttribute("instanced-mesh", "capacity:230");
+        pointyTreeInstance.setAttribute("instanced-mesh", "capacity:100");
+        scene.appendChild(multiSphereTreeInstance);
+        scene.appendChild(pointyTreeInstance);
+
+        trunkInstance.setAttribute("instanced-mesh", "capacity:130");
+        sphericalLeavesInstance.setAttribute("instanced-mesh", "capacity:130");
+        // coneLeavesInstance.setAttribute("instanced-mesh", "capacity:100");
         scene.appendChild(trunkInstance);
         scene.appendChild(sphericalLeavesInstance);
-        scene.appendChild(coneLeavesInstance);
+        // scene.appendChild(coneLeavesInstance);
+
         instanceMeshesSetUp = true;
     }
 
@@ -172,38 +193,41 @@ function addTree(feature, parentElement) {
         let pixelCoords = convertLatLongToPixelCoords({ lat: feature.geometry.coordinates[1], long: feature.geometry.coordinates[0] });
         let trunkHeight = height - leavesRadius;
         var leavesHeight = trunkHeight * 0.95;
-        let trunk = document.createElement("a-entity");
-        trunk.setAttribute("id", "trunk" + numbOfTrees);
-        trunk.setAttribute("instanced-mesh-member", "mesh:#trunkInstance;");
 
-        let leaves = document.createElement("a-entity");
-        if (tags["leaf_type"] == "needleleaved" || Math.floor(Math.random() * 2) === 0) { // Conical leaves
-            leaves.setAttribute("id", "coneLeaves" + numbOfTrees);
-            leaves.setAttribute("instanced-mesh-member", "mesh:#coneLeavesInstance;");
-            leaves.object3D.scale.set(leavesRadius, height * 0.75, leavesRadius);
-        }
-        else { // Spherical leaves
+        let random = Math.random();
+        if (random > 0.8) { // Spherical Tree
+            var trunk = document.createElement("a-entity");
+            var leaves = document.createElement("a-entity");
+            trunk.setAttribute("id", "trunk" + numbOfTrees);
+            trunk.setAttribute("instanced-mesh-member", "mesh:#trunkInstance;");
             leaves.setAttribute("id", "sphereLeaves" + numbOfTrees);
             leaves.setAttribute("instanced-mesh-member", "mesh:#sphericalLeavesInstance;");
             leaves.object3D.scale.set(leavesRadius, leavesRadius, leavesRadius);
+            leaves.object3D.position.set((pixelCoords.x + instantPosOffset), (leavesHeight + instantPosOffset), (pixelCoords.y + instantPosOffset));
+            trunk.object3D.scale.set(trunkRadius, (trunkHeight + defaultTreeHeightUnderGround), trunkRadius);
+            trunk.object3D.position.set((pixelCoords.x + instantPosOffset), (trunkHeight - defaultTreeHeightUnderGround) / 2 + instantPosOffset, (pixelCoords.y + instantPosOffset));
+            parentElement.appendChild(leaves);
+            parentElement.appendChild(trunk);
         }
-        leaves.object3D.position.set((pixelCoords.x + instantPosOffset), (leavesHeight + instantPosOffset), (pixelCoords.y + instantPosOffset));
-        trunk.object3D.scale.set(trunkRadius, (trunkHeight + defaultTreeHeightUnderGround), trunkRadius);
-        trunk.object3D.position.set((pixelCoords.x + instantPosOffset), (trunkHeight - defaultTreeHeightUnderGround) / 2 + instantPosOffset, (pixelCoords.y + instantPosOffset));
-        parentElement.appendChild(leaves);
-        parentElement.appendChild(trunk);
+        else {
+            let tree = document.createElement("a-entity");
+            if (tags["leaf_type"] == "needleleaved" || random < 0.1) { // Pointy Tree
+                tree.setAttribute("id", "pointyTree" + numbOfTrees);
+                tree.setAttribute("instanced-mesh-member", "mesh:#pointyTreeMesh;");
+                tree.setAttribute("rotation", "0 " + Math.floor(Math.random() * 360) + " 0");
+                tree.object3D.position.set(pixelCoords.x * (1 / pointyTreeScale), 0, pixelCoords.y * 1 / pointyTreeScale);
+            }
+            else if (random > 0.3) { // Multi Spherical Tree
+                tree.setAttribute("id", "multiSphereTree" + numbOfTrees);
+                tree.setAttribute("instanced-mesh-member", "mesh:#multiSphereTreeMesh;");
+                tree.setAttribute("rotation", Math.floor(Math.random() * 13) + 22 + " " + Math.floor(Math.random() * 360) + " 0");
+                tree.object3D.position.set(pixelCoords.x * (1 / multiSphereTreeScale), 0, pixelCoords.y * 1 / multiSphereTreeScale);
+            }
+            let randomScale = Math.random() * 0.5 + 0.7;
+            tree.object3D.scale.set(randomScale, randomScale + 0.07, randomScale);
+            parentElement.appendChild(tree);
+        }
 
-        if (lowQuality) return;
-        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-                try {
-                    trunk.object3D.position.set((pixelCoords.x + instantPosOffset), (trunkHeight - defaultTreeHeightUnderGround) / 2 + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) + instantPosOffset, (pixelCoords.y + instantPosOffset));
-                    leaves.object3D.position.set((pixelCoords.x + instantPosOffset), (yComponent) + (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]) + instantPosOffset, (pixelCoords.y + instantPosOffset));
-                } catch(e) {
-                    throw new Error("Specfic location on height map not found! (My own error)");
-                }
-            });
-        });
         resolve();
     });
 }
