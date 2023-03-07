@@ -8,7 +8,8 @@
     <link rel="stylesheet" href="style.css">
     <title>Interactive 3D Map via OSM</title>
     <link rel="icon" href="icons/favicon.png">
-    <!-- <link rel="preload" as="image" href="assets/black+asphalt-1024x1024.png"> -->
+    <link rel="preload" as="image" href="assets/black+asphalt-1024x1024.png">
+    <link rel="preload" as="image" href="assets/gray+asphalt-1024x1024.png">
     <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/multiSphereTree.gltf">
     <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/pointyTree.gltf">
 
@@ -122,12 +123,6 @@
         </div>
 
         <a-scene id="scene" vr-mode-ui="enabled: false" background="color: #74d2fa" updatetopdowncam>
-            <a-assets timeout="20000">
-                <a-asset-item id="multiSphereTreeModel" src="assets/multiSphereTree.gltf"></a-asset-item>
-                <a-asset-item id="pointyTreeModel" src="assets/pointyTree.gltf"></a-asset-item>
-                <!-- <img id="asphaltTexture" src="assets/black+asphalt-1024x1024.png"> -->
-            </a-assets>
-
             <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff"
                 fog-color="#74d2fa"></a-simple-sun-sky>
             <!-- <a-entity light="type: ambient; color: #A8A8A8"></a-entity> -->
@@ -152,6 +147,14 @@
             <a-entity id="secondaryRig" rotation="-90 0 0">
                 <a-entity id="secondarycamera" camera="zoom: 3; active: false; aspect: 1;"></a-entity>
             </a-entity>
+
+            <a-assets timeout="1">
+                <img id="greyAsphaltTexture" src="assets/gray+asphalt-1024x1024.png">
+                <img id="blackAsphaltTexture" src="assets/black+asphalt-1024x1024.png">
+                <img id="grassTexture" src="assets/grass_tile.png">
+                <a-asset-item id="multiSphereTreeModel" src="assets/multiSphereTree.gltf"></a-asset-item>
+                <a-asset-item id="pointyTreeModel" src="assets/pointyTree.gltf"></a-asset-item>
+            </a-assets>
         </a-scene>
         <canvas id="miniMap" width="100" height="100"></canvas>
     </div>

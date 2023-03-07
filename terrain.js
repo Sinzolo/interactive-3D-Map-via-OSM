@@ -2,7 +2,7 @@
 
 const yScale = 1;
 const xzScale = 12;      // Smaller number = more triangles that make up the terrain = worse performance
-const groundColour = "#367d3f";
+const groundColour = "#307030";
 var tiffWindow;
 var triangleParent = document.createElement('a-entity');
 triangleParent.setAttribute("id", "terrainParent");
@@ -90,6 +90,7 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
                 vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
+            // newTriangle.setAttribute("material", { roughness: "0.7", src: "#grassTexture", repeat: "100 100" });
             triangles.push(newTriangle);
 
             newTriangle = document.createElement('a-entity');
@@ -100,6 +101,8 @@ function createTrianglesForTerrain(resolution, flat, heightMap) {
                 vertexC: (x + tiffWindow[0] + resolution) + " " + ((flat) ? 0 : heightMap[x + xzScale][z] * yScale) + " " + (z + tiffWindow[1])
             });
             newTriangle.setAttribute("material", { roughness: "0.7", color: groundColour });
+            // newTriangle.setAttribute("material", { roughness: "0.7", src: "#grassTexture", repeat: "100 100" });
+
             triangles.push(newTriangle);
         }
     }

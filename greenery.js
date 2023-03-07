@@ -4,7 +4,7 @@ const naturalFeaturesFetchWorker = new Worker('fetchWorker.js');
 const defaultGrassAreaColour = "#4A9342";
 const defaultWaterColour = "#0E87CC";
 const areaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
-const defaultAreaHeightAboveGround = 0.14 + 0.0007; // How far it should stick above ground
+const defaultAreaHeightAboveGround = 0.08 + 0.0007; // How far it should stick above ground
 const multiSphereTreeScale = 0.5;              // Scaling the trees (bigger number = bigger tree)
 const pointyTreeScale = 0.7;              // Scaling the trees (bigger number = bigger tree)
 const scene = document.querySelector("a-scene");
@@ -154,6 +154,7 @@ function addArea(feature, parentElement) {
         let newGrassArea = document.createElement('a-entity');
         newGrassArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultAreaHeightAboveGround });
         newGrassArea.setAttribute("material", { roughness: "0.6", color: colour });
+        // newGrassArea.setAttribute("material", { src: "#grassTexture", repeat: "15 15", roughness: "1" });
         newGrassArea.object3D.scale.set(areaScale, 1, areaScale);
         newGrassArea.object3D.position.set((pixelCoords.x * areaCoordsScale), 0, (pixelCoords.y * areaCoordsScale));
         parentElement.appendChild(newGrassArea);

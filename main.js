@@ -141,7 +141,7 @@ async function locationSuccess(position) {
     let newLatLong = { lat: position.coords.latitude, long: position.coords.longitude };
     let newPixelCoords = convertLatLongToPixelCoords(newLatLong);
     if (movedEnoughForNewChunk(bboxPixelCoords, newPixelCoords)) {
-        changeLoadingModal("Fetching Map Data!", "#ffa500", "#2e2e2e");
+        changeLoadingModal("Fetching Map Data...", "#ffa500", "#2e2e2e");
         bboxPixelCoords = saveNewChunkCoords(bboxPixelCoords, newPixelCoords);
         showLoadingMessage();
         loadNewMapArea(bboxPixelCoords, bboxSize).then(async () => {
