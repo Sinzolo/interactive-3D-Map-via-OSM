@@ -19,6 +19,7 @@ var hasToggledStatView = false;
 var lastDebugPos = { x: 0, y: 0, z: 0 };
 var xNumberDistancesMoved = 0;
 var yNumberDistancesMoved = 0;
+var wakeLock = null;
 
 const osmCacheName = "osmCache";            // Name of the cache for the OSM data that is fetched
 var osmCache;
@@ -31,7 +32,7 @@ const buildingCoordsScale = 1 / (twfData[0] + buildingScale - 1);   // The coord
 const pathCoordsScale = 1 / (twfData[0] + pathScale - 1);                       // ^^
 const areaCoordsScale = 1 / (twfData[0] + areaScale - 1);                  // ^^
 const pedestrianAreaCoordsScale = 1 / (twfData[0] + pedestrianAreaScale - 1);   // ^^
-const bboxSize = 360;                       // Length of one side of bounding box in metres
+const bboxSize = 380;                       // Length of one side of bounding box in metres
 const pathLookAhead = 1500 - bboxSize;      // How much bigger the bbox is for the paths to see ahead for navigation (1500m = uni campus size)
 const distanceNeededToLoadNewChunk = (bboxSize / 2) * 0.65;     // Used to check if the user has moved far enough
 const bboxOffset = distanceNeededToLoadNewChunk * -1.9;
@@ -40,7 +41,6 @@ const humanHeight = 1.2;    // Height of the user in metres
 const birdHeight = 140;     // Height of the user in metres
 const cacheTTL = 1000 * 60 * 2;     // How often the cache should be deleted and reopened
 
-const scene = document.querySelector("a-scene");
 const cameraRig = document.getElementById("rig");
 const secondaryCameraRig = document.getElementById("secondaryRig");
 const secondaryCamera = document.getElementById("secondarycamera");
@@ -54,25 +54,23 @@ const pLoadingModalTxt = loadingModal.querySelector("p");
 const invalidEntryModal = document.getElementById("invalidEntryModal");
 const pInvalidEntryModalTxt = invalidEntryModal.querySelector("p");
 const fullscreenBtn = document.getElementById('fullscreenBtn');
-
 const ctx = miniMap.getContext("2d", {
     failIfMajorPerformanceCaveat: false,
     antialias: false,
 });
-
 const locationOptions = {
     enableHighAccuracy: true,
     maximumAge: 0,      // How often the location should be updated
     timeout: 5000       // 5 second timeout until it errors if it can't get their location
 };
-
 const rasters = new Promise((resolve, reject) => {
     resolve({ uniRaster: 0});
 });
-
 var currentRaster = rasters.then((rasters) => {
     return rasters.uniRaster;
 });
+
+
 
 fillSuggestions();
 
@@ -95,6 +93,7 @@ function showMap() {
     if (watchID == -1) watchID = navigator.geolocation.watchPosition(locationSuccess, locationError, locationOptions);
     cacheDeletionInterval = setInterval(deleteAndReOpenCache, cacheTTL);   // Once a minute clear the caches.
     mapBeingShown = true;
+    enableWakeLock();
 }
 
 /**
@@ -515,7 +514,7 @@ function hideLoadingMessage() {
     setTimeout(() => {
         loadingModal.style.animationName = "modalSlideDown";
         setTimeout(() => { loadingModal.style.display = "none" }, 580);
-    }, 3500);
+    }, 1300);
 }
 
 /**
@@ -535,27 +534,28 @@ else {
     fullscreenBtn.addEventListener('click', () => {
         if (!document.fullscreenElement && !document.mozFullScreenElement && 
         !document.webkitFullscreenElement && !document.msFullscreenElement ) {
-            if (document.documentElement.requestFullscreen) {
-            document.documentElement.requestFullscreen();
-            } else if (document.documentElement.msRequestFullscreen) {
-            document.documentElement.msRequestFullscreen();
-            } else if (document.documentElement.mozRequestFullScreen) {
-            document.documentElement.mozRequestFullScreen();
-            } else if (document.documentElement.webkitRequestFullscreen) {
-            document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
-            }
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            else if (document.documentElement.msRequestFullscreen) document.documentElement.msRequestFullscreen();
+            else if (document.documentElement.mozRequestFullScreen) document.documentElement.mozRequestFullScreen();
+            else if (document.documentElement.webkitRequestFullscreen) document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
         } else {
-            if (document.exitFullscreen) {
-            document.exitFullscreen();
-            } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
-            } else if (document.mozCancelFullScreen) {
-            document.mozCancelFullScreen();
-            } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-            }
+            if (document.exitFullscreen) document.exitFullscreen();
+            else if (document.msExitFullscreen) document.msExitFullscreen();
+            else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
         }
     });
+}
+
+/**
+ * Stops the device from going to sleep if supported by the device.
+ */
+function enableWakeLock() {
+    try {
+        wakeLock = navigator.wakeLock.request("screen");
+    } catch (err) {
+        debugLog("Wake Lock Error: " + err);
+    }
 }
 
 AFRAME.registerComponent("updatedebugmap", {

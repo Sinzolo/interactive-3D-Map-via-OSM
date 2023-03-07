@@ -9,7 +9,6 @@ triangleParent.setAttribute("id", "terrainParent");
 triangleParent.setAttribute("class", "terrain");
 document.querySelector('a-scene').appendChild(triangleParent);
 
-
 /**
  * It takes the pixel coordinates of the center of the bounding box and the size of the bounding box,
  * and returns a promise of a 2D array of the height map data within the bounding box
@@ -23,17 +22,7 @@ async function getHeightMap(pixelCoords, bboxSize) {
     let yPixel = pixelCoords.roundedY;
     let offset = Math.round(bboxSize / (2 * twfData[0])); // Converts bbox size into an offset
     tiffWindow = [xPixel - offset, yPixel - offset, xPixel + offset, yPixel + offset];
-
-    if (lowQuality) {
-        return new Promise(reject => {
-            reject("Low quality mode is on.");
-        });
-    }
-    return currentRaster.then((raster) => {
-        let twoDHeightMapArray = convert1DArrayTo2DArray(raster);
-        let windowedTwoDHeightMapArray = getAreaOf2DArray(twoDHeightMapArray, tiffWindow[0], tiffWindow[1], tiffWindow[2], tiffWindow[3]);
-        return { windowedTwoDHeightMapArray: windowedTwoDHeightMapArray, twoDHeightMapArray: twoDHeightMapArray }
-    });
+    return new Promise(reject => { reject("Height Map Feature Removed."); });
 }
 
 /**
@@ -68,18 +57,6 @@ function loadTerrain() {
         removeCurrentTerrain();
         drawTriangles(createTrianglesForTerrain(xzScale, true));    // Draws a flat terrain while waiting for the height map
         resolve("Flat Terrain Drawn");
-        if (lowQuality) return;
-        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([heightMap, _unused]) => {  // Waits for both height maps to succeed
-                removeCurrentTerrain();
-                drawTriangles(createTrianglesForTerrain(xzScale, false, heightMap));    // Draws a height map accurate terrain
-                resolve("Height-Based Terrain Drawn");
-            }).catch((err) => {
-                debugLog(err);
-            });
-        }).catch((err) => {
-            debugLog(err);
-        });
     });
 }
 
@@ -88,9 +65,7 @@ function loadTerrain() {
  * @param triangles - an array of triangle entities
  */
 function drawTriangles(triangles) {
-    triangles.forEach(triangle => {
-        triangleParent.appendChild(triangle);
-    });
+    for (let i = 0; i < triangles.length; i++) triangleParent.appendChild(triangles[i]);
 }
 
 /**

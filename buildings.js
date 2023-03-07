@@ -34,9 +34,10 @@ async function loadBuildings(tempBboxPixelCoords, bboxSize) {
     return new Promise(resolve => {
         mainBuildingFetchWorker.onmessage = async function (e) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
-            features.forEach(feature => {
+            for (let i = 0; i < features.length; i++) {
+                const feature = features[i];
                 if (feature.geometry.type == "Polygon") addBuilding(feature, buildingParent);
-            });
+            }
             resolve("Finished Adding Buildings");
         }
     });
@@ -48,25 +49,13 @@ async function addBuilding(feature, parentElement) {
         let height = getBuildingHeight(tags);
         let colour = getBuildingColour(tags);
         let coordinates = getBuildingCoordinates(feature.geometry.coordinates);
+        let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         let newBuilding = document.createElement('a-entity');
         newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: coordinates.outerPoints, innerPoints: coordinates.innerPoints, height: height });
         newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
         newBuilding.object3D.scale.set(buildingScale, buildingHeightScale, buildingScale);
-
-        let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
         parentElement.appendChild(newBuilding);
-
-        if (lowQuality) return;
-        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-                try {
-                    newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * buildingCoordsScale));
-                } catch {
-                    throw new Error("Specfic location on height map not found! (My own error)");
-                }
-            });
-        });
         resolve();
     });
 }

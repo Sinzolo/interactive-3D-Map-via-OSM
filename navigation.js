@@ -136,14 +136,6 @@ function addFloatingSphere(coords, colour) {
     newSphere.setAttribute("color", colour);
     newSphere.object3D.position.set(pixelCoords.x, sphereHeightAboveGround, pixelCoords.y);
     sceneElement.appendChild(newSphere);
-
-    if (lowQuality) return newSphere;
-    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            newSphere.object3D.position.set(pixelCoords.x, heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + sphereHeightAboveGround, pixelCoords.y);
-        });
-    });
-
     return newSphere;
 }
 
@@ -183,7 +175,9 @@ function colourRectangles(pathToDest) {
             currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color });
             rectangle.setAttribute("material", { color: pathHighlightColour })
             rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
-        } catch { }
+        } catch {
+            return;
+        }
     }
 }
 
@@ -214,29 +208,28 @@ placeNameInput.onchange = function () {
 
 function getDestinationLatLong() {
     const coords = uniPlaceNames.get(placeNameInput.value);
-    if (coords) {
-        let latSum = 0;
-        let longSum = 0;
-        let count = 1;
-        try {
-            coords[0].forEach(coord => {
-                latSum += coord[1];
-                longSum += coord[0];
-            });
-            count = coords[0].length;
-        } catch {
-            latSum = coords[1];
-            longSum = coords[0];
-        }
-        return { destLat: (latSum / count).toFixed(6) , destLong: (longSum / count).toFixed(6) };
-        destinationLatInputBox.value = (latSum / count).toFixed(6);
-        destinationLongInputBox.value = (longSum / count).toFixed(6);
-    } else {
+    if (!coords) {
         informUserOfInvalidEntry();
         return { destLat: "", destLong: "" };
-        destinationLatInputBox.value = "";
-        destinationLongInputBox.value = "";
     }
+    else if (!Array.isArray(coords[0])) {
+        return {
+            destLat: coords[1].toFixed(6),
+            destLong: coords[0].toFixed(6)
+        };
+    }
+
+    let latSum = 0;
+    let longSum = 0;
+    let count = coords[0].length;
+    coords[0].forEach(coord => {
+        latSum += coord[1];
+        longSum += coord[0];
+    });
+    return {
+        destLat: (latSum / count).toFixed(6),
+        destLong: (longSum / count).toFixed(6)
+    };
 }
 
 
@@ -283,9 +276,10 @@ function fillSuggestions() {
     return new Promise(resolve => {
         navigationFetchWorker.onmessage = async function (e) {
             const features = convertOSMResponseToGeoJSON(e.data).features;
-            features.forEach(feature => {
+            for (let i = 0; i < features.length; i++) {
+                const feature = features[i];
                 if (feature.properties.name || feature.properties["addr:housename"]) addPlaceToDataList(feature);
-            });
+            }
             alphabeticallySortDataList();
         }
     });
@@ -409,19 +403,3 @@ function stopUpdatingArrow() {
     arrow.object3D.visible = false;
     cancelAnimationFrame(updateArrowRequestID);
 }
-
-// placeNameInput.addEventListener("keydown", function (event) {
-//     if (event.key === "Enter") {
-//         const inputValue = placeNameInput.value.toLowerCase();
-//         const options = Array.from(placeNameDataList.options);
-//         const matchingOptions = options.filter((option) =>
-//             option.value.toLowerCase().startsWith(inputValue)
-//         );
-//         const displayedOption = matchingOptions.find((option) =>
-//             option === document.activeElement
-//         ) || matchingOptions[0];
-//         if (displayedOption) {
-//             placeNameInput.value = displayedOption.value;
-//         }
-//     }
-// });

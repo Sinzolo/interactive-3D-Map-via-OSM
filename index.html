@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="style.css">
     <title>Interactive 3D Map via OSM</title>
     <link rel="icon" href="icons/favicon.png">
+    <!-- <link rel="preload" as="image" href="assets/black+asphalt-1024x1024.png"> -->
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/multiSphereTree.gltf">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/pointyTree.gltf">
 
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/instanced-mesh@v0.7.0/src/instanced-mesh.min.js"></script>
@@ -84,17 +87,18 @@
                     under
                     <a href="http://www.openstreetmap.org/copyright" target="_blank">ODbL/CC-BY-SA</a>
                     licenses.
-                    <br>
-                    Using
-                    <a href="https://aframe.io" target="_blank">A-Frame</a>.
-                    With help from
-                    <a href="https://vrmap.kairo.at" target="_blank">Kairo's Demo</a>.
-                    Using
+                    <br> Using
+                    <a href="https://aframe.io" target="_blank">A-Frame</a>
+                    and using
+                    <a href="https://sketchfab.com/3d-models/low-poly-tree-1-ad78e0142e0c444391757d6db6101c40" target="_blank">Low Poly Tree 1</a>
+                    and
                     <a href="https://sketchfab.com/3d-models/low-poly-tree-2-73eb8c73bd6c4a8db4e02dbb6bfcffcf" target="_blank">Low Poly Tree 2</a>
                     by
-                    <a href="https://sketchfab.com/RenderZing" target="_blank">Render Zing</a>
+                    <br> <a href="https://sketchfab.com/RenderZing" target="_blank">Render Zing</a>
                     licensed under
                     <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank">CC-BY-4.0</a>.
+                    With help from
+                    <a href="https://vrmap.kairo.at" target="_blank">Kairo's Demo</a>.
                 </p>
             </div>
         </div>
@@ -118,9 +122,10 @@
         </div>
 
         <a-scene id="scene" vr-mode-ui="enabled: false" background="color: #74d2fa" updatetopdowncam>
-            <a-assets>
-                <a-asset-item id="multiSphereTree" src="multiSphereTree.gltf"></a-asset-item>
-                <a-asset-item id="pointyTree" src="pointyTree.gltf"></a-asset-item>
+            <a-assets timeout="20000">
+                <a-asset-item id="multiSphereTreeModel" src="assets/multiSphereTree.gltf"></a-asset-item>
+                <a-asset-item id="pointyTreeModel" src="assets/pointyTree.gltf"></a-asset-item>
+                <!-- <img id="asphaltTexture" src="assets/black+asphalt-1024x1024.png"> -->
             </a-assets>
 
             <a-simple-sun-sky id="sun" sun-position="0.7 1 -1" light-color="#87cefa" dark-color="#00bfff"

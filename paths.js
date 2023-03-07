@@ -4,7 +4,7 @@ const pathFetchWorker = new Worker('fetchWorker.js');
 const secondaryPathFetchWorker = new Worker('fetchWorker.js');
 const defaultPathWidth = 0.7;       // Path width in metres
 const roadWidth = 1.5;              // Road width in metres
-const defaultPathHeightAboveGround = 0.14; // How far it should stick above ground
+const defaultPathHeightAboveGround = 0.04; // How far it should stick above ground
 const pathHeightUnderGround = 10;   // How far it should stick below ground
 const pathSegmentationLength = 5;   // The length of each segment of a path (bigger number = less segments per path so better performance)
 const pathScale = 4.8;              // Scaling the paths (bigger number = bigger path in the x and z)
@@ -16,21 +16,21 @@ pathParent.setAttribute("class", "path");
 document.querySelector('a-scene').appendChild(pathParent);
 
 const highwayStyles = {
-    motorway: { color: "#404040", pathWidth: 1.6, pathHeightAboveGround: defaultPathHeightAboveGround + 0.012 },    // Varrying heights to try and discourage z-fighting
-    trunk: { color: "#505050", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },
-    primary: { color: "#606060", pathWidth: 1.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0073 },
-    secondary: { color: "#707070", pathWidth: 1.2, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0051 },
-    tertiary: { color: "#808080", pathWidth: 1.05, pathHeightAboveGround: defaultPathHeightAboveGround + 0.004 },
-    residential: { color: "#909090", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
-    living_street: { color: "#909090", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
-    unclassified: { color: "#9B9B9B", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.002 },
-    service: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
-    track: { color: "#b3a994", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
-    pedestrian: { color: "#ABABAB", pathWidth: 0.7, pathHeightAboveGround: defaultPathHeightAboveGround + 0.016 },
-    footway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
-    cycleway: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
-    path: { color: "#C6C6C6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.018 },
-    steps: { color: "#FFFFFF", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.014 },
+    motorway: { color: "#303030", pathWidth: 1.6, pathHeightAboveGround: defaultPathHeightAboveGround + 0.012 },    // Varrying heights to try and discourage z-fighting
+    trunk: { color: "#393939", pathWidth: 1.45, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0095 },
+    primary: { color: "#454545", pathWidth: 1.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0073 },
+    secondary: { color: "#535353", pathWidth: 1.2, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0051 },
+    tertiary: { color: "#606060", pathWidth: 1.05, pathHeightAboveGround: defaultPathHeightAboveGround + 0.004 },
+    residential: { color: "#707070", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
+    living_street: { color: "#707070", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0028 },
+    unclassified: { color: "#808080", pathWidth: 1, pathHeightAboveGround: defaultPathHeightAboveGround + 0.002 },
+    service: { color: "#A39984", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
+    track: { color: "#A39984", pathWidth: 0.8, pathHeightAboveGround: defaultPathHeightAboveGround + 0.0012 },
+    pedestrian: { color: "#9B9B9B", pathWidth: 0.7, pathHeightAboveGround: defaultPathHeightAboveGround + 0.016 },
+    footway: { color: "#B6B6B6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
+    cycleway: { color: "#B6B6B6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.017 },
+    path: { color: "#B6B6B6", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.018 },
+    steps: { color: "#EFEFEF", pathWidth: 0.3, pathHeightAboveGround: defaultPathHeightAboveGround + 0.014 },
 };
 
 const defaultPedestrianAreaColour = "#808080";
@@ -88,18 +88,19 @@ async function loadPaths(bboxPixelCoords, bboxSize) {
 
     return new Promise(async (resolve) => {
         pathFetchWorker.onmessage = async function (e) {
-            numberOfPaths = 0;
             paths = [];
             rectangles = [];
+            numberOfPaths = 0;
             dijkstrasAlgorithm = new DijkstrasAlgo();
             const features = convertOSMResponseToGeoJSON(e.data).features;
-            features.forEach((feature) => {
+            for (let i = 0; i < features.length; i++) {
+                const feature = features[i];
                 if (feature.geometry.type == "Polygon") addPedestrianArea(feature, pedestrianAreaParent, pathBboxConstraint);
-                else if (feature.geometry.type == "LineString") {   // Path
+                else if (feature.geometry.type == "LineString") {
                     addPath(feature, pathParent, pathBboxConstraint);
                     numberOfPaths++;
                 }
-            });
+            }
             resolve("Finished Adding Paths");
         }
     });
@@ -161,6 +162,7 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         let newPath = document.createElement('a-entity');
         newPath.setAttribute("geometry", pathProperties);
         newPath.setAttribute("material", { roughness: "0.6", color: color });
+        // newPath.setAttribute("material", { src: "#asphaltTexture", repeat: "3 3" });
         newPath.object3D.scale.set(pathScale, 1, pathScale);
 
         if (tags.highway != 'motorway') rectangles[numberOfPaths].push(newPath);    // Stores rectangle entity for later use
@@ -170,18 +172,6 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         let pixelCoords = { x: (pixelCoords1.x + pixelCoords2.x) / 2, y: (pixelCoords1.y + pixelCoords2.y) / 2, roundedX: Math.round((pixelCoords1.x + pixelCoords2.x) / 2), roundedY: Math.round((pixelCoords1.y + pixelCoords2.y) / 2) };
         newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), 0, (pixelCoords.y * pathCoordsScale));
         parentElement.appendChild(newPath);
-
-        /* Waiting for the height map */
-        if (lowQuality) continue;
-        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-                try {
-                    newPath.object3D.position.set((pixelCoords.x * pathCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pathCoordsScale));
-                } catch {
-                    throw new Error("Specfic location on height map not found! (My own error)");
-                }
-            });
-        });
     }
 }
 
@@ -265,12 +255,8 @@ function addPedestrianArea(feature, parentElement, pathBboxConstraint) {
                 let pixelCoords = convertLatLongToPixelCoords({ lat: point[1], long: point[0] })
                 currentPoints.push(new THREE.Vector2(pixelCoords.x * pedestrianAreaCoordsScale, pixelCoords.y * pedestrianAreaCoordsScale));
             }
-            if (!outerPoints.length) {
-                outerPoints = currentPoints;
-            }
-            else {
-                innerPoints.push(currentPoints);
-            }
+            if (!outerPoints.length) outerPoints = currentPoints;
+            else innerPoints.push(currentPoints);
         }
 
         let pixelCoords = convertLatLongToPixelCoords({ lat: sumOfLatCoords / count, long: sumOfLongCoords / count })
@@ -280,17 +266,6 @@ function addPedestrianArea(feature, parentElement, pathBboxConstraint) {
         newPedestrianArea.object3D.scale.set(pedestrianAreaScale, 1, pedestrianAreaScale);
         newPedestrianArea.object3D.position.set((pixelCoords.x * pedestrianAreaCoordsScale), 0, (pixelCoords.y * pedestrianAreaCoordsScale));
         parentElement.appendChild(newPedestrianArea);
-
-        if (lowQuality) return;
-        heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-            Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-                try {
-                    newPedestrianArea.object3D.position.set((pixelCoords.x * pedestrianAreaCoordsScale), (heightMap[pixelCoords.roundedX][pixelCoords.roundedY]), (pixelCoords.y * pedestrianAreaCoordsScale));
-                } catch {
-                    throw new Error("Specfic location on height map not found! (My own error)");
-                }
-            });
-        });
         resolve();
     });
 }
