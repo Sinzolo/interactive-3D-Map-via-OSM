@@ -163,6 +163,7 @@ async function addPath(feature, parentElement, pathBboxConstraint) {
         // Creates a path entity
         let pathProperties = { primitive: "path", fourCorners: getRectangleCorners({ x: pixelCoords1.x * pathCoordsScale, y: pixelCoords1.y * pathCoordsScale }, { x: pixelCoords2.x * pathCoordsScale, y: pixelCoords2.y * pathCoordsScale }, pathWidth), height: pathHeightAboveGround };
         let newPath = document.createElement('a-entity');
+        newPath.setAttribute("id", "path" + numberOfPaths);
         newPath.setAttribute("geometry", pathProperties);
         if (texture) newPath.setAttribute("material", {src: texture, repeat: "3 3", roughness: "1" });
         else newPath.setAttribute("material", { roughness: "0.6", color: color });

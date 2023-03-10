@@ -8,10 +8,10 @@
     <link rel="stylesheet" href="style.css">
     <title>Interactive 3D Map via OSM</title>
     <link rel="icon" href="icons/favicon.png">
-    <link rel="preload" as="image" href="assets/black+asphalt-1024x1024.png">
-    <link rel="preload" as="image" href="assets/gray+asphalt-1024x1024.png">
-    <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/multiSphereTree.gltf">
-    <link rel="preload" as="fetch" crossorigin="anonymous" href="assets/pointyTree.gltf">
+    <link rel="prefetch" as="image" href="assets/black+asphalt-1024x1024.png">
+    <link rel="prefetch" as="image" href="assets/gray+asphalt-1024x1024.png">
+    <link rel="prefetch" as="fetch" crossorigin="anonymous" href="assets/multiSphereTree.gltf">
+    <link rel="prefetch" as="fetch" crossorigin="anonymous" href="assets/pointyTree.gltf">
 
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/gh/diarmidmackenzie/instanced-mesh@v0.7.0/src/instanced-mesh.min.js"></script>
@@ -31,9 +31,11 @@
 
 <body>
     <div id="welcomeScreen">
-        <h2>Welcome to my Third Year Project for Lancaster University.</h2>
-        <br>This website automatically generates a 3D map of the specified place using OSM's large database.
-        <br><button id="startBtn" onclick="uniMap(), showMap(), startCompass()">Start!</button>
+        <h2>Interactive 3D Map via OpenStreetMap</h2>
+        <h3>Welcome to my Third Year Project for Lancaster University.
+            This project will display your current location in a 3D environment and,
+            as you move in the real world, so too will the 3D environment.</h3>
+        <button id="startBtn" onclick="uniMap(), showMap(), startCompass()">Start!</button>
     </div>
 
     <div id="mapScreen" style="display: none">
@@ -128,9 +130,9 @@
             <!-- <a-entity light="type: ambient; color: #A8A8A8"></a-entity> -->
             <!-- <a-entity light="type: directional; color: #FFF; intensity: 0.8" position="0.7 1 -1"></a-entity> -->
 
-            <div id="startAndStopSpheres"></div>
+            <a-entity id="startAndStopSpheres"></a-entity>
 
-            <a-sphere id="playerSphere" color="#1040D0" radius="3" segments-width="15" segments-height="13"></a-sphere>
+            <a-sphere id="playerSphere" color="#0030C0" radius="3" segments-width="15" segments-height="13"></a-sphere>
 
             <a-entity id="rig">
                 <a-entity id="playerCamera" camera="active: true;" look-controls>
@@ -151,7 +153,6 @@
             <a-assets timeout="1">
                 <img id="greyAsphaltTexture" src="assets/gray+asphalt-1024x1024.png">
                 <img id="blackAsphaltTexture" src="assets/black+asphalt-1024x1024.png">
-                <img id="grassTexture" src="assets/grass_tile.png">
                 <a-asset-item id="multiSphereTreeModel" src="assets/multiSphereTree.gltf"></a-asset-item>
                 <a-asset-item id="pointyTreeModel" src="assets/pointyTree.gltf"></a-asset-item>
             </a-assets>

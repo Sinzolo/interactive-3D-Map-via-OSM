@@ -1,10 +1,10 @@
 'use strict';
 
 const navigationFetchWorker = new Worker('fetchWorker.js');
-const sceneElement = document.querySelector('a-scene');
+const navigationSpheres = document.getElementById('startAndStopSpheres');
 const sphereHeightAboveGround = 4.6;
 const highlightedPathHeight = 0.014;
-const pathHighlightColour = "#FF00FF";
+const pathHighlightColour = "#0060FF";
 const destinationReachedModal = document.getElementById("destinationReachedModal");
 const destinationReachedSpan = document.getElementsByClassName("close")[0];
 const destinationLatInputBox = document.getElementById("destinationLat");
@@ -32,11 +32,11 @@ var lastPathToDest = [];
  * make up the path.
 */
 function navigate(pathPromise) {
-    pathPromise = pathPromise.then(function () {
+    pathPromise = pathPromise.then(async function () {
         navigationInProgress = true;
         sourceLatLong = usersCurrentLatLong;
         removeSpheres();
-        uncolourRectangles();
+        await uncolourRectangles();
         startSphere = addFloatingSphere(usersCurrentLatLong, "#00FF00");
         endSphere = addFloatingSphere(currentDestinationLatLong, "#FF0000");
         updateArrowRequestID = startUpdatingArrow({ x: startSphere.object3D.position.x, y: startSphere.object3D.position.y - sphereHeightAboveGround, z: startSphere.object3D.position.z });
@@ -44,7 +44,7 @@ function navigate(pathPromise) {
         // If could not find path, use the last path found
         if (pathToDest.length == 1) pathToDest = lastPathToDest;
         else lastPathToDest = pathToDest;
-        colourRectangles(pathToDest);
+        await colourRectangles(pathToDest);
         renderMiniMap();
         return new Promise(function (resolve, reject) { });
     });
@@ -135,7 +135,7 @@ function addFloatingSphere(coords, colour) {
     let newSphere = document.createElement('a-sphere');
     newSphere.setAttribute("color", colour);
     newSphere.object3D.position.set(pixelCoords.x, sphereHeightAboveGround, pixelCoords.y);
-    sceneElement.appendChild(newSphere);
+    navigationSpheres.appendChild(newSphere);
     return newSphere;
 }
 
@@ -143,19 +143,23 @@ function addFloatingSphere(coords, colour) {
  * It removes the start and end spheres from the scene
  */
 function removeSpheres() {
-    if (startSphere) startSphere.remove();
+    // if (startSphere) startSphere.remove();
     startSphere = null;
-    if (endSphere) endSphere.remove();
+    // if (endSphere) endSphere.remove();
     endSphere = null;
+
+    while (navigationSpheres.firstChild) {
+        navigationSpheres.removeChild(navigationSpheres.firstChild);
+    }
 }
 
 /**
  * It takes all the rectangles that are currently in the path, and sets their color back to what it was
  * before.
  */
-function uncolourRectangles() {
-    currentRectanglesInPaths.forEach(({ rectangle, color }) => {
-        rectangle.setAttribute("material", { color });
+async function uncolourRectangles() {
+    currentRectanglesInPaths.forEach(({ rectangle, color, src }) => {
+        rectangle.setAttribute("material", { color, src });
         rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y - highlightedPathHeight, rectangle.object3D.position.z);
     });
     currentRectanglesInPaths = [];
@@ -165,15 +169,15 @@ function uncolourRectangles() {
  * It takes a path to the destination and colours the rectangles in the path.
  * @param pathToDest - The path to the destination node
  */
-function colourRectangles(pathToDest) {
+async function colourRectangles(pathToDest) {
     for (let pathToDestIndex = 1; pathToDestIndex < pathToDest.length; pathToDestIndex++) {
         const node1 = pathToDest[pathToDestIndex - 1];
         const node2 = pathToDest[pathToDestIndex];
         let index = find2DIndex([node1, node2])
         try {
             let rectangle = rectangles[index[0]][Math.round(index[1] / 2)];
-            currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color });
-            rectangle.setAttribute("material", { color: pathHighlightColour })
+            currentRectanglesInPaths.push({ rectangle, color: rectangle.getAttribute('material').color, src: rectangle.getAttribute('material').src });
+            rectangle.setAttribute("material", { color: pathHighlightColour, src: "" });
             rectangle.object3D.position.set(rectangle.object3D.position.x, rectangle.object3D.position.y + highlightedPathHeight, rectangle.object3D.position.z);
         } catch {
             return;

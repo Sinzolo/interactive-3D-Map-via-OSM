@@ -3,7 +3,7 @@
 const mainBuildingFetchWorker = new Worker('fetchWorker.js');
 const secondaryBuildingFetchWorker = new Worker('fetchWorker.js');
 
-const buildingScale = 10;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
+const buildingScale = 60;                                // Scaling the buildings (bigger number = bigger buildings in the x and z)
 const buildingHeightScale = 2.1;                          // Scale for the buildings height (bigger number = bigger buildings in y axis)
 const buildingHeight = 3;                                 // Building height if height is unknown
 const buildingHeightUnderGround = 10;                    // How far to extend the buildings under the ground

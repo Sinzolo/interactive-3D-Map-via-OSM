@@ -3,7 +3,7 @@ const naturalFeaturesFetchWorker = new Worker('fetchWorker.js');
 
 const defaultGrassAreaColour = "#4A9342";
 const defaultWaterColour = "#0E87CC";
-const areaScale = 4.8;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
+const areaScale = 60;              // Scaling the pedestrian areas (bigger number = bigger path in the x and z)
 const defaultAreaHeightAboveGround = 0.08 + 0.0007; // How far it should stick above ground
 const multiSphereTreeScale = 0.5;              // Scaling the trees (bigger number = bigger tree)
 const pointyTreeScale = 0.7;              // Scaling the trees (bigger number = bigger tree)
@@ -19,60 +19,6 @@ const treeParent = document.createElement('a-entity');
 treeParent.setAttribute("id", "treeParent");
 treeParent.setAttribute("class", "trees");
 document.querySelector('a-scene').appendChild(treeParent);
-
-const trunkInstance = document.createElement('a-cone');
-trunkInstance.setAttribute("id", "trunkInstance");
-trunkInstance.setAttribute("height", 1);
-trunkInstance.setAttribute("radius-bottom", 3.4);
-trunkInstance.setAttribute("radius-top", 1);
-trunkInstance.setAttribute("segments-radial", 4);
-trunkInstance.setAttribute("segments-height", 1);
-trunkInstance.setAttribute("roughness", 1);
-trunkInstance.setAttribute("color", "#b27f36");
-trunkInstance.setAttribute("instanced-mesh", "capacity:130");
-trunkInstance.setAttribute('visible', false);
-scene.appendChild(trunkInstance);
-
-const sphericalLeavesInstance = document.createElement('a-sphere');
-sphericalLeavesInstance.setAttribute("id", "sphericalLeavesInstance");
-sphericalLeavesInstance.setAttribute("radius", 1);
-sphericalLeavesInstance.setAttribute("segments-width", 5);
-sphericalLeavesInstance.setAttribute("segments-height", 4);
-sphericalLeavesInstance.setAttribute("roughness", 1);
-sphericalLeavesInstance.setAttribute("color", "#59C401");
-sphericalLeavesInstance.setAttribute("instanced-mesh", "capacity:130");
-sphericalLeavesInstance.setAttribute('visible', false);
-scene.appendChild(sphericalLeavesInstance);
-
-const multiSphereTreeInstance = document.createElement('a-entity');
-multiSphereTreeInstance.setAttribute("id", "multiSphereTreeMesh");
-multiSphereTreeInstance.setAttribute("gltf-model", "#multiSphereTreeModel");
-multiSphereTreeInstance.object3D.scale.set(multiSphereTreeScale, multiSphereTreeScale, multiSphereTreeScale);
-multiSphereTreeInstance.object3D.position.set(0, -1 * multiSphereTreeScale, 0);
-
-multiSphereTreeInstance.setAttribute("instanced-mesh", "capacity:130");
-multiSphereTreeInstance.setAttribute('visible', false);
-scene.appendChild(multiSphereTreeInstance);
-
-const pointyTreeInstance = document.createElement('a-entity');
-pointyTreeInstance.setAttribute("id", "pointyTreeMesh");
-pointyTreeInstance.setAttribute("gltf-model", "#pointyTreeModel");
-pointyTreeInstance.object3D.scale.set(pointyTreeScale, pointyTreeScale, pointyTreeScale);
-pointyTreeInstance.object3D.position.set(0, -1 * pointyTreeScale, 0);
-pointyTreeInstance.setAttribute("instanced-mesh", "capacity:100");
-pointyTreeInstance.setAttribute('visible', false);
-scene.appendChild(pointyTreeInstance);
-
-const coneLeavesInstance = document.createElement('a-cone');
-coneLeavesInstance.setAttribute("id", "coneLeavesInstance");
-coneLeavesInstance.setAttribute("height", 1);
-coneLeavesInstance.setAttribute("radius-bottom", 1);
-coneLeavesInstance.setAttribute("radius-top", 0);
-coneLeavesInstance.setAttribute("segments-radial", 5);
-coneLeavesInstance.setAttribute("segments-height", 1);
-coneLeavesInstance.setAttribute("roughness", 1);
-coneLeavesInstance.setAttribute("color", "#50D453");
-coneLeavesInstance.setAttribute('visible', false);
 
 var instanceMeshesSetUp = false;
 var numbOfTrees = 0;
@@ -104,6 +50,7 @@ async function loadNaturalFeatures(bboxPixelCoords, bboxSize) {
 
     return new Promise(async (resolve) => {
         naturalFeaturesFetchWorker.onmessage = async function (e) {
+            let treesToAdd = [];
             numbOfTrees = 0;
             const features = convertOSMResponseToGeoJSON(e.data).features;
             instanceMeshesSetUp ||= (setMeshesVisible(), true);
@@ -113,13 +60,79 @@ async function loadNaturalFeatures(bboxPixelCoords, bboxSize) {
                 const feature = features[i];
                 if (feature.geometry.type === "Polygon") addArea(feature, areaParent);
                 else if (feature.geometry.type === "Point") {
-                    addTree(feature, treeParent);
+                    treesToAdd.push(feature);
                     numbOfTrees++;
                 }
+            }
+
+            setUpInstanceMeshes(numbOfTrees);
+
+            for (let i = 0; i < treesToAdd.length; i++) {
+                addTree(treesToAdd[i], treeParent);
             }
             resolve("Finished Adding Greenery");
         }
     });
+}
+
+/**
+ * It removes the old tree meshes from the scene
+ */
+function removeOldInstanceMeshes() {
+    let trunkInstance = document.getElementById("trunkInstance")
+    if (trunkInstance) trunkInstance.remove();
+    let sphericalLeavesInstance = document.getElementById("sphericalLeavesInstance")
+    if (sphericalLeavesInstance) sphericalLeavesInstance.remove();
+    let multiSphereTreeInstance = document.getElementById("multiSphereTreeMesh")
+    if (multiSphereTreeInstance) multiSphereTreeInstance.remove();
+    let pointyTreeInstance = document.getElementById("pointyTreeMesh")
+    if (pointyTreeInstance) pointyTreeInstance.remove();
+}
+
+/**
+ * It creates a new instance mesh for each tree type, and adds it to the scene.
+ * @param capacity - The capacity of the instance meshes
+ */
+function setUpInstanceMeshes(capacity) {
+    removeOldInstanceMeshes();
+
+    const trunkInstance = document.createElement('a-cone');
+    trunkInstance.setAttribute("id", "trunkInstance");
+    trunkInstance.setAttribute("height", 1);
+    trunkInstance.setAttribute("radius-bottom", 3.4);
+    trunkInstance.setAttribute("radius-top", 1);
+    trunkInstance.setAttribute("segments-radial", 4);
+    trunkInstance.setAttribute("segments-height", 1);
+    trunkInstance.setAttribute("roughness", 1);
+    trunkInstance.setAttribute("color", "#b27f36");
+    trunkInstance.setAttribute("instanced-mesh", "capacity:" + capacity);
+    scene.appendChild(trunkInstance);
+
+    const sphericalLeavesInstance = document.createElement('a-sphere');
+    sphericalLeavesInstance.setAttribute("id", "sphericalLeavesInstance");
+    sphericalLeavesInstance.setAttribute("radius", 1);
+    sphericalLeavesInstance.setAttribute("segments-width", 5);
+    sphericalLeavesInstance.setAttribute("segments-height", 4);
+    sphericalLeavesInstance.setAttribute("roughness", 1);
+    sphericalLeavesInstance.setAttribute("color", "#59C401");
+    sphericalLeavesInstance.setAttribute("instanced-mesh", "capacity:" + capacity);
+    scene.appendChild(sphericalLeavesInstance);
+
+    const multiSphereTreeInstance = document.createElement('a-entity');
+    multiSphereTreeInstance.setAttribute("id", "multiSphereTreeMesh");
+    multiSphereTreeInstance.setAttribute("gltf-model", "#multiSphereTreeModel");
+    multiSphereTreeInstance.object3D.scale.set(multiSphereTreeScale, multiSphereTreeScale, multiSphereTreeScale);
+    multiSphereTreeInstance.object3D.position.set(0, -1 * multiSphereTreeScale, 0);
+    multiSphereTreeInstance.setAttribute("instanced-mesh", "capacity:" + capacity);
+    scene.appendChild(multiSphereTreeInstance);
+
+    const pointyTreeInstance = document.createElement('a-entity');
+    pointyTreeInstance.setAttribute("id", "pointyTreeMesh");
+    pointyTreeInstance.setAttribute("gltf-model", "#pointyTreeModel");
+    pointyTreeInstance.object3D.scale.set(pointyTreeScale, pointyTreeScale, pointyTreeScale);
+    pointyTreeInstance.object3D.position.set(0, -1 * pointyTreeScale, 0);
+    pointyTreeInstance.setAttribute("instanced-mesh", "capacity:" + capacity);
+    scene.appendChild(pointyTreeInstance);
 }
 
 function addArea(feature, parentElement) {

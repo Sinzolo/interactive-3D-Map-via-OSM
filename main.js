@@ -259,18 +259,6 @@ function placeCameraAtPixelCoords(pixelCoords, newLatLong) {
     renderMiniMap();
     usersCurrentPixelCoords = pixelCoords;
     usersCurrentLatLong = newLatLong;
-
-    if (lowQuality) return;
-    heightMaps.then(({ windowedTwoDHeightMapArray, twoDHeightMapArray }) => {
-        Promise.all([windowedTwoDHeightMapArray, twoDHeightMapArray]).then(([_unused, heightMap]) => {
-            cameraRig.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
-            secondaryCameraRig.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + birdHeight), pixelCoords.y);
-            playerSphere.object3D.position.set(pixelCoords.x, (heightMap[pixelCoords.roundedX][pixelCoords.roundedY] + humanHeight), pixelCoords.y);
-            renderMiniMap();
-        });
-    }).catch((err) => {
-        debugLog(err);
-    });
 }
 
 /**
