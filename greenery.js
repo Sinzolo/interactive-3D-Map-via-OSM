@@ -167,7 +167,6 @@ function addArea(feature, parentElement) {
         let newGrassArea = document.createElement('a-entity');
         newGrassArea.setAttribute("geometry", { primitive: "area", outerPoints: outerPoints, innerPoints: innerPoints, height: defaultAreaHeightAboveGround });
         newGrassArea.setAttribute("material", { roughness: "0.6", color: colour });
-        // newGrassArea.setAttribute("material", { src: "#grassTexture", repeat: "15 15", roughness: "1" });
         newGrassArea.object3D.scale.set(areaScale, 1, areaScale);
         newGrassArea.object3D.position.set((pixelCoords.x * areaCoordsScale), 0, (pixelCoords.y * areaCoordsScale));
         parentElement.appendChild(newGrassArea);

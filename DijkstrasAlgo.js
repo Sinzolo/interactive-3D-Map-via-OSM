@@ -58,7 +58,6 @@ class DijkstrasAlgo {
         let distance = getDistance([node1[1], node1[0]], [node2[1], node2[0]]);
         this.connectedNodes[node1Index].push({ index: node2Index, distance });
         this.connectedNodes[node2Index].push({ index: node1Index, distance });
-        // TODO - Only need to store one connection as its a waste of time and storage to do both
     }
 
     /**

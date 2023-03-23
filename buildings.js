@@ -16,18 +16,16 @@ buildingParent.setAttribute("class", "building");
 document.querySelector('a-scene').appendChild(buildingParent);
 
 
-async function loadBuildings(tempBboxPixelCoords, bboxSize) {
+/**
+ * Sends an Overpass query to the Overpass API to get all the buildings in the given bounding box.
+ * It then converts the response to GeoJSON, and adds the buildings to the scene.
+ * @param bboxPixelCoords - The pixel coordinates of the bounding box.
+ * @param bboxSize - The size of the bounding box in metres.
+ * @returns A promise that resolves when the buildings have been added to the scene.
+ */
+async function loadBuildings(bboxPixelCoords, bboxSize) {
     debugLog("=== Loading Buildings ===");
-    let bboxLatLongCoords = convertPixelCoordsToLatLong(tempBboxPixelCoords);
-    var bbox = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
-    var stringBBox = convertBBoxToString(bbox);
-    var overpassQuery = overpassURL + encodeURIComponent(
-        "(way[building](" + stringBBox + ");" +
-        "rel[building](" + stringBBox + "););" +
-        "out geom qt;>;"
-    );
-
-    const message = { overpassQuery };
+    const message = { overpassQuery: constructBuildingOverpassQuery(bboxPixelCoords, bboxSize) };
     if ('caches' in window) message.osmCacheName = osmCacheName;
     mainBuildingFetchWorker.postMessage(message);
 
@@ -43,15 +41,44 @@ async function loadBuildings(tempBboxPixelCoords, bboxSize) {
     });
 }
 
+/**
+ * Creates a string that is the building URL for the Overpass API query.
+ * @param bboxPixelCoords - The pixel coordinates of the bounding box.
+ * @param bboxSize - The size of the bounding box in metres.
+ * @returns A string that is the URL for the Overpass API query.
+ */
+function constructBuildingOverpassQuery(bboxPixelCoords, bboxSize) {
+    let bboxLatLongCoords = convertPixelCoordsToLatLong(bboxPixelCoords);
+    var bbox = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
+    var stringBBox = convertBBoxToString(bbox);
+    return overpassURL + encodeURIComponent(
+        "(way[building](" + stringBBox + ");" +
+        "rel[building](" + stringBBox + "););" +
+        "out geom qt;>;"
+    );
+}
+
+/**
+ * It takes a building feature from the OSM data and then creates
+ * an A-Frame entity with the appropriate geometry and material.
+ * @param feature - The building feature object from the GeoJSON file.
+ * @param parentElement - The parent element to append the building to.
+ * @returns A promise that resolves when the building has been added to the scene.
+ */
 async function addBuilding(feature, parentElement) {
-    return new Promise((resolve, reject) => {
+    return new Promise(resolve => {
         let tags = feature.properties;
         let height = getBuildingHeight(tags);
         let colour = getBuildingColour(tags);
         let coordinates = getBuildingCoordinates(feature.geometry.coordinates);
         let pixelCoords = convertLatLongToPixelCoords({ lat: coordinates.avgLat, long: coordinates.avgLong })
         let newBuilding = document.createElement('a-entity');
-        newBuilding.setAttribute("geometry", { primitive: "building", outerPoints: coordinates.outerPoints, innerPoints: coordinates.innerPoints, height: height });
+        newBuilding.setAttribute("geometry", {
+            primitive: "building",
+            outerPoints: coordinates.outerPoints,
+            innerPoints: coordinates.innerPoints,
+            height: height
+        });
         newBuilding.setAttribute("material", { roughness: "0.8", color: colour });
         newBuilding.object3D.scale.set(buildingScale, buildingHeightScale, buildingScale);
         newBuilding.object3D.position.set((pixelCoords.x * buildingCoordsScale), 0, (pixelCoords.y * buildingCoordsScale));
@@ -117,7 +144,6 @@ function getBuildingCoordinates(coordinatesOfBuilding) {
     return { outerPoints, innerPoints, avgLat: sumOfLatCoords / count, avgLong: sumOfLongCoords / count };
 }
 
-
 /**
  * Removes all the buildings from the scene
  */
@@ -126,46 +152,40 @@ function removeCurrentBuildings() {
 }
 
 /**
- * It takes a bounding box in pixel coordinates, converts it to latitude and longitude coordinates,
- * then converts it to a bounding box in latitude and longitude coordinates, then converts it to a
- * string, then makes an overpass query, then sends the query to the worker.
+ * Queries the Overpass API for buildings in the bounding box and stores the response in cache.
  * @param tempBboxPixelCoords - The pixel coordinates of the bounding box to be fetched.
- * @param bboxSize - The size of the bounding box in degrees.
+ * @param bboxSize - The size of the bounding box in metres.
  */
 function preloadBuildingChunk(tempBboxPixelCoords, bboxSize) {
-    let bboxLatLongCoords = convertPixelCoordsToLatLong(tempBboxPixelCoords);
-    let bbox = getBoundingBox(bboxLatLongCoords.lat, bboxLatLongCoords.long, bboxSize);
-    let stringBBox = convertBBoxToString(bbox);
-    let overpassQuery = overpassURL + encodeURIComponent(
-        "(way[building](" + stringBBox + ");" +
-        "rel[building](" + stringBBox + "););" +
-        "out geom qt;>;"
-    );
-    secondaryBuildingFetchWorker.postMessage({ overpassQuery, osmCacheName });
+    secondaryBuildingFetchWorker.postMessage({ overpassQuery: constructBuildingOverpassQuery(tempBboxPixelCoords, bboxSize), osmCacheName });
 }
 
+/* Creating a custom geometry for buildings. */
 AFRAME.registerGeometry('building', {
     schema: {
         outerPoints: {
-            default: [new THREE.Vector2(0, 0), new THREE.Vector2(0, 1), new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)],
+            default: [
+                new THREE.Vector2(0, 0), new THREE.Vector2(0, 1),
+                new THREE.Vector2(1, 0), new THREE.Vector2(1, 1)
+            ],
         },
-        innerPoints: {
-            default: [],
-        },
+        innerPoints: { default: [] },
         height: { type: 'number', default: buildingHeight },
     },
     init: function (data) {
         var shape = new THREE.Shape(data.outerPoints);
+        // Adding the holes to the shape.
         for (let point of data.innerPoints) shape.holes.push(new THREE.Path(point));
-        var geometry = new THREE.ExtrudeGeometry(shape, { depth: data.height + buildingHeightUnderGround, bevelEnabled: false });
-        // As Y is the coordinate going up, let's rotate by 90° to point Z up.
+        var geometry = new THREE.ExtrudeGeometry(shape, {
+            depth: data.height + buildingHeightUnderGround,
+            bevelEnabled: false
+        });
+        // Rotate the geometry so that it is facing the right way.
         geometry.rotateX(-Math.PI / 2);
-        // Rotate around Y and Z as well to make it show up correctly.
         geometry.rotateY(Math.PI);
         geometry.rotateZ(Math.PI);
-        // Now we would point under ground, move up the height, and any above-ground space as well.
+        // Move the geometry up so that the shape is at the correct height.
         geometry.translate(0, data.height, 0);
-        geometry.center;
         this.geometry = geometry;
     }
 });
